@@ -109,6 +109,9 @@
  */
 /* END USAGE */
 
+
+//TEST
+
 (() => {
   const DESIGN_W_DEFAULT = 1920;
   const DESIGN_H_DEFAULT = 1080;
