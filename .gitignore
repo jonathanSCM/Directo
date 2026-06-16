@@ -1,0 +1,23 @@
+# Entorno / secretos
+.env
+.env.local
+*.env.local
+
+# Dependencias
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build
+dist/
+build/
+.next/
+
+# Archivos subidos por usuarios
+uploads/
+
+# Sistema
+.DS_Store
+Thumbs.db

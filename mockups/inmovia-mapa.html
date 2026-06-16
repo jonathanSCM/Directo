@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inmóvia — Mapa de propiedades</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600&family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{ margin:0; padding:0; box-sizing:border-box; }
+:root{
+  --paper:#F4F1EA; --paper-2:#FBFAF6; --ink:#15120D; --ink-soft:#6E685A;
+  --blue:#0066FF; --blue-deep:#0049CC; --line:rgba(21,18,13,.14); --line-soft:rgba(21,18,13,.07);
+  --serif:'Fraunces',Georgia,serif; --sans:'Archivo',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+}
+html,body{ height:100%; }
+body{ font-family:var(--sans); background:var(--paper); color:var(--ink); line-height:1.4; -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; overflow:hidden; }
+.mono{ font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); }
+
+/* top bar */
+.bar{ display:flex; align-items:center; gap:16px; padding:13px 20px; border-bottom:1px solid var(--line); background:var(--paper); flex-shrink:0; z-index:1000; }
+.brand{ font-family:var(--serif); font-weight:600; font-size:21px; letter-spacing:-.02em; white-space:nowrap; }
+.brand b{ color:var(--blue); }
+.search{ flex:1; max-width:420px; display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:5px; background:var(--paper-2); padding:9px 14px; }
+.search i{ color:var(--ink-soft); font-size:16px; }
+.search input{ border:none; background:transparent; outline:none; font-family:var(--sans); font-size:14px; color:var(--ink); width:100%; }
+.chips{ display:flex; gap:7px; }
+.chip{ font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding:8px 12px; border:1px solid var(--line); border-radius:5px; background:var(--paper-2); color:var(--ink-soft); cursor:pointer; white-space:nowrap; display:flex; gap:6px; align-items:center; transition:.25s; }
+.chip:hover{ border-color:var(--blue); color:var(--blue); }
+.chip.on{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.toggle{ display:flex; border:1px solid var(--line); border-radius:5px; overflow:hidden; margin-left:auto; }
+.toggle button{ font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding:8px 14px; border:none; background:var(--paper-2); color:var(--ink-soft); cursor:pointer; }
+.toggle button.on{ background:var(--blue); color:#fff; }
+
+/* body */
+.body{ flex:1; display:flex; min-height:0; }
+#map{ flex:1; background:#E7E4DB; }
+
+/* leaflet overrides */
+.leaflet-container{ font-family:var(--mono); background:#E7E4DB; }
+.leaflet-control-zoom{ border:1px solid var(--line)!important; box-shadow:0 4px 14px rgba(21,18,13,.08)!important; border-radius:5px!important; overflow:hidden; }
+.leaflet-control-zoom a{ background:rgba(251,250,246,.96)!important; color:var(--ink)!important; border:none!important; }
+.leaflet-control-zoom a:hover{ background:#fff!important; color:var(--blue)!important; }
+.leaflet-control-attribution{ font-family:var(--mono)!important; font-size:9px!important; background:rgba(244,241,234,.8)!important; color:var(--ink-soft)!important; }
+.leaflet-bar a{ border-radius:0; }
+
+/* price markers */
+.pin{ background:var(--blue); color:#fff; font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.02em; padding:6px 10px; border-radius:20px; white-space:nowrap; box-shadow:0 4px 12px rgba(0,102,255,.35); position:relative; transition:transform .15s, background .2s; cursor:pointer; }
+.pin::after{ content:""; position:absolute; left:50%; bottom:-5px; transform:translateX(-50%); border-left:5px solid transparent; border-right:5px solid transparent; border-top:6px solid var(--blue); }
+.pin:hover{ transform:scale(1.08); z-index:600; }
+.pin.active{ background:var(--ink); box-shadow:0 6px 18px rgba(21,18,13,.4); z-index:650; }
+.pin.active::after{ border-top-color:var(--ink); }
+.leaflet-marker-icon .pin{ display:inline-block; }
+
+/* float panel: move toggle + count */
+.move-toggle{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:600; background:rgba(251,250,246,.95); border:1px solid var(--line); border-radius:30px; padding:8px 14px; display:flex; gap:9px; align-items:center; box-shadow:0 4px 14px rgba(21,18,13,.08); cursor:pointer; }
+.move-toggle .mono{ color:var(--ink); }
+.sw{ width:30px; height:16px; border-radius:10px; background:var(--blue); position:relative; transition:background .2s; }
+.sw::after{ content:""; position:absolute; width:12px; height:12px; border-radius:50%; background:#fff; top:2px; right:2px; transition:.2s; }
+.sw.off{ background:#cfcabb; }
+.sw.off::after{ right:auto; left:2px; }
+.areacount{ position:absolute; left:14px; bottom:22px; z-index:600; background:var(--ink); color:var(--paper); padding:9px 14px; border-radius:5px; box-shadow:0 4px 14px rgba(21,18,13,.18); }
+.areacount .mono{ color:var(--paper); }
+
+/* sidebar */
+.side{ width:340px; border-left:1px solid var(--line); background:var(--paper); display:flex; flex-direction:column; flex-shrink:0; }
+.side-head{ padding:15px 20px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+.side-head b{ font-family:var(--serif); font-weight:600; font-size:18px; }
+.side-head .mono{ display:block; margin-top:3px; }
+.sort{ font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); display:flex; gap:6px; align-items:center; cursor:pointer; }
+.list{ overflow-y:auto; flex:1; }
+.list::-webkit-scrollbar{ width:6px; }
+.list::-webkit-scrollbar-thumb{ background:rgba(21,18,13,.18); border-radius:3px; }
+.pcard{ display:flex; gap:14px; padding:15px 20px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .2s; position:relative; }
+.pcard:hover{ background:var(--paper-2); }
+.pcard.active{ background:var(--paper-2); }
+.pcard.active::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--blue); }
+.thumb{ width:92px; height:92px; border-radius:5px; flex-shrink:0; position:relative; overflow:hidden; border:1px solid var(--line); }
+.thumb .tk{ position:absolute; width:9px; height:9px; border:1px solid rgba(255,255,255,.6); top:7px; left:7px; border-right:none; border-bottom:none; }
+.thumb i{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:40px; color:rgba(255,255,255,.18); }
+.pinfo{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.ptag{ font-family:var(--mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--blue); }
+.ptitle{ font-family:var(--serif); font-weight:500; font-size:16px; letter-spacing:-.01em; margin:3px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ploc{ font-family:var(--mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); }
+.pspecs{ font-family:var(--mono); font-size:10px; color:var(--ink-soft); margin-top:auto; padding-top:7px; }
+.pprice{ font-family:var(--serif); font-weight:600; font-size:19px; margin-top:5px; }
+.pprice small{ font-family:var(--mono); font-size:11px; color:var(--ink-soft); }
+
+@media(max-width:760px){ .side{ display:none; } .chips{ display:none; } }
+</style>
+</head>
+<body>
+
+  <div class="bar">
+    <div class="brand">Inmó<b>via</b></div>
+    <div class="search"><i class="ti ti-search"></i><input placeholder="La Paz · Zona Sur, Calacoto, Sopocachi…"></div>
+    <div class="chips">
+      <div class="chip on">Comprar <i class="ti ti-chevron-down"></i></div>
+      <div class="chip">Precio <i class="ti ti-chevron-down"></i></div>
+      <div class="chip">Tipo <i class="ti ti-chevron-down"></i></div>
+      <div class="chip">Dorm. <i class="ti ti-chevron-down"></i></div>
+    </div>
+    <div class="toggle"><button class="on">Mapa</button><button>Lista</button></div>
+  </div>
+
+  <div class="body">
+    <div id="map">
+      <div class="move-toggle"><span class="sw" id="sw"></span><span class="mono">Buscar al mover el mapa</span></div>
+      <div class="areacount"><span class="mono" id="areacount">7 propiedades en esta área</span></div>
+    </div>
+
+    <div class="side">
+      <div class="side-head">
+        <div><b id="resCount">7 propiedades</b><span class="mono">La Paz · en venta</span></div>
+        <div class="sort">Relevancia <i class="ti ti-arrows-sort"></i></div>
+      </div>
+      <div class="list" id="list"></div>
+    </div>
+  </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+var PROPS = [
+  { id:1, tag:"En venta · Casa",     title:"Residencia con piscina", loc:"La Florida",  price:"$220,000", unit:"USD",  specs:"4 dorm · 3 baños · 280 m²", lat:-16.5448, lng:-68.0725, grad:["#283650","#6c83ab"], icon:"ti-building-estate", pin:"$220K" },
+  { id:2, tag:"Alquiler · Depto",    title:"Departamento Calacoto",  loc:"Calacoto",    price:"$1,200",   unit:"/mes", specs:"2 dorm · 1 baño · 95 m²",  lat:-16.5390, lng:-68.0790, grad:["#2f3d57","#5a72a0"], icon:"ti-building-skyscraper", pin:"$1,200/m" },
+  { id:3, tag:"En venta · Terreno",  title:"Terreno Cota Cota",      loc:"Cota Cota",   price:"$95,000",  unit:"USD",  specs:"1,500 m² · construible",   lat:-16.5660, lng:-68.0600, grad:["#3a4632","#76886a"], icon:"ti-trees", pin:"$95K" },
+  { id:4, tag:"En venta · Casa",     title:"Casa Obrajes",           loc:"Obrajes",     price:"$280,000", unit:"USD",  specs:"5 dorm · 4 baños · 350 m²", lat:-16.5270, lng:-68.0980, grad:["#4a3b32","#9c7a64"], icon:"ti-home-2", pin:"$280K" },
+  { id:5, tag:"Alquiler · Depto",    title:"Penthouse San Miguel",   loc:"San Miguel",  price:"$1,450",   unit:"/mes", specs:"3 dorm · 2 baños · 140 m²", lat:-16.5405, lng:-68.0850, grad:["#3d3a4e","#7d78a0"], icon:"ti-building-community", pin:"$1,450/m" },
+  { id:6, tag:"En venta · Depto",    title:"Loft Sopocachi",         loc:"Sopocachi",   price:"$168,000", unit:"USD",  specs:"2 dorm · 2 baños · 110 m²", lat:-16.5085, lng:-68.1300, grad:["#34404f","#6f8298"], icon:"ti-building", pin:"$168K" },
+  { id:7, tag:"En venta · Terreno",  title:"Terreno Achumani",       loc:"Achumani",    price:"$92,000",  unit:"USD",  specs:"900 m² · esquina",         lat:-16.5550, lng:-68.0650, grad:["#404433","#7c8061"], icon:"ti-map-2", pin:"$92K" }
+];
+
+var map = L.map('map', { zoomControl:false, attributionControl:true }).setView([-16.538, -68.085], 13);
+L.control.zoom({ position:'topright' }).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution:'© Inmóvia · OpenStreetMap · CARTO', subdomains:'abcd', maxZoom:19
+}).addTo(map);
+
+var markers = {}, cards = {};
+var listEl = document.getElementById('list');
+
+function setActive(id){
+  Object.keys(markers).forEach(function(k){
+    var el = markers[k].getElement(); if(el){ el.querySelector('.pin').classList.toggle('active', k==id); }
+    cards[k].classList.toggle('active', k==id);
+  });
+}
+
+PROPS.forEach(function(p){
+  var icon = L.divIcon({ className:'', html:'<div class="pin">'+p.pin+'</div>', iconSize:null, iconAnchor:[0,0] });
+  var m = L.marker([p.lat, p.lng], { icon:icon }).addTo(map);
+  m.on('click', function(){ setActive(p.id); cards[p.id].scrollIntoView({behavior:'smooth', block:'center'}); });
+  markers[p.id] = m;
+
+  var card = document.createElement('div');
+  card.className = 'pcard';
+  card.innerHTML =
+    '<div class="thumb" style="background:linear-gradient(155deg,'+p.grad[0]+','+p.grad[1]+')"><span class="tk"></span><i class="ti '+p.icon+'"></i></div>'+
+    '<div class="pinfo"><span class="ptag">'+p.tag+'</span><div class="ptitle">'+p.title+'</div>'+
+    '<div class="ploc">'+p.loc+'</div><div class="pspecs">'+p.specs+'</div>'+
+    '<div class="pprice">'+p.price+' <small>'+p.unit+'</small></div></div>';
+  card.addEventListener('click', function(){ setActive(p.id); map.flyTo([p.lat, p.lng], 15, {duration:.8}); });
+  card.addEventListener('mouseenter', function(){
+    var el = markers[p.id].getElement(); if(el) el.querySelector('.pin').classList.add('active');
+  });
+  card.addEventListener('mouseleave', function(){
+    if(!card.classList.contains('active')){ var el = markers[p.id].getElement(); if(el) el.querySelector('.pin').classList.remove('active'); }
+  });
+  listEl.appendChild(card);
+  cards[p.id] = card;
+});
+
+setActive(1);
+
+document.getElementById('sw').addEventListener('click', function(){ this.classList.toggle('off'); });
+</script>
+</body>
+</html>

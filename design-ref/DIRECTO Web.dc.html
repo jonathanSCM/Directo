@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>
+*{ box-sizing:border-box; }
+body{ margin:0; background:#E5E8EF; -webkit-font-smoothing:antialiased; }
+.ti{ font-size:inherit; line-height:1; }
+.dz::-webkit-scrollbar{ width:9px; height:9px; }
+.dz::-webkit-scrollbar-thumb{ background:#D2D9E6; border-radius:5px; border:2px solid transparent; background-clip:padding-box; }
+.dz::-webkit-scrollbar-track{ background:transparent; }
+</style>
+</helmet>
+
+<div style="min-height:100vh; width:100%; background:radial-gradient(1200px 800px at 50% -8%, #DCE6FF 0%, #E9ECF3 45%, #E5E8EF 100%); padding:30px 24px 60px; font-family:'Plus Jakarta Sans',system-ui,sans-serif;">
+
+  <!-- header + screen switcher -->
+  <div style="max-width:1440px; margin:0 auto 22px; display:flex; align-items:center; justify-content:space-between;">
+    <div style="display:flex; align-items:center; gap:11px;">
+      <img src="assets/mark.png" alt="DIRECTO" style="width:34px; height:34px;">
+      <div>
+        <div style="font-size:18px; font-weight:800; letter-spacing:-.03em; color:#0B1220; line-height:1;">DIRECTO</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; color:#6A748C; margin-top:3px;">Versión escritorio</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:5px; background:#fff; border:1px solid #E1E6EF; border-radius:13px; padding:5px; box-shadow:0 2px 10px rgba(11,18,32,.05);">
+      <sc-for list="{{ screenTabs }}" as="t" hint-placeholder-count="3">
+        <button onClick="{{ t.go }}" style="border:none; cursor:pointer; font-family:inherit; font-size:13px; font-weight:600; padding:9px 16px; border-radius:9px; display:flex; align-items:center; gap:7px; background:{{ t.bg }}; color:{{ t.fg }};"><i class="ti {{ t.icon }}" style="font-size:16px;"></i>{{ t.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- browser window -->
+  <div style="max-width:1440px; margin:0 auto; border-radius:16px; overflow:hidden; box-shadow:0 40px 90px rgba(11,18,32,.22), 0 0 0 1px rgba(11,18,32,.06); background:#fff;">
+    <!-- chrome -->
+    <div style="height:46px; background:#EDEFF3; border-bottom:1px solid #DFE3EA; display:flex; align-items:center; padding:0 16px; gap:14px;">
+      <div style="display:flex; gap:8px;"><span style="width:12px; height:12px; border-radius:50%; background:#FF5F57;"></span><span style="width:12px; height:12px; border-radius:50%; background:#FEBC2E;"></span><span style="width:12px; height:12px; border-radius:50%; background:#28C840;"></span></div>
+      <div style="display:flex; gap:6px; margin-left:4px; color:#9AA3B2;"><i class="ti ti-chevron-left" style="font-size:18px;"></i><i class="ti ti-chevron-right" style="font-size:18px;"></i></div>
+      <div style="flex:1; height:30px; background:#fff; border-radius:9px; border:1px solid #E1E5EC; display:flex; align-items:center; gap:9px; padding:0 13px; max-width:620px; margin:0 auto;">
+        <i class="ti ti-lock" style="font-size:13px; color:#14A06B;"></i>
+        <span style="font-size:12.5px; color:#39435A; font-family:'JetBrains Mono',monospace;">directo.bo{{ urlPath }}</span>
+        <i class="ti ti-star" style="font-size:14px; color:#C2C9D6; margin-left:auto;"></i>
+      </div>
+      <div style="display:flex; gap:14px; color:#9AA3B2;"><i class="ti ti-refresh" style="font-size:15px;"></i><i class="ti ti-dots-vertical" style="font-size:16px;"></i></div>
+    </div>
+
+    <!-- app top nav -->
+    <div style="height:68px; border-bottom:1px solid #EEF1F6; display:flex; align-items:center; padding:0 26px; gap:26px; background:#fff;">
+      <div onClick="{{ goSearch }}" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+        <img src="assets/mark.png" alt="" style="width:30px; height:30px;">
+        <span style="font-size:20px; font-weight:800; letter-spacing:-.03em; color:#0B1220;">DIRECTO</span>
+      </div>
+      <div style="flex:1;"></div>
+      <button onClick="{{ goSeller }}" style="border:1.5px solid #005CF7; background:#fff; cursor:pointer; font-family:inherit; font-size:13.5px; font-weight:700; color:#005CF7; height:42px; padding:0 18px; border-radius:12px; display:flex; align-items:center; gap:8px;"><i class="ti ti-plus" style="font-size:18px;"></i>Publicar propiedad</button>
+      <div style="width:42px; height:42px; border-radius:12px; background:#F0F3F8; display:flex; align-items:center; justify-content:center; font-size:20px; color:#39435A; cursor:pointer; position:relative;"><i class="ti ti-bell"></i><span style="position:absolute; top:9px; right:10px; width:8px; height:8px; border-radius:50%; background:#FF4D67; border:1.5px solid #F0F3F8;"></span></div>
+      <div style="display:flex; align-items:center; gap:9px; cursor:pointer;">
+        <div style="width:42px; height:42px; border-radius:12px; background:linear-gradient(140deg,#0A6BFF,#0046C4); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px;">CM</div>
+        <i class="ti ti-chevron-down" style="font-size:16px; color:#8A93A6;"></i>
+      </div>
+    </div>
+
+    <!-- ============ SEARCH (split view) ============ -->
+    <sc-if value="{{ isSearch }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <!-- filter bar -->
+        <div style="height:64px; border-bottom:1px solid #EEF1F6; display:flex; align-items:center; padding:0 26px; gap:11px; background:#FBFCFE;">
+          <div style="display:flex; align-items:center; gap:9px; height:42px; background:#fff; border:1px solid #E1E6EF; border-radius:12px; padding:0 14px; min-width:300px;">
+            <i class="ti ti-search" style="font-size:18px; color:#99A2B5;"></i>
+            <span style="font-size:14px; color:#39435A; font-weight:500;">Santa Cruz de la Sierra</span>
+            <i class="ti ti-x" style="font-size:15px; color:#C2C9D6; margin-left:auto;"></i>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <sc-for list="{{ opChips }}" as="c" hint-placeholder-count="4">
+              <button onClick="{{ c.on }}" style="height:42px; padding:0 16px; border-radius:12px; border:1px solid {{ c.bd }}; background:{{ c.bg }}; color:{{ c.fg }}; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer;">{{ c.label }}</button>
+            </sc-for>
+          </div>
+          <div style="width:1px; height:28px; background:#E7EBF2;"></div>
+          <button style="height:42px; padding:0 15px; border-radius:12px; border:1px solid #E1E6EF; background:#fff; color:#39435A; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:7px;">Precio<i class="ti ti-chevron-down" style="font-size:15px; color:#99A2B5;"></i></button>
+          <button style="height:42px; padding:0 15px; border-radius:12px; border:1px solid #E1E6EF; background:#fff; color:#39435A; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:7px;">Tipo<i class="ti ti-chevron-down" style="font-size:15px; color:#99A2B5;"></i></button>
+          <button style="height:42px; padding:0 15px; border-radius:12px; border:1px solid #E1E6EF; background:#fff; color:#39435A; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:7px;">Dormitorios<i class="ti ti-chevron-down" style="font-size:15px; color:#99A2B5;"></i></button>
+          <div style="flex:1;"></div>
+          <button style="height:42px; padding:0 16px; border-radius:12px; border:1px solid #005CF7; background:#EAF1FF; color:#005CF7; font-family:inherit; font-size:13.5px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px;"><i class="ti ti-adjustments-horizontal" style="font-size:17px;"></i>Más filtros</button>
+        </div>
+
+        <!-- split -->
+        <div style="display:flex; height:760px;">
+          <!-- list -->
+          <div id="dw-list" style="width:38%; min-width:392px; overflow-y:auto; padding:20px 24px 30px;" class="dz">
+            <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:16px;">
+              <div>
+                <h1 style="margin:0; font-size:24px; font-weight:800; letter-spacing:-.03em; color:#0B1220;">Propiedades en venta</h1>
+                <div style="font-size:13.5px; color:#8A93A6; margin-top:3px;">{{ resultCount }} resultados en Santa Cruz de la Sierra</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#6A748C;">Ordenar:<button style="border:1px solid #E1E6EF; background:#fff; border-radius:10px; height:38px; padding:0 13px; font-family:inherit; font-size:13px; font-weight:600; color:#39435A; cursor:pointer; display:flex; align-items:center; gap:7px;">Más recientes<i class="ti ti-chevron-down" style="font-size:15px; color:#99A2B5;"></i></button></div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr; gap:16px;">
+              <sc-for list="{{ cards }}" as="p" hint-placeholder-count="6">
+                <div onClick="{{ p.open }}" onMouseEnter="{{ p.hover }}" data-pid="{{ p.id }}" style="background:#fff; border-radius:16px; overflow:hidden; border:1.5px solid {{ p.bd }}; cursor:pointer; box-shadow:{{ p.shadow }}; transition:border-color .15s, box-shadow .15s;">
+                  <div style="height:172px; position:relative; background:{{ p.photo }};">
+                    <span style="position:absolute; top:11px; left:11px; font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; font-weight:600; color:#fff; background:{{ p.opColor }}; padding:4px 9px; border-radius:8px;">{{ p.opLabel }}</span>
+                    <div onClick="{{ p.fav }}" style="position:absolute; top:9px; right:9px; width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,.92); display:flex; align-items:center; justify-content:center; font-size:17px; color:{{ p.heartColor }};"><i class="ti {{ p.heart }}"></i></div>
+                    <span style="position:absolute; bottom:11px; right:11px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#fff; background:rgba(0,0,0,.42); padding:3px 8px; border-radius:7px;"><i class="ti ti-camera" style="font-size:11px;"></i> {{ p.photos }}</span>
+                  </div>
+                  <div style="padding:13px 15px 15px;">
+                    <div style="display:flex; align-items:baseline; justify-content:space-between;"><span style="font-size:20px; font-weight:800; letter-spacing:-.02em; color:#0B1220;">{{ p.price }} <span style="font-size:12px; font-weight:600; color:#8A93A6;">{{ p.period }}</span></span><span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#8A93A6;">{{ p.type }}</span></div>
+                    <div style="font-weight:700; font-size:15px; margin-top:4px; color:#0B1220;">{{ p.title }}</div>
+                    <div style="font-size:12.5px; color:#8A93A6; display:flex; align-items:center; gap:3px; margin-top:2px;"><i class="ti ti-map-pin" style="font-size:13px;"></i>{{ p.zone }}</div>
+                    <div style="display:flex; gap:14px; margin-top:11px; padding-top:11px; border-top:1px solid #F0F3F8; font-size:12.5px; color:#4A5468;">
+                      <span style="display:flex; align-items:center; gap:5px;"><i class="ti ti-bed" style="font-size:16px; color:#005CF7;"></i>{{ p.beds }}</span>
+                      <span style="display:flex; align-items:center; gap:5px;"><i class="ti ti-bath" style="font-size:16px; color:#005CF7;"></i>{{ p.baths }}</span>
+                      <span style="display:flex; align-items:center; gap:5px;"><i class="ti ti-ruler-2" style="font-size:16px; color:#005CF7;"></i>{{ p.area }}</span>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- map -->
+          <div style="flex:1; position:relative; border-left:1px solid #EEF1F6;">
+            <dc-import name="DirectoMap" data="{{ searchMap }}" hint-size="100%,100%"></dc-import>
+            <div style="position:absolute; top:16px; left:16px; background:#fff; border-radius:11px; padding:9px 14px; box-shadow:0 4px 14px rgba(11,18,32,.12); display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#39435A;"><i class="ti ti-map-2" style="font-size:17px; color:#005CF7;"></i>{{ resultCount }} en el mapa</div>
+            <div style="position:absolute; top:16px; right:16px; display:flex; flex-direction:column; background:#fff; border-radius:11px; overflow:hidden; box-shadow:0 4px 14px rgba(11,18,32,.12);"><div style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; font-size:19px; color:#0B1220; border-bottom:1px solid #EEF1F6; cursor:pointer;"><i class="ti ti-plus"></i></div><div style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; font-size:19px; color:#0B1220; cursor:pointer;"><i class="ti ti-minus"></i></div></div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ DETAIL ============ -->
+    <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+      <div style="height:824px; overflow-y:auto;" class="dz">
+        <div style="padding:18px 40px 12px;">
+          <div onClick="{{ goSearch }}" style="display:inline-flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; color:#6A748C; cursor:pointer;"><i class="ti ti-chevron-left" style="font-size:17px;"></i>Volver a resultados</div>
+        </div>
+
+        <!-- gallery -->
+        <div style="padding:0 40px; display:grid; grid-template-columns:2fr 1fr 1fr; grid-template-rows:200px 200px; gap:10px; height:410px;">
+          <div style="grid-row:1 / 3; border-radius:18px 0 0 18px; position:relative; background:{{ active.photo }};">
+            <span style="position:absolute; top:14px; left:14px; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase; font-weight:600; color:#fff; background:{{ active.opColor }}; padding:5px 11px; border-radius:9px;">{{ active.opLabel }}</span>
+          </div>
+          <div style="border-radius:0; background:{{ active.photo2 }};"></div>
+          <div style="border-radius:0 18px 0 0; background:{{ active.photo3 }};"></div>
+          <div style="background:{{ active.photo4 }};"></div>
+          <div style="border-radius:0 0 18px 0; position:relative; background:{{ active.photo5 }};">
+            <div style="position:absolute; inset:0; background:rgba(11,18,32,.5); border-radius:0 0 18px 0; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; gap:7px; cursor:pointer;"><i class="ti ti-photo" style="font-size:19px;"></i>+{{ active.morePhotos }} fotos</div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:34px; padding:26px 40px 50px;">
+          <!-- left column -->
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:center; gap:9px;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase; font-weight:600; color:#fff; background:{{ active.opColor }}; padding:4px 10px; border-radius:8px;">{{ active.opLabel }}</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase; font-weight:600; color:#39435A; background:#F0F3F8; padding:4px 10px; border-radius:8px;">{{ active.type }}</span>
+            </div>
+            <h1 style="margin:13px 0 3px; font-size:30px; font-weight:800; letter-spacing:-.03em; line-height:1.08; color:#0B1220;">{{ active.title }}</h1>
+            <div style="font-size:14.5px; color:#6A748C; display:flex; align-items:center; gap:5px;"><i class="ti ti-map-pin" style="font-size:16px;"></i>{{ active.address }}</div>
+
+            <div style="display:flex; gap:12px; margin-top:24px;">
+              <div style="flex:1; background:#F6F8FC; border-radius:15px; padding:15px;"><i class="ti ti-bed" style="font-size:22px; color:#005CF7;"></i><div style="font-weight:800; font-size:19px; margin-top:6px; color:#0B1220;">{{ active.beds }}</div><div style="font-size:12px; color:#8A93A6;">Dormitorios</div></div>
+              <div style="flex:1; background:#F6F8FC; border-radius:15px; padding:15px;"><i class="ti ti-bath" style="font-size:22px; color:#005CF7;"></i><div style="font-weight:800; font-size:19px; margin-top:6px; color:#0B1220;">{{ active.baths }}</div><div style="font-size:12px; color:#8A93A6;">Baños</div></div>
+              <div style="flex:1; background:#F6F8FC; border-radius:15px; padding:15px;"><i class="ti ti-ruler-2" style="font-size:22px; color:#005CF7;"></i><div style="font-weight:800; font-size:19px; margin-top:6px; color:#0B1220;">{{ active.area }}</div><div style="font-size:12px; color:#8A93A6;">Superficie</div></div>
+              <div style="flex:1; background:#F6F8FC; border-radius:15px; padding:15px;"><i class="ti ti-car-garage" style="font-size:22px; color:#005CF7;"></i><div style="font-weight:800; font-size:19px; margin-top:6px; color:#0B1220;">{{ active.garage }}</div><div style="font-size:12px; color:#8A93A6;">Garajes</div></div>
+            </div>
+
+            <h3 style="margin:30px 0 10px; font-size:18px; font-weight:800; color:#0B1220;">Descripción</h3>
+            <p style="margin:0; font-size:15px; line-height:1.65; color:#4A5468; max-width:640px;">{{ active.desc }}</p>
+
+            <h3 style="margin:30px 0 12px; font-size:18px; font-weight:800; color:#0B1220;">Características</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:11px; max-width:640px;">
+              <sc-for list="{{ active.features }}" as="f" hint-placeholder-count="6">
+                <div style="display:flex; align-items:center; gap:9px; font-size:14px; font-weight:500; color:#39435A;"><div style="width:34px; height:34px; border-radius:10px; background:#EAF1FF; display:flex; align-items:center; justify-content:center; font-size:17px; color:#005CF7;"><i class="ti {{ f.icon }}"></i></div>{{ f.label }}</div>
+              </sc-for>
+            </div>
+
+            <h3 style="margin:30px 0 12px; font-size:18px; font-weight:800; color:#0B1220;">Ubicación</h3>
+            <div style="height:260px; border-radius:18px; overflow:hidden; position:relative; border:1px solid #E7EBF2; max-width:640px;">
+              <dc-import name="DirectoMap" data="{{ detailMap }}" hint-size="100%,100%"></dc-import>
+            </div>
+            <div style="font-size:13px; color:#8A93A6; margin-top:9px; display:flex; align-items:center; gap:5px;"><i class="ti ti-info-circle" style="font-size:15px;"></i>Ubicación aproximada por privacidad del propietario.</div>
+          </div>
+
+          <!-- right sticky contact -->
+          <div style="width:344px; flex-shrink:0;">
+            <div style="position:sticky; top:0; background:#fff; border:1px solid #E7EBF2; border-radius:20px; padding:22px; box-shadow:0 10px 30px rgba(11,18,32,.07);">
+              <div style="font-size:32px; font-weight:800; letter-spacing:-.03em; color:#0B1220;">{{ active.price }} <span style="font-size:15px; font-weight:600; color:#8A93A6;">{{ active.priceNote }}</span></div>
+              <div style="font-size:13px; color:#8A93A6; margin-top:3px;">{{ active.pricePerM2 }}</div>
+
+              <div style="display:flex; align-items:center; gap:13px; margin:20px 0; padding:14px; border:1px solid #EEF1F6; border-radius:15px;">
+                <div style="width:52px; height:52px; border-radius:14px; background:linear-gradient(140deg,#0A6BFF,#0046C4); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:19px;">{{ active.seller.initials }}</div>
+                <div style="flex:1;"><div style="font-weight:700; font-size:15px; color:#0B1220;">{{ active.seller.name }}</div><div style="font-size:12.5px; color:#8A93A6; display:flex; align-items:center; gap:4px;"><i class="ti ti-star-filled" style="font-size:13px; color:#E8910C;"></i>{{ active.seller.rating }} · {{ active.seller.since }}</div></div>
+              </div>
+
+              <button style="width:100%; height:52px; border-radius:14px; border:none; background:#005CF7; color:#fff; font-family:inherit; font-weight:700; font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px; box-shadow:0 10px 24px rgba(0,92,247,.3);"><i class="ti ti-calendar-event" style="font-size:20px;"></i>Solicitar visita</button>
+              <button style="width:100%; height:52px; border-radius:14px; border:1.5px solid #005CF7; background:#fff; color:#005CF7; font-family:inherit; font-weight:700; font-size:15px; cursor:pointer; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:9px;"><i class="ti ti-message-2" style="font-size:20px;"></i>Enviar mensaje</button>
+              <button style="width:100%; height:48px; border-radius:14px; border:1px solid #E7EBF2; background:#fff; color:#39435A; font-family:inherit; font-weight:600; font-size:14px; cursor:pointer; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:8px;"><i class="ti ti-phone" style="font-size:18px;"></i>Ver teléfono</button>
+
+              <div style="display:flex; gap:9px; margin-top:16px; padding-top:16px; border-top:1px solid #F0F3F8;">
+                <button onClick="{{ active.fav }}" style="flex:1; height:42px; border-radius:11px; border:1px solid #E7EBF2; background:#fff; color:{{ active.heartColor }}; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px;"><i class="ti {{ active.heart }}" style="font-size:17px;"></i>Guardar</button>
+                <button style="flex:1; height:42px; border-radius:11px; border:1px solid #E7EBF2; background:#fff; color:#39435A; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px;"><i class="ti ti-share-2" style="font-size:17px;"></i>Compartir</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ SELLER DASHBOARD ============ -->
+    <sc-if value="{{ isSeller }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex; height:824px;">
+        <!-- sidebar -->
+        <div style="width:236px; flex-shrink:0; border-right:1px solid #EEF1F6; padding:22px 16px; background:#FBFCFE;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.14em; color:#8A93A6; text-transform:uppercase; padding:0 12px 12px;">Modo Vendedor</div>
+          <sc-for list="{{ sellerNav }}" as="n" hint-placeholder-count="5">
+            <div style="display:flex; align-items:center; gap:12px; height:44px; padding:0 12px; border-radius:12px; font-size:14px; font-weight:600; cursor:pointer; background:{{ n.bg }}; color:{{ n.fg }}; margin-bottom:3px;"><i class="ti {{ n.icon }}" style="font-size:20px;"></i>{{ n.label }}<span style="{{ n.badgeStyle }}">{{ n.badge }}</span></div>
+          </sc-for>
+          <div style="margin-top:18px; background:linear-gradient(150deg,#0A6BFF,#0046C4); border-radius:16px; padding:16px; color:#fff; position:relative; overflow:hidden;">
+            <img src="assets/mark-w.png" alt="" style="position:absolute; right:-22px; top:-22px; width:104px; height:104px; opacity:.13;">
+            <div style="font-size:11.5px; color:rgba(255,255,255,.8);">Plan actual</div>
+            <div style="font-size:17px; font-weight:800; margin-top:2px;">DIRECTO Pro</div>
+            <div style="font-size:12px; color:rgba(255,255,255,.82); margin-top:8px;">2 de 5 publicaciones</div>
+            <div style="height:5px; border-radius:3px; background:rgba(255,255,255,.25); margin-top:7px;"><div style="width:40%; height:100%; border-radius:3px; background:#fff;"></div></div>
+          </div>
+        </div>
+
+        <!-- main -->
+        <div style="flex:1; overflow-y:auto; padding:26px 32px 40px;" class="dz">
+          <div style="display:flex; align-items:flex-end; justify-content:space-between;">
+            <div><h1 style="margin:0; font-size:26px; font-weight:800; letter-spacing:-.03em; color:#0B1220;">Panel de control</h1><div style="font-size:14px; color:#8A93A6; margin-top:3px;">Resumen de tus publicaciones y actividad</div></div>
+            <button style="height:46px; padding:0 20px; border-radius:13px; border:none; background:#005CF7; color:#fff; font-family:inherit; font-weight:700; font-size:14.5px; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 8px 20px rgba(0,92,247,.3);"><i class="ti ti-plus" style="font-size:20px;"></i>Nueva publicación</button>
+          </div>
+
+          <!-- metrics -->
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:22px;">
+            <sc-for list="{{ metrics }}" as="m" hint-placeholder-count="4">
+              <div style="background:#fff; border:1px solid #EEF1F6; border-radius:16px; padding:18px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;"><div style="width:40px; height:40px; border-radius:11px; background:{{ m.iconBg }}; display:flex; align-items:center; justify-content:center; font-size:20px; color:{{ m.iconFg }};"><i class="ti {{ m.icon }}"></i></div><span style="font-size:12px; font-weight:700; color:{{ m.trendColor }};">{{ m.trend }}</span></div>
+                <div style="font-size:28px; font-weight:800; letter-spacing:-.02em; margin-top:14px; color:#0B1220;">{{ m.value }}</div>
+                <div style="font-size:13px; color:#8A93A6;">{{ m.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex; gap:18px; margin-top:18px;">
+            <!-- chart -->
+            <div style="flex:1.5; background:#fff; border:1px solid #EEF1F6; border-radius:18px; padding:20px;">
+              <div style="display:flex; align-items:baseline; justify-content:space-between;"><span style="font-size:15px; font-weight:800; color:#0B1220;">Visitas a tus propiedades</span><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#14A06B;">▲ 18% vs. semana previa</span></div>
+              <div style="display:flex; align-items:flex-end; gap:14px; height:180px; margin-top:22px;">
+                <sc-for list="{{ chartBars }}" as="b" hint-placeholder-count="7">
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:9px; height:100%; justify-content:flex-end;">
+                    <div style="width:100%; max-width:42px; height:{{ b.h }}; border-radius:8px 8px 4px 4px; background:{{ b.bg }};"></div>
+                    <span style="font-size:11px; color:#A4ADBF; font-family:'JetBrains Mono',monospace;">{{ b.day }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <!-- recent leads -->
+            <div style="flex:1; background:#fff; border:1px solid #EEF1F6; border-radius:18px; padding:20px;">
+              <div style="font-size:15px; font-weight:800; color:#0B1220;">Interesados recientes</div>
+              <div style="margin-top:14px; display:flex; flex-direction:column; gap:14px;">
+                <sc-for list="{{ leads }}" as="l" hint-placeholder-count="3">
+                  <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:42px; height:42px; border-radius:12px; background:{{ l.color }}; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:14px;">{{ l.initials }}</div>
+                    <div style="flex:1; min-width:0;"><div style="font-weight:700; font-size:13.5px; color:#0B1220;">{{ l.name }}</div><div style="font-size:12px; color:#8A93A6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ l.note }}</div></div>
+                    <span style="{{ l.tagStyle }}">{{ l.tag }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <!-- my properties table -->
+          <div style="margin-top:18px; background:#fff; border:1px solid #EEF1F6; border-radius:18px; overflow:hidden;">
+            <div style="padding:18px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #EEF1F6;"><span style="font-size:15px; font-weight:800; color:#0B1220;">Mis propiedades</span><span style="font-size:13px; font-weight:600; color:#005CF7; cursor:pointer;">Ver todas</span></div>
+            <div style="display:grid; grid-template-columns:2.4fr 1fr 1fr 1fr 1fr 40px; padding:11px 20px; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:#A4ADBF; font-weight:600; border-bottom:1px solid #F4F6FA;">
+              <span>Propiedad</span><span>Estado</span><span>Vistas</span><span>Mensajes</span><span>Visitas</span><span></span>
+            </div>
+            <sc-for list="{{ myProps }}" as="p" hint-placeholder-count="3">
+              <div style="display:grid; grid-template-columns:2.4fr 1fr 1fr 1fr 1fr 40px; padding:13px 20px; align-items:center; border-bottom:1px solid #F4F6FA; cursor:pointer;">
+                <div style="display:flex; align-items:center; gap:12px; min-width:0;"><div style="width:52px; height:46px; border-radius:10px; flex-shrink:0; background:{{ p.photo }};"></div><div style="min-width:0;"><div style="font-weight:700; font-size:13.5px; color:#0B1220; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.title }}</div><div style="font-size:12px; color:#8A93A6;">{{ p.price }}</div></div></div>
+                <div><span style="{{ p.statusStyle }}">{{ p.statusLabel }}</span></div>
+                <div style="font-size:14px; font-weight:600; color:#39435A;">{{ p.views }}</div>
+                <div style="font-size:14px; font-weight:600; color:#39435A;">{{ p.msgs }}</div>
+                <div style="font-size:14px; font-weight:600; color:#39435A;">{{ p.visits }}</div>
+                <div style="display:flex; justify-content:flex-end;"><i class="ti ti-dots-vertical" style="font-size:18px; color:#99A2B5;"></i></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <div style="max-width:1440px; margin:14px auto 0; text-align:center; font-family:'JetBrains Mono',monospace; font-size:11px; color:#9AA3B5;">DIRECTO · Plataforma inmobiliaria · Santa Cruz de la Sierra, Bolivia</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1488,&quot;height&quot;:960}}">
+class Component extends DCLogic {
+  constructor(p){
+    super(p);
+    this.state={ screen:'search', activeId:1, op:'venta', fav:{2:true,6:true}, hoverId:1 };
+  }
+
+  PROPS(){
+    return [
+      { id:1, op:'venta', type:'Departamento', title:'Departamento en Equipetrol', zone:'Equipetrol', address:'Calle Las Palmas, 2do anillo, Equipetrol', price:'$189.000', priceNum:189000, period:'', priceNote:'USD', pricePerM2:'$1.331 / m²', beds:3, baths:2, area:'142 m²', garage:2, photos:18, x:58, y:46, c1:'#3a4a66', c2:'#6f86ad',
+        desc:'Amplio departamento en el corazón de Equipetrol, a pasos de restaurantes, cafés y oficinas. Acabados de primera calidad, cocina totalmente equipada, amplio balcón con vista despejada a la ciudad y dos parqueos cubiertos. El edificio cuenta con áreas comunes renovadas y seguridad permanente.',
+        features:[{icon:'ti-parking',label:'2 Parqueos'},{icon:'ti-pool',label:'Piscina'},{icon:'ti-barbell',label:'Gimnasio'},{icon:'ti-shield-check',label:'Seguridad 24h'},{icon:'ti-elevator',label:'Ascensor'},{icon:'ti-air-conditioning',label:'Aire acond.'}],
+        seller:{name:'Inmobiliaria Aurora', initials:'IA', rating:'4.9', since:'Desde 2021'} },
+      { id:2, op:'venta', type:'Casa', title:'Casa en condominio Urubó', zone:'Urubó', address:'Condominio Las Lomas, Urubó', price:'$295.000', priceNum:295000, period:'', priceNote:'USD', pricePerM2:'$922 / m²', beds:4, baths:3, area:'320 m²', garage:3, photos:24, x:21, y:39, c1:'#3c5040', c2:'#7a9a78',
+        desc:'Casa de dos plantas en exclusivo condominio cerrado del Urubó. Amplio jardín con quincho y parrillero, áreas verdes comunes, club house y seguridad privada. Ideal para familias que buscan tranquilidad sin alejarse de la ciudad.',
+        features:[{icon:'ti-car-garage',label:'3 Garajes'},{icon:'ti-grill',label:'Quincho'},{icon:'ti-trees',label:'Jardín'},{icon:'ti-shield-check',label:'Cond. cerrado'},{icon:'ti-pool',label:'Piscina común'},{icon:'ti-building-community',label:'Club house'}],
+        seller:{name:'Marcelo Áñez', initials:'MA', rating:'4.7', since:'Desde 2022'} },
+      { id:3, op:'venta', type:'Casa', title:'Casa familiar Las Palmas', zone:'Las Palmas', address:'Av. Las Palmas, 4to anillo', price:'$245.000', priceNum:245000, period:'', priceNote:'USD', pricePerM2:'$875 / m²', beds:4, baths:3, area:'280 m²', garage:2, photos:16, x:66, y:62, c1:'#4a4030', c2:'#9c8466',
+        desc:'Casa luminosa en barrio residencial consolidado. Living comedor de doble altura, patio interno, dependencia de servicio y excelente conectividad con el centro de la ciudad.',
+        features:[{icon:'ti-car-garage',label:'2 Garajes'},{icon:'ti-trees',label:'Patio'},{icon:'ti-tools-kitchen-2',label:'Cocina equip.'},{icon:'ti-bulb',label:'Luminosa'},{icon:'ti-shield-check',label:'Seguridad'},{icon:'ti-home-2',label:'2 plantas'}],
+        seller:{name:'Gabriela Suárez', initials:'GS', rating:'4.8', since:'Desde 2020'} },
+      { id:4, op:'alquiler', type:'Departamento', title:'Depto. amoblado Zona Norte', zone:'Zona Norte', address:'Av. Banzer, 6to anillo', price:'$850', priceNum:850, period:'/mes', priceNote:'/ mes', pricePerM2:'Contrato 12 meses', beds:2, baths:2, area:'98 m²', garage:1, photos:12, x:52, y:21, c1:'#34435c', c2:'#6c83a8',
+        desc:'Departamento completamente amoblado y equipado, listo para mudarse. Edificio nuevo con áreas comunes, coworking y seguridad. Contrato mínimo de 12 meses.',
+        features:[{icon:'ti-sofa',label:'Amoblado'},{icon:'ti-parking',label:'1 Parqueo'},{icon:'ti-wifi',label:'Internet'},{icon:'ti-building-community',label:'Coworking'},{icon:'ti-shield-check',label:'Seguridad'},{icon:'ti-air-conditioning',label:'Aire acond.'}],
+        seller:{name:'Rentas SCZ', initials:'RS', rating:'4.6', since:'Desde 2023'} },
+      { id:6, op:'venta', type:'Penthouse', title:'Penthouse Sirari', zone:'Sirari', address:'Barrio Sirari, 3er anillo', price:'$420.000', priceNum:420000, period:'', priceNote:'USD', pricePerM2:'$2.000 / m²', beds:3, baths:3, area:'210 m²', garage:2, photos:28, x:54, y:53, c1:'#2b3650', c2:'#647aa6',
+        desc:'Espectacular penthouse con terraza privada y jacuzzi. Vistas panorámicas de toda la ciudad, espacios de doble altura, domótica integrada y dos parqueos. El máximo lujo en una de las mejores zonas de Santa Cruz.',
+        features:[{icon:'ti-hot-tub',label:'Jacuzzi'},{icon:'ti-parking',label:'2 Parqueos'},{icon:'ti-device-tablet',label:'Domótica'},{icon:'ti-building-arch',label:'Terraza'},{icon:'ti-shield-check',label:'Seguridad 24h'},{icon:'ti-elevator',label:'Asc. privado'}],
+        seller:{name:'Inmobiliaria Aurora', initials:'IA', rating:'4.9', since:'Desde 2021'} },
+      { id:8, op:'venta', type:'Terreno', title:'Terreno en Las Brisas', zone:'Las Brisas', address:'Urb. Las Brisas, 8vo anillo', price:'$98.000', priceNum:98000, period:'', priceNote:'USD', pricePerM2:'$163 / m²', beds:0, baths:0, area:'600 m²', garage:0, photos:6, x:40, y:71, c1:'#414633', c2:'#7c8061',
+        desc:'Terreno plano y esquinero en urbanización con todos los servicios. Apto para vivienda o inversión. Documentación al día, listo para construir.',
+        features:[{icon:'ti-ruler-2',label:'600 m²'},{icon:'ti-bolt',label:'Servicios'},{icon:'ti-file-check',label:'Docs al día'},{icon:'ti-square',label:'Esquinero'},{icon:'ti-map-2',label:'Urbanización'},{icon:'ti-road',label:'Calle asfaltada'}],
+        seller:{name:'Gabriela Suárez', initials:'GS', rating:'4.8', since:'Desde 2020'} }
+    ];
+  }
+
+  opMeta(op){
+    if(op==='venta') return {label:'En venta', color:'#005CF7'};
+    if(op==='alquiler') return {label:'Alquiler', color:'#E8910C'};
+    return {label:'Anticrético', color:'#14A06B'};
+  }
+  go(s){ this.setState({screen:s}); }
+  selectFromMap(id){
+    this.setState({hoverId:id});
+    const token={}; this._sel=token;
+    const scroll=()=>{
+      if(this._sel!==token) return;
+      const wrap=document.getElementById('dw-list');
+      if(!wrap) return;
+      const el=wrap.querySelector('[data-pid="'+id+'"]');
+      if(!el) return;
+      const target=Math.max(0, Math.min(wrap.scrollHeight-wrap.clientHeight, el.offsetTop-(wrap.clientHeight-el.offsetHeight)/2));
+      const start=wrap.scrollTop, dist=target-start, dur=360, t0=performance.now();
+      const ease=(p)=>1-Math.pow(1-p,3);
+      const step=(now)=>{ if(this._sel!==token) return; const p=Math.min(1,(now-t0)/dur); wrap.scrollTop=start+dist*ease(p); if(p<1) requestAnimationFrame(step); else wrap.scrollTop=target; };
+      requestAnimationFrame(step);
+    };
+    setTimeout(scroll, 60);
+    setTimeout(scroll, 260);
+  }
+  openDetail(id){ this.setState({screen:'detail', activeId:id}); }
+  toggleFav(id,e){ if(e&&e.stopPropagation)e.stopPropagation(); const f={...this.state.fav}; f[id]=!f[id]; this.setState({fav:f}); }
+  visible(){ const op=this.state.op; let a=this.PROPS(); if(op!=='all') a=a.filter(p=>p.op===op); return a; }
+
+  shade(p){
+    const m=this.opMeta(p.op); const fav=!!this.state.fav[p.id];
+    return Object.assign({}, p, {
+      opLabel:m.label, opColor:m.color,
+      photo:'linear-gradient(150deg,'+p.c1+' 0%,'+p.c2+' 100%)',
+      heart:fav?'ti-heart-filled':'ti-heart', heartColor:fav?'#FF4D67':'#8A93A6',
+      fav:(e)=>this.toggleFav(p.id,e), open:()=>this.openDetail(p.id),
+      hover:()=>{ if(this.state.hoverId!==p.id) this.setState({hoverId:p.id}); },
+      bd:this.state.hoverId===p.id?'#005CF7':'#EEF1F6',
+      shadow:this.state.hoverId===p.id?'0 0 0 3px rgba(0,92,247,.15), 0 10px 26px rgba(11,18,32,.12)':'0 4px 16px rgba(11,18,32,.05)'
+    });
+  }
+
+  pin(p){
+    if(p.op==='alquiler') return '$'+p.priceNum+'/m';
+    return '$'+(p.priceNum>=1000?Math.round(p.priceNum/1000)+'K':p.priceNum);
+  }
+
+  renderVals(){
+    const s=this.state; const scr=s.screen;
+    const props=this.PROPS();
+    const active0=props.find(p=>p.id===s.activeId)||props[0];
+    const m=this.opMeta(active0.op); const af=!!s.fav[active0.id];
+    const vis=this.visible();
+    const cards=vis.map(p=>this.shade(p));
+
+    const screenTabs=[
+      {key:'search',label:'Búsqueda',icon:'ti-map-search'},
+      {key:'detail',label:'Detalle',icon:'ti-home'},
+      {key:'seller',label:'Panel vendedor',icon:'ti-building-community'}
+    ].map(t=>({label:t.label, icon:t.icon, go:()=>this.go(t.key), bg:scr===t.key?'#005CF7':'transparent', fg:scr===t.key?'#fff':'#39435A'}));
+
+    const navDef=[{l:'Comprar',k:'venta'},{l:'Alquilar',k:'alquiler'},{l:'Anticrético',k:'anticretico'},{l:'Proyectos',k:'proj'}];
+    const navLinks=navDef.map(n=>{ const on=scr==='search'&&s.op===n.k; return {label:n.l, on:()=>this.setState({screen:'search', op:(n.k==='proj'?s.op:n.k)}), bg:on?'#EAF1FF':'transparent', fg:on?'#005CF7':'#39435A'};});
+
+    const chipDef=[{key:'venta',label:'Venta'},{key:'alquiler',label:'Alquiler'},{key:'anticretico',label:'Anticrético'},{key:'all',label:'Todos'}];
+    const opChips=chipDef.map(c=>{ const on=s.op===c.key; return {label:c.label, on:()=>this.setState({op:c.key}), bg:on?'#0B1220':'#fff', fg:on?'#fff':'#39435A', bd:on?'#0B1220':'#E1E6EF'};});
+
+    const searchMap={ pan:true, single:false, markers:vis.map(p=>({id:p.id,x:p.x,y:p.y,label:this.pin(p),active:p.id===s.hoverId,on:()=>this.selectFromMap(p.id)})) };
+    const detailMap={ pan:false, single:true, markers:[{id:active0.id,x:active0.x,y:active0.y,label:this.pin(active0),active:true,on:()=>{}}] };
+
+    // detail gallery extra shades
+    const sh=(a,b)=>'linear-gradient(150deg,'+a+','+b+')';
+    const active=Object.assign({}, active0, {
+      opLabel:m.label, opColor:m.color,
+      photo:sh(active0.c1,active0.c2), photo2:sh(active0.c2,active0.c1), photo3:sh(active0.c1,'#202a3d'),
+      photo4:sh('#202a3d',active0.c2), photo5:sh(active0.c2,active0.c1),
+      morePhotos:Math.max(0,active0.photos-5),
+      heart:af?'ti-heart-filled':'ti-heart', heartColor:af?'#FF4D67':'#39435A',
+      fav:(e)=>this.toggleFav(active0.id,e)
+    });
+
+    // seller
+    const sellerNav=[
+      {l:'Panel',i:'ti-layout-dashboard',on:true,badge:''},
+      {l:'Mis propiedades',i:'ti-building-community',on:false,badge:'2'},
+      {l:'Mensajes',i:'ti-message-2',on:false,badge:'4'},
+      {l:'Visitas',i:'ti-calendar-event',on:false,badge:''},
+      {l:'Suscripción',i:'ti-crown',on:false,badge:''}
+    ].map(n=>({label:n.l, icon:n.i, bg:n.on?'#EAF1FF':'transparent', fg:n.on?'#005CF7':'#39435A',
+      badge:n.badge, badgeStyle:n.badge?'margin-left:auto; background:#005CF7; color:#fff; font-size:11px; font-weight:700; min-width:20px; height:20px; border-radius:10px; display:flex; align-items:center; justify-content:center; padding:0 6px;':'display:none;'}));
+
+    const metrics=[
+      {icon:'ti-eye',iconBg:'#EAF1FF',iconFg:'#005CF7',value:'1.284',label:'Vistas totales',trend:'▲ 18%',trendColor:'#14A06B'},
+      {icon:'ti-heart',iconBg:'#FFEEF1',iconFg:'#FF4D67',value:'63',label:'Favoritos',trend:'▲ 9%',trendColor:'#14A06B'},
+      {icon:'ti-message-2',iconBg:'#E4F6EE',iconFg:'#14A06B',value:'12',label:'Conversaciones',trend:'▲ 4',trendColor:'#14A06B'},
+      {icon:'ti-calendar-event',iconBg:'#FCF1E0',iconFg:'#E8910C',value:'5',label:'Visitas agendadas',trend:'2 hoy',trendColor:'#8A93A6'}
+    ];
+    const barH=[46,58,40,70,62,88,76];
+    const chartBars=barH.map((h,i)=>({h:h+'%', day:['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][i], bg:i===5?'#005CF7':'#D7E3FB'}));
+    const leadTag=(t,c)=>'font-family:JetBrains Mono,monospace; font-size:9px; font-weight:700; letter-spacing:.04em; padding:4px 8px; border-radius:7px; color:'+c+'; background:'+(c==='#005CF7'?'#EAF1FF':c==='#14A06B'?'#E4F6EE':'#FCF1E0')+';';
+    const leads=[
+      {initials:'CM',color:'#0A6BFF',name:'Carla Méndez',note:'Agendó visita · Penthouse Sirari',tag:'VISITA',tc:'#005CF7'},
+      {initials:'LA',color:'#3c5040',name:'Luis Áñez',note:'Pidió fotos del quincho',tag:'CHAT',tc:'#14A06B'},
+      {initials:'DV',color:'#4a4030',name:'Diego Vaca',note:'Guardó Casa en Urubó',tag:'FAVORITO',tc:'#E8910C'}
+    ].map(l=>Object.assign({},l,{tagStyle:leadTag(l.tag,l.tc)}));
+
+    const myProps=[
+      {pid:6,st:'pub',views:'847',msgs:6,visits:3},
+      {pid:2,st:'pub',views:'312',msgs:4,visits:2},
+      {pid:1,st:'pend',views:'125',msgs:2,visits:0}
+    ].map(r=>{ const p=props.find(x=>x.id===r.pid); return {title:p.title, price:p.price, views:r.views, msgs:r.msgs, visits:r.visits,
+      photo:'linear-gradient(150deg,'+p.c1+','+p.c2+')',
+      statusLabel:r.st==='pub'?'Publicada':'Pendiente',
+      statusStyle:(r.st==='pub'?'color:#14A06B; background:#E4F6EE;':'color:#E8910C; background:#FCF1E0;')+' font-size:11px; font-weight:700; padding:4px 10px; border-radius:8px;'};});
+
+    const urlMap={search:'/comprar/santa-cruz', detail:'/propiedad/'+active0.id, seller:'/panel'};
+
+    return {
+      isSearch:scr==='search', isDetail:scr==='detail', isSeller:scr==='seller',
+      screenTabs, navLinks, opChips, cards, searchMap, detailMap, active,
+      resultCount:vis.length, urlPath:urlMap[scr]||'',
+      goSearch:()=>this.go('search'), goSeller:()=>this.go('seller'),
+      sellerNav, metrics, chartBars, leads, myProps
+    };
+  }
+}
+</script>
+</body>
+</html>

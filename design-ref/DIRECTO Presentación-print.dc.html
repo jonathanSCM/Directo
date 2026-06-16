@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>
+*{ box-sizing:border-box; }
+body{ margin:0; }
+</style>
+</helmet>
+
+<x-import component-from-global-scope="deck-stage" from="./deck-stage.js" width="1920" height="1080" hint-size="100%,100%">
+
+  <!-- ===== SLIDE 1 · COVER ===== -->
+  <section data-label="Portada" data-speaker-notes="DIRECTO: plataforma inmobiliaria para comprar y vender casas directo entre personas, sin intermediarios, en Santa Cruz de la Sierra." style="width:1920px; height:1080px; background:linear-gradient(155deg,#0A6BFF 0%,#005CF7 48%,#0046C4 100%); position:relative; overflow:hidden; font-family:'Plus Jakarta Sans',system-ui,sans-serif;">
+    <img src="assets/mark-w.png" alt="" style="position:absolute; right:-160px; top:-120px; width:760px; height:760px; opacity:.10;">
+    <div style="position:absolute; inset:0; padding:120px 140px; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; gap:20px;">
+        <img src="assets/mark-w.png" alt="" style="width:74px; height:74px;">
+        <span style="font-size:46px; font-weight:800; letter-spacing:-.03em; color:#fff;">DIRECTO</span>
+      </div>
+      <div style="margin-top:auto;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:21px; letter-spacing:.26em; text-transform:uppercase; color:#9DC2FF;">Compra · Vende · Sin intermediarios</div>
+        <h1 style="margin:26px 0 0; font-size:104px; line-height:1.0; font-weight:800; letter-spacing:-.04em; color:#fff; max-width:1180px;">Tu próximo hogar, en el mapa.</h1>
+        <p style="margin:34px 0 0; font-size:30px; line-height:1.5; color:rgba(255,255,255,.85); max-width:880px;">Plataforma inmobiliaria móvil para Santa Cruz de la Sierra. Encuentra propiedades cercanas y contacta directo al propietario.</p>
+      </div>
+      <div style="margin-top:64px; display:flex; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:18px; color:#fff; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); padding:12px 22px; border-radius:999px;">App móvil · iOS</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:18px; color:#fff; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); padding:12px 22px; border-radius:999px;">Prototipo navegable · MVP</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 2 · ONBOARDING ===== -->
+  <section data-label="Onboarding" data-speaker-notes="Pantalla de bienvenida: la propuesta de valor es clara desde el primer momento, con acceso a crear cuenta, iniciar sesión o explorar sin registro." style="width:1920px; height:1080px; background:#F4F6FA; position:relative; overflow:hidden; font-family:'Plus Jakarta Sans',system-ui,sans-serif; display:flex; align-items:center;">
+    <div style="flex:1; padding:0 0 0 150px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:19px; letter-spacing:.2em; text-transform:uppercase; color:#005CF7;">01 · Bienvenida</div>
+      <h2 style="margin:22px 0 0; font-size:74px; font-weight:800; letter-spacing:-.035em; line-height:1.04; color:#0B1220; max-width:760px;">Una entrada simple y directa</h2>
+      <p style="margin:30px 0 0; font-size:27px; line-height:1.55; color:#4A5468; max-width:660px;">La propuesta de valor es evidente desde el inicio. El usuario puede crear su cuenta, iniciar sesión o explorar el mapa sin registrarse.</p>
+      <div style="margin-top:46px; display:flex; flex-direction:column; gap:20px;">
+        <div style="display:flex; align-items:center; gap:18px; font-size:25px; font-weight:600; color:#1F2A40;"><div style="width:50px; height:50px; border-radius:14px; background:#EAF1FF; display:flex; align-items:center; justify-content:center; font-size:26px; color:#005CF7;"><i class="ti ti-user-plus"></i></div>Registro con email, Google o Apple</div>
+        <div style="display:flex; align-items:center; gap:18px; font-size:25px; font-weight:600; color:#1F2A40;"><div style="width:50px; height:50px; border-radius:14px; background:#EAF1FF; display:flex; align-items:center; justify-content:center; font-size:26px; color:#005CF7;"><i class="ti ti-map-search"></i></div>Explorar sin cuenta para reducir fricción</div>
+        <div style="display:flex; align-items:center; gap:18px; font-size:25px; font-weight:600; color:#1F2A40;"><div style="width:50px; height:50px; border-radius:14px; background:#EAF1FF; display:flex; align-items:center; justify-content:center; font-size:26px; color:#005CF7;"><i class="ti ti-id"></i></div>Una sola cuenta para comprar y vender</div>
+      </div>
+    </div>
+    <div style="width:660px; height:100%; position:relative; display:flex; align-items:center; justify-content:center; background:radial-gradient(420px 420px at 50% 45%, #DCE6FF, #F4F6FA);">
+      <img src="assets/screens/01-onboarding.png" alt="Onboarding" style="height:880px; filter:drop-shadow(0 50px 90px rgba(11,18,32,.30));">
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 3 · MAPA ===== -->
+  <section data-label="Mapa" data-speaker-notes="La pantalla principal es un mapa de Santa Cruz con las propiedades cercanas. Cada pin muestra el precio; el carrusel inferior se sincroniza con el mapa." style="width:1920px; height:1080px; background:#0B1220; position:relative; overflow:hidden; font-family:'Plus Jakarta Sans',system-ui,sans-serif; display:flex; align-items:center;">
+    <div style="flex:1; padding:0 0 0 150px; color:#fff;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:19px; letter-spacing:.2em; text-transform:uppercase; color:#6FA8FF;">02 · Pantalla principal</div>
+      <h2 style="margin:22px 0 0; font-size:74px; font-weight:800; letter-spacing:-.035em; line-height:1.04; max-width:780px;">El mapa es el corazón</h2>
+      <p style="margin:30px 0 0; font-size:27px; line-height:1.55; color:rgba(255,255,255,.72); max-width:680px;">Las propiedades en venta aparecen como pines de precio sobre el mapa de la ciudad. Filtros por operación, búsqueda por zona y un carrusel sincronizado con el mapa.</p>
+      <div style="margin-top:46px; display:flex; gap:54px;">
+        <div><div style="font-size:56px; font-weight:800; letter-spacing:-.03em; color:#fff;">8</div><div style="font-size:20px; color:rgba(255,255,255,.6);">propiedades visibles</div></div>
+        <div><div style="font-size:56px; font-weight:800; letter-spacing:-.03em; color:#fff;">4</div><div style="font-size:20px; color:rgba(255,255,255,.6);">tipos de operación</div></div>
+        <div><div style="font-size:56px; font-weight:800; letter-spacing:-.03em; color:#fff;">∞</div><div style="font-size:20px; color:rgba(255,255,255,.6);">arrastre y zoom</div></div>
+      </div>
+    </div>
+    <div style="width:660px; height:100%; position:relative; display:flex; align-items:center; justify-content:center; background:radial-gradient(420px 420px at 50% 45%, rgba(0,92,247,.32), transparent);">
+      <img src="assets/screens/02-mapa.png" alt="Mapa" style="height:880px; filter:drop-shadow(0 50px 90px rgba(0,0,0,.5));">
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 4 · DETALLE ===== -->
+  <section data-label="Detalle" data-speaker-notes="La ficha de cada propiedad: galería, características, ubicación aproximada, datos del propietario y acciones de chat y solicitar visita." style="width:1920px; height:1080px; background:#F4F6FA; position:relative; overflow:hidden; font-family:'Plus Jakarta Sans',system-ui,sans-serif; display:flex; align-items:center;">
+    <div style="width:660px; height:100%; position:relative; display:flex; align-items:center; justify-content:center; background:radial-gradient(420px 420px at 50% 45%, #DCE6FF, #F4F6FA);">
+      <img src="assets/screens/03-detalle.png" alt="Detalle" style="height:880px; filter:drop-shadow(0 50px 90px rgba(11,18,32,.30));">
+    </div>
+    <div style="flex:1; padding:0 150px 0 40px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:19px; letter-spacing:.2em; text-transform:uppercase; color:#005CF7;">03 · Ficha de propiedad</div>
+      <h2 style="margin:22px 0 0; font-size:74px; font-weight:800; letter-spacing:-.035em; line-height:1.04; color:#0B1220; max-width:760px;">Toda la información, sin rodeos</h2>
+      <p style="margin:30px 0 0; font-size:27px; line-height:1.55; color:#4A5468; max-width:660px;">Galería, especificaciones, descripción, características y ubicación aproximada. El contacto con el propietario está siempre a un toque.</p>
+      <div style="margin-top:46px; display:flex; flex-wrap:wrap; gap:14px;">
+        <span style="font-size:23px; font-weight:600; color:#39435A; background:#fff; border:1px solid #E1E6EF; padding:14px 22px; border-radius:14px;"><i class="ti ti-bed" style="color:#005CF7; margin-right:8px;"></i>Dormitorios y baños</span>
+        <span style="font-size:23px; font-weight:600; color:#39435A; background:#fff; border:1px solid #E1E6EF; padding:14px 22px; border-radius:14px;"><i class="ti ti-ruler-2" style="color:#005CF7; margin-right:8px;"></i>Superficie</span>
+        <span style="font-size:23px; font-weight:600; color:#39435A; background:#fff; border:1px solid #E1E6EF; padding:14px 22px; border-radius:14px;"><i class="ti ti-calendar-event" style="color:#005CF7; margin-right:8px;"></i>Solicitar visita</span>
+        <span style="font-size:23px; font-weight:600; color:#39435A; background:#fff; border:1px solid #E1E6EF; padding:14px 22px; border-radius:14px;"><i class="ti ti-message-2" style="color:#005CF7; margin-right:8px;"></i>Chat directo</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 5 · ROLES ===== -->
+  <section data-label="Roles" data-speaker-notes="Una sola cuenta, dos modos. Desde el perfil el usuario cambia entre Comprar y Vender. El modo vendedor da acceso al panel de gestión." style="width:1920px; height:1080px; background:#fff; position:relative; overflow:hidden; font-family:'Plus Jakarta Sans',system-ui,sans-serif; display:flex; align-items:center;">
+    <div style="flex:1; padding:0 0 0 150px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:19px; letter-spacing:.2em; text-transform:uppercase; color:#005CF7;">04 · Perfil y roles</div>
+      <h2 style="margin:22px 0 0; font-size:74px; font-weight:800; letter-spacing:-.035em; line-height:1.04; color:#0B1220; max-width:780px;">Una cuenta, dos modos</h2>
+      <p style="margin:30px 0 0; font-size:27px; line-height:1.55; color:#4A5468; max-width:660px;">Desde el perfil, el usuario alterna entre <b style="color:#005CF7;">Comprar</b> y <b style="color:#005CF7;">Vender</b>. El cambio de rol reconfigura la navegación completa de la app.</p>
+      <div style="margin-top:46px; display:flex; gap:20px;">
+        <div style="flex:1; background:#F6F8FC; border:1px solid #E7EBF2; border-radius:20px; padding:30px;"><div style="width:58px; height:58px; border-radius:16px; background:#EAF1FF; display:flex; align-items:center; justify-content:center; font-size:30px; color:#005CF7;"><i class="ti ti-search"></i></div><div style="font-size:27px; font-weight:800; margin-top:18px; color:#0B1220;">Comprador</div><div style="font-size:21px; color:#6A748C; margin-top:6px; line-height:1.4;">Explora, guarda, agenda visitas y chatea.</div></div>
+        <div style="flex:1; background:#F6F8FC; border:1px solid #E7EBF2; border-radius:20px; padding:30px;"><div style="width:58px; height:58px; border-radius:16px; background:#EAF1FF; display:flex; align-items:center; justify-content:center; font-size:30px; color:#005CF7;"><i class="ti ti-home-2"></i></div><div style="font-size:27px; font-weight:800; margin-top:18px; color:#0B1220;">Vendedor</div><div style="font-size:21px; color:#6A748C; margin-top:6px; line-height:1.4;">Publica, gestiona y responde solicitudes.</div></div>
+      </div>
+    </div>
+    <div style="width:660px; height:100%; position:relative; display:flex; align-items:center; justify-content:center; background:radial-gradient(420px 420px at 50% 45%, #DCE6FF, #fff);">
+      <img src="assets/screens/04-perfil.png" alt="Perfil" style="height:880px; filter:drop-shadow(0 50px 90px rgba(11,18,32,.30));">
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 6 · VENDEDOR ===== -->
+  <section data-label="Panel vendedor" data-speaker-notes="El modo vendedor incluye panel con métricas, mis propiedades, mensajes con compradores y gestión de publicaciones bajo un plan de suscripción." style="width:1920px; height:1080px; background:#F4F6FA; position:relative; overflow:hidden; font-family:'Plus Jakarta Sans',system-ui,sans-serif; display:flex; align-items:center;">
+    <div style="width:660px; height:100%; position:relative; display:flex; align-items:center; justify-content:center; background:radial-gradient(420px 420px at 50% 45%, #DCE6FF, #F4F6FA);">
+      <img src="assets/screens/05-vendedor.png" alt="Panel vendedor" style="height:880px; filter:drop-shadow(0 50px 90px rgba(11,18,32,.30));">
+    </div>
+    <div style="flex:1; padding:0 150px 0 40px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:19px; letter-spacing:.2em; text-transform:uppercase; color:#005CF7;">05 · Modo vendedor</div>
+      <h2 style="margin:22px 0 0; font-size:74px; font-weight:800; letter-spacing:-.035em; line-height:1.04; color:#0B1220; max-width:760px;">Gestiona tus publicaciones</h2>
+      <p style="margin:30px 0 0; font-size:27px; line-height:1.55; color:#4A5468; max-width:640px;">Panel con métricas en tiempo real, estado de cada propiedad y plan de suscripción. Todo lo que el propietario necesita para vender.</p>
+      <div style="margin-top:46px; display:flex; gap:18px;">
+        <div style="background:#fff; border:1px solid #E7EBF2; border-radius:18px; padding:24px 28px;"><div style="font-size:46px; font-weight:800; color:#005CF7; letter-spacing:-.03em;">347</div><div style="font-size:20px; color:#6A748C;">vistas</div></div>
+        <div style="background:#fff; border:1px solid #E7EBF2; border-radius:18px; padding:24px 28px;"><div style="font-size:46px; font-weight:800; color:#005CF7; letter-spacing:-.03em;">2/5</div><div style="font-size:20px; color:#6A748C;">publicaciones</div></div>
+        <div style="background:#fff; border:1px solid #E7EBF2; border-radius:18px; padding:24px 28px;"><div style="font-size:46px; font-weight:800; color:#005CF7; letter-spacing:-.03em;">Pro</div><div style="font-size:20px; color:#6A748C;">plan activo</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 7 · CALENDARIO ===== -->
+  <section data-label="Calendario" data-speaker-notes="El vendedor gestiona las visitas en un calendario, con agenda por día, estados de cada cita y solicitudes pendientes para aceptar o reprogramar." style="width:1920px; height:1080px; background:#0B1220; position:relative; overflow:hidden; font-family:'Plus Jakarta Sans',system-ui,sans-serif; display:flex; align-items:center;">
+    <div style="flex:1; padding:0 0 0 150px; color:#fff;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:19px; letter-spacing:.2em; text-transform:uppercase; color:#6FA8FF;">06 · Agenda de visitas</div>
+      <h2 style="margin:22px 0 0; font-size:74px; font-weight:800; letter-spacing:-.035em; line-height:1.04; max-width:780px;">Visitas bajo control</h2>
+      <p style="margin:30px 0 0; font-size:27px; line-height:1.55; color:rgba(255,255,255,.72); max-width:680px;">Un calendario reúne todas las visitas agendadas. Agenda por día, estados de cada cita y solicitudes pendientes para aceptar o reprogramar.</p>
+      <div style="margin-top:46px; display:flex; flex-direction:column; gap:18px;">
+        <div style="display:flex; align-items:center; gap:16px; font-size:24px; font-weight:600; color:rgba(255,255,255,.9);"><i class="ti ti-calendar-event" style="font-size:30px; color:#6FA8FF;"></i>Vista mensual con días marcados</div>
+        <div style="display:flex; align-items:center; gap:16px; font-size:24px; font-weight:600; color:rgba(255,255,255,.9);"><i class="ti ti-clock" style="font-size:30px; color:#6FA8FF;"></i>Agenda detallada por horario</div>
+        <div style="display:flex; align-items:center; gap:16px; font-size:24px; font-weight:600; color:rgba(255,255,255,.9);"><i class="ti ti-checks" style="font-size:30px; color:#6FA8FF;"></i>Aceptar o reprogramar solicitudes</div>
+      </div>
+    </div>
+    <div style="width:660px; height:100%; position:relative; display:flex; align-items:center; justify-content:center; background:radial-gradient(420px 420px at 50% 45%, rgba(0,92,247,.32), transparent);">
+      <img src="assets/screens/06-calendario.png" alt="Calendario" style="height:880px; filter:drop-shadow(0 50px 90px rgba(0,0,0,.5));">
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 8 · CIERRE ===== -->
+  <section data-label="Cierre" data-speaker-notes="DIRECTO conecta a compradores y vendedores directamente, con el mapa como protagonista. Prototipo navegable listo para validar con usuarios." style="width:1920px; height:1080px; background:linear-gradient(155deg,#0A6BFF 0%,#005CF7 48%,#0046C4 100%); position:relative; overflow:hidden; font-family:'Plus Jakarta Sans',system-ui,sans-serif;">
+    <img src="assets/mark-w.png" alt="" style="position:absolute; left:-180px; bottom:-180px; width:720px; height:720px; opacity:.10;">
+    <div style="position:absolute; inset:0; padding:140px; display:flex; flex-direction:column; justify-content:center;">
+      <div style="display:flex; align-items:center; gap:18px;"><img src="assets/mark-w.png" alt="" style="width:62px; height:62px;"><span style="font-size:36px; font-weight:800; letter-spacing:-.03em; color:#fff;">DIRECTO</span></div>
+      <h2 style="margin:38px 0 0; font-size:90px; font-weight:800; letter-spacing:-.04em; line-height:1.02; color:#fff; max-width:1200px;">Comprar y vender, directo entre personas.</h2>
+      <p style="margin:32px 0 0; font-size:30px; line-height:1.5; color:rgba(255,255,255,.85); max-width:860px;">Prototipo navegable listo para validar con usuarios en Santa Cruz de la Sierra.</p>
+      <div style="margin-top:56px; font-family:'JetBrains Mono',monospace; font-size:20px; letter-spacing:.16em; color:#9DC2FF; text-transform:uppercase;">directo.bo · MVP 2026</div>
+    </div>
+  </section>
+
+</x-import>
+</x-dc>
+<script>
+(async () => {
+  // Prepend so page-supplied @page / break rules (deck-stage's margin:0,
+  // author CSS) keep source-order precedence over the baseline.
+  const baseCss = document.createElement('style');
+  baseCss.textContent = "@media print {\n  @page { margin: 0.5cm; }\n  html, body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }\n  section, article, figure, table { break-inside: avoid; }\n  *, *::before, *::after {\n    animation-delay: -99s !important; animation-duration: .001s !important;\n    animation-iteration-count: 1 !important; animation-fill-mode: both !important;\n    animation-play-state: running !important; transition-duration: 0s !important;\n  }\n}";
+  document.head.prepend(baseCss);
+  if (document.readyState === 'loading') {
+    await new Promise((r) => document.addEventListener('DOMContentLoaded', r, { once: true }));
+  }
+  let ds = document.querySelector('deck-stage');
+  // whenDefined never resolves when nothing registers the element, so only
+  // await it when a <deck-stage> tag exists (and race a timeout regardless).
+  if (ds && !customElements.get('deck-stage')) {
+    try {
+      await Promise.race([
+        customElements.whenDefined('deck-stage'),
+        new Promise((r) => setTimeout(r, 3000)),
+      ]);
+    } catch (e) {}
+    ds = document.querySelector('deck-stage');
+  }
+  // dc-runtime assigns window.DCLogic at init and mounts into #dc-root on
+  // DOMContentLoaded; settle on that subtree so React has rendered before
+  // print(). Non-DC pages fall through to weighing body.
+  const isDc = !ds && 'DCLogic' in window;
+  const settleRoot = ds || (isDc ? document.getElementById('dc-root') : null) || document.body;
+  if (settleRoot) {
+    // Weigh only content children — skip script/style/template so inline
+    // Babel/CSS doesn't register as stable "content" before the framework
+    // has mounted anything.
+    const MEDIA = 'img,svg,canvas,video,picture,iframe,embed,object';
+    const weigh = () => {
+      let text = 0, media = 0;
+      for (const c of settleRoot.children) {
+        const t = c.tagName;
+        if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+        text += (c.textContent || '').trim().length;
+        media += c.querySelectorAll(MEDIA).length + (c.matches(MEDIA) ? 1 : 0);
+      }
+      return text + media * 100;
+    };
+    // "Non-zero and stable" alone is not sufficient to mean rendered: generic
+    // body can carry a static shell while async main content is pending, and
+    // #dc-root can carry the root DC's static text while child refs are still
+    // .sc-placeholder boxes. Gate generic on readyState 'complete', and never
+    // accept stability while a dc-runtime placeholder is present.
+    const isGeneric = settleRoot === document.body;
+    const deadline = Date.now() + 15000;
+    let last = -1, stable = 0;
+    while (Date.now() < deadline) {
+      const n = weigh();
+      const ready =
+        (!isGeneric || document.readyState === 'complete') &&
+        !settleRoot.querySelector('.sc-placeholder');
+      if (n > 0 && n === last && ready) { if (++stable >= 2) break; } else { stable = 0; }
+      last = n;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+  try { await document.fonts.ready; } catch (e) {}
+  // Jump every animation to its end state so print() never captures a slide
+  // mid-entrance. Ordering matters: the 0s-transition style must be live
+  // BEFORE data-deck-active is set so attribute-keyed transitions don't
+  // start a (now-0s) run from the pre-active base.
+  const st = document.createElement('style');
+  st.textContent = '*,*::before,*::after{animation-delay:-99s !important;animation-duration:.001s !important;animation-iteration-count:1 !important;animation-fill-mode:both !important;animation-play-state:running !important;transition-duration:0s !important}';
+  document.head.appendChild(st);
+  for (const d of document.querySelectorAll('deck-stage')) {
+    for (const c of d.children) {
+      const t = c.tagName;
+      if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+      c.setAttribute('data-deck-active', '');
+    }
+  }
+  try {
+    const sweep = () => {
+      for (const a of document.getAnimations()) {
+        try { a.finish(); } catch (e) {
+          try { a.currentTime = (a.effect && a.effect.getComputedTiming().duration) || 0; a.pause(); } catch (e2) {}
+        }
+      }
+    };
+    sweep();
+    await new Promise((r) => requestAnimationFrame(r));
+    sweep();
+    await new Promise((r) => requestAnimationFrame(r));
+  } catch (e) {}
+  setTimeout(() => { try { window.print(); } catch (e) {} }, 200);
+})();
+</script>
+</body>
+</html>

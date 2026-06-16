@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@keyframes drping2{ 0%{ transform:translate(-50%,-50%) scale(.5); opacity:.55; } 100%{ transform:translate(-50%,-50%) scale(2.6); opacity:0; } }
+</style>
+</helmet>
+<div style="position:absolute; inset:0; overflow:hidden; background:linear-gradient(180deg,#EAEEF4,#E5E9F1); touch-action:none;"
+     onPointerDown="{{ down }}" onPointerMove="{{ move }}" onPointerUp="{{ up }}" onPointerLeave="{{ up }}">
+  <div ref="{{ innerRef }}" style="position:absolute; inset:-6%; transform:{{ panStyle }};">
+    <svg viewBox="0 0 1000 1100" preserveAspectRatio="xMidYMid slice" style="position:absolute; inset:0; width:100%; height:100%;">
+      <rect x="0" y="0" width="1000" height="1100" fill="#E8ECF3"></rect>
+      <!-- Urubó land + Piraí river (west) -->
+      <path d="M0,0 L150,0 Q120,300 165,560 Q120,820 150,1100 L0,1100 Z" fill="#E4EBE3"></path>
+      <path d="M150,0 Q120,300 165,560 Q120,820 150,1100 L235,1100 Q205,820 245,560 Q205,300 235,0 Z" fill="#D2E2F4"></path>
+      <path d="M150,0 Q120,300 165,560 Q120,820 150,1100" fill="none" stroke="#B9D2EE" stroke-width="2"></path>
+      <path d="M235,0 Q205,300 245,560 Q205,820 235,1100" fill="none" stroke="#B9D2EE" stroke-width="2"></path>
+      <!-- green patches -->
+      <ellipse cx="430" cy="240" rx="70" ry="48" fill="#D7E8D2"></ellipse>
+      <ellipse cx="820" cy="760" rx="86" ry="62" fill="#D7E8D2"></ellipse>
+      <ellipse cx="615" cy="555" rx="30" ry="24" fill="#CFE3C9"></ellipse>
+      <!-- radial avenues -->
+      <g stroke="#D6DEEC" stroke-width="3">
+        <line x1="615" y1="555" x2="615" y2="40"></line>
+        <line x1="615" y1="555" x2="615" y2="1060"></line>
+        <line x1="615" y1="555" x2="980" y2="555"></line>
+        <line x1="615" y1="555" x2="250" y2="555"></line>
+        <line x1="615" y1="555" x2="980" y2="180"></line>
+        <line x1="615" y1="555" x2="980" y2="930"></line>
+        <line x1="615" y1="555" x2="285" y2="200"></line>
+        <line x1="615" y1="555" x2="285" y2="910"></line>
+        <line x1="615" y1="555" x2="850" y2="60"></line>
+        <line x1="615" y1="555" x2="850" y2="1050"></line>
+      </g>
+      <!-- highlighted main avenues -->
+      <line x1="615" y1="555" x2="615" y2="40" stroke="#C2CFE4" stroke-width="6"></line>
+      <line x1="615" y1="555" x2="980" y2="555" stroke="#C2CFE4" stroke-width="6"></line>
+      <!-- concentric rings (anillos) -->
+      <g fill="none" stroke="#CAD5E7" stroke-width="2.4">
+        <circle cx="615" cy="555" r="70"></circle>
+        <circle cx="615" cy="555" r="130"></circle>
+        <circle cx="615" cy="555" r="200"></circle>
+        <circle cx="615" cy="555" r="280"></circle>
+        <circle cx="615" cy="555" r="370"></circle>
+        <circle cx="615" cy="555" r="470"></circle>
+      </g>
+      <circle cx="615" cy="555" r="280" fill="none" stroke="#B9C6DD" stroke-width="3.4"></circle>
+      <!-- plaza -->
+      <circle cx="615" cy="555" r="13" fill="#A9C0E2"></circle>
+      <!-- faint zone labels -->
+      <g fill="#A9B3C6" font-family="'JetBrains Mono',monospace" font-size="15" letter-spacing="1.5" font-weight="500">
+        <text x="560" y="548">CENTRO</text>
+        <text x="60" y="430">URUBÓ</text>
+        <text x="700" y="360">EQUIPETROL</text>
+        <text x="540" y="170">ZONA NORTE</text>
+        <text x="730" y="720">LAS PALMAS</text>
+      </g>
+    </svg>
+
+    <!-- user location -->
+    <sc-if value="{{ showUser }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; left:53%; top:57%;">
+        <div style="position:absolute; left:0; top:0; width:46px; height:46px; border-radius:50%; background:rgba(0,92,247,.28); animation:drping2 2.2s ease-out infinite;"></div>
+        <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:18px; height:18px; border-radius:50%; background:#005CF7; border:3px solid #fff; box-shadow:0 2px 8px rgba(0,92,247,.5);"></div>
+      </div>
+    </sc-if>
+
+    <!-- price pins -->
+    <sc-for list="{{ pins }}" as="m" hint-placeholder-count="6">
+      <button onClick="{{ m.on }}" onPointerDown="{{ m.stop }}" style="position:absolute; left:{{ m.x }}%; top:{{ m.y }}%; transform:translate(-50%,-115%); z-index:{{ m.z }}; border:none; cursor:pointer; font-family:'JetBrains Mono',monospace; font-weight:600; font-size:12px; padding:7px 11px; border-radius:16px; white-space:nowrap; background:{{ m.bg }}; color:#fff; box-shadow:0 5px 14px {{ m.shadow }};">
+        {{ m.label }}
+        <span style="position:absolute; left:50%; bottom:-5px; transform:translateX(-50%); width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:7px solid {{ m.bg }};"></span>
+      </button>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:402,&quot;height&quot;:700},&quot;data&quot;:{&quot;editor&quot;:null,&quot;default&quot;:{&quot;markers&quot;:[],&quot;pan&quot;:true,&quot;single&quot;:false}}}">
+class Component extends DCLogic {
+  constructor(p){
+    super(p);
+    this.inner=React.createRef();
+    this.state={ px:0, py:0, dx:0, dy:0, drag:false, sx:0, sy:0 };
+  }
+  cfg(){ return this.props.data || {markers:[], pan:false, single:false}; }
+  down(e){
+    if(!this.cfg().pan) return;
+    this.setState({drag:true, sx:e.clientX, sy:e.clientY, dx:this.state.px, dy:this.state.py});
+  }
+  move(e){
+    if(!this.state.drag) return;
+    const clamp=(v)=>Math.max(-70,Math.min(70,v));
+    this.setState({ px:clamp(this.state.dx+(e.clientX-this.state.sx)), py:clamp(this.state.dy+(e.clientY-this.state.sy)) });
+  }
+  up(){ if(this.state.drag) this.setState({drag:false}); }
+  renderVals(){
+    const c=this.cfg();
+    const pins=(c.markers||[]).map(m=>({
+      x:m.x, y:m.y, label:m.label, on:m.on, z:m.active?60:30,
+      bg:m.active?'#0B1220':'#005CF7',
+      shadow:m.active?'rgba(11,18,32,.4)':'rgba(0,92,247,.4)',
+      stop:(e)=>{ if(e&&e.stopPropagation) e.stopPropagation(); }
+    }));
+    return {
+      pins, showUser:!c.single,
+      panStyle:'translate('+this.state.px+'px,'+this.state.py+'px)',
+      innerRef:this.inner,
+      down:(e)=>this.down(e), move:(e)=>this.move(e), up:()=>this.up()
+    };
+  }
+}
+</script>
+</body>
+</html>
