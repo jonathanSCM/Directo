@@ -1,13 +1,16 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { AdminAssignSubscriptionDto } from './dto/admin-assign-subscription.dto';
 import { SubscriptionsService } from './subscriptions.service';
 
 @ApiTags('subscriptions')
@@ -23,6 +26,12 @@ export class AdminSubscriptionsController {
   @ApiQuery({ name: 'user_id', required: false })
   list(@Query('status') status?: string, @Query('user_id') userId?: string) {
     return this.subscriptionsService.adminList(status, userId);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Asignar suscripción a un usuario (admin)' })
+  assign(@Body() dto: AdminAssignSubscriptionDto) {
+    return this.subscriptionsService.adminAssign(dto.user_id, dto.plan_id);
   }
 
   @Patch(':id/activate')

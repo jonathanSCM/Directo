@@ -26,6 +26,12 @@ export class AdminPropertiesController {
     return this.propertiesService.adminList(query);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Detalle de propiedad (admin)' })
+  detail(@Param('id', ParseUUIDPipe) id: string) {
+    return this.propertiesService.adminDetail(id);
+  }
+
   @Patch(':id/approve')
   @ApiOperation({ summary: 'Aprobar publicación' })
   approve(@Param('id', ParseUUIDPipe) id: string) {
@@ -45,5 +51,11 @@ export class AdminPropertiesController {
   @ApiOperation({ summary: 'Dar de baja publicación' })
   takeDown(@Param('id', ParseUUIDPipe) id: string) {
     return this.propertiesService.adminTakeDown(id);
+  }
+
+  @Patch(':id/restore')
+  @ApiOperation({ summary: 'Restaurar publicación dada de baja' })
+  restore(@Param('id', ParseUUIDPipe) id: string) {
+    return this.propertiesService.adminRestore(id);
   }
 }

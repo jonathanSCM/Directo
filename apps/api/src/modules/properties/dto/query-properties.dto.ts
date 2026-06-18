@@ -76,7 +76,7 @@ export class QueryPropertiesDto {
   @IsString()
   currency?: string;
 
-  // Bounding box para el mapa (§5)
+  // Bounding box para el mapa (§5) — legacy, aún soportado
   @ApiPropertyOptional({ description: 'Latitud mínima (bbox del mapa)' })
   @IsOptional()
   @Type(() => Number)
@@ -100,6 +100,27 @@ export class QueryPropertiesDto {
   @Type(() => Number)
   @IsNumber()
   max_lng?: number;
+
+  // Radio-based filtering (preferred over bbox)
+  @ApiPropertyOptional({ description: 'Latitud del centro de búsqueda' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lat?: number;
+
+  @ApiPropertyOptional({ description: 'Longitud del centro de búsqueda' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lng?: number;
+
+  @ApiPropertyOptional({ description: 'Radio en km', example: 10 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.5)
+  @Max(100)
+  radius_km?: number;
 
   @ApiPropertyOptional({ enum: SORTS, default: 'recent' })
   @IsOptional()

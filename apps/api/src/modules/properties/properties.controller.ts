@@ -44,11 +44,25 @@ export class PropertiesController {
     return this.propertiesService.create(user, dto);
   }
 
+  @ApiBearerAuth()
+  @Get('by-id/:id')
+  @ApiOperation({ summary: 'Detalle de una propiedad por ID (dueño)' })
+  findById(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.propertiesService.findById(user, id);
+  }
+
   @Public()
   @Get(':slug')
   @ApiOperation({ summary: 'Detalle de una propiedad por slug' })
-  detail(@Param('slug') slug: string) {
-    return this.propertiesService.findBySlug(slug);
+  detail(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthUser | null,
+    @Query('track_view') trackView?: string,
+  ) {
+    return this.propertiesService.findBySlug(slug, user ?? undefined, trackView === 'true');
   }
 
   @ApiBearerAuth()

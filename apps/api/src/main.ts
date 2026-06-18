@@ -9,24 +9,20 @@ import { AppModule } from './app.module';
 import { UPLOADS_DIR } from './modules/properties/multer.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    cors: {
+      origin: true,
+      credentials: true,
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    },
+  });
   const config = app.get(ConfigService);
 
   const prefix = config.get<string>('API_PREFIX') ?? 'api';
   app.setGlobalPrefix(prefix);
 
-  // Seguridad (§19). crossOriginResourcePolicy desactivado para servir imágenes
-  // a la web/app desde otro origen.
   app.use(helmet({ crossOriginResourcePolicy: false }));
-
-  const corsOrigins = (config.get<string>('CORS_ORIGINS') ?? '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-  app.enableCors({
-    origin: corsOrigins.length > 0 ? corsOrigins : true,
-    credentials: true,
-  });
 
   // Validación global de DTOs
   app.useGlobalPipes(

@@ -169,16 +169,29 @@ export class PropertiesService {
   // ── Público: listado y detalle ──────────────────────────────────────────────
 
   async findPublic(query: QueryPropertiesDto) {
-    // Con texto: búsqueda full-text (search_vector) y orden por relevancia (§7).
+    // Con texto: búsqueda full-text + fallback a LIKE en título/dirección/zona
     if (query.q && query.q.trim().length > 0) {
-      return this.findPublicFullText(query);
+      const ftResult = await this.findPublicFullText(query);
+      if (ftResult.data.length > 0) return ftResult;
     }
     const where = this.buildPublicWhere(query);
     const orderBy = this.buildOrderBy(query.sort ?? 'recent');
     return this.paginate(where, orderBy, query.page ?? 1, query.limit ?? 20);
   }
 
-  async findBySlug(slug: string, user?: AuthUser) {
+  async findById(user: AuthUser, id: string) {
+    const prop = await this.prisma.properties.findUnique({
+      where: { id },
+      include: detailInclude,
+    });
+    if (!prop) throw new NotFoundException('Propiedad no encontrada');
+    if (prop.owner_id !== user.id && !this.isAdmin(user)) {
+      throw new NotFoundException('Propiedad no encontrada');
+    }
+    return prop;
+  }
+
+  async findBySlug(slug: string, user?: AuthUser, trackView = false) {
     const prop = await this.prisma.properties.findUnique({
       where: { slug },
       include: detailInclude,
@@ -194,7 +207,7 @@ export class PropertiesService {
       throw new NotFoundException('Propiedad no encontrada');
     }
 
-    if (isVisible) {
+    if (isVisible && trackView && !isOwner) {
       await this.prisma.properties.update({
         where: { id: prop.id },
         data: { views_count: { increment: 1 } },
@@ -208,7 +221,7 @@ export class PropertiesService {
 
   async adminApprove(id: string) {
     const prop = await this.findOrThrow(id);
-    return this.prisma.properties.update({
+    const updated = await this.prisma.properties.update({
       where: { id },
       data: {
         approval_status: 'approved',
@@ -217,11 +230,25 @@ export class PropertiesService {
         rejection_reason: null,
       },
     });
+
+    await this.prisma.notifications.create({
+      data: {
+        user_id: prop.owner_id,
+        type: 'property_approved',
+        title: 'Propiedad aprobada',
+        message: `Tu propiedad "${prop.title}" fue aprobada y ya está publicada.`,
+        channel: 'in_app',
+        status: 'pending',
+        data: { property_id: id } as Prisma.InputJsonValue,
+      },
+    });
+
+    return updated;
   }
 
   async adminReject(id: string, reason: string) {
-    await this.findOrThrow(id);
-    return this.prisma.properties.update({
+    const prop = await this.findOrThrow(id);
+    const updated = await this.prisma.properties.update({
       where: { id },
       data: {
         approval_status: 'rejected',
@@ -229,14 +256,79 @@ export class PropertiesService {
         rejection_reason: reason,
       },
     });
+
+    await this.prisma.notifications.create({
+      data: {
+        user_id: prop.owner_id,
+        type: 'property_rejected',
+        title: 'Propiedad rechazada',
+        message: `Tu propiedad "${prop.title}" fue rechazada. Motivo: ${reason}`,
+        channel: 'in_app',
+        status: 'pending',
+        data: { property_id: id, reason } as Prisma.InputJsonValue,
+      },
+    });
+
+    return updated;
   }
 
   async adminTakeDown(id: string) {
-    await this.findOrThrow(id);
-    return this.prisma.properties.update({
+    const prop = await this.findOrThrow(id);
+    const updated = await this.prisma.properties.update({
       where: { id },
       data: { status: 'taken_down' },
     });
+
+    await this.prisma.notifications.create({
+      data: {
+        user_id: prop.owner_id,
+        type: 'system',
+        title: 'Propiedad dada de baja',
+        message: `Tu propiedad "${prop.title}" fue dada de baja por el equipo de moderación. Contactá soporte si creés que es un error.`,
+        channel: 'in_app',
+        status: 'pending',
+        data: { property_id: id } as Prisma.InputJsonValue,
+      },
+    });
+
+    return updated;
+  }
+
+  async adminRestore(id: string) {
+    const prop = await this.findOrThrow(id);
+    if (prop.status !== 'taken_down') {
+      throw new BadRequestException('La propiedad no está dada de baja');
+    }
+    const updated = await this.prisma.properties.update({
+      where: { id },
+      data: { status: 'published', approval_status: 'approved' },
+    });
+
+    await this.prisma.notifications.create({
+      data: {
+        user_id: prop.owner_id,
+        type: 'system',
+        title: 'Propiedad restaurada',
+        message: `Tu propiedad "${prop.title}" ha sido restaurada y ya está publicada nuevamente.`,
+        channel: 'in_app',
+        status: 'pending',
+        data: { property_id: id } as Prisma.InputJsonValue,
+      },
+    });
+
+    return updated;
+  }
+
+  async adminDetail(id: string) {
+    const prop = await this.prisma.properties.findUnique({
+      where: { id },
+      include: {
+        ...detailInclude,
+        users: { select: { id: true, name: true, email: true, phone: true, avatar_url: true } },
+      },
+    });
+    if (!prop) throw new NotFoundException('Propiedad no encontrada');
+    return prop;
   }
 
   async adminList(query: QueryPropertiesDto) {
@@ -288,6 +380,9 @@ export class PropertiesService {
       where.OR = [
         { title: { contains: query.q, mode: 'insensitive' } },
         { description: { contains: query.q, mode: 'insensitive' } },
+        { address: { contains: query.q, mode: 'insensitive' } },
+        { zones: { name: { contains: query.q, mode: 'insensitive' } } },
+        { zones: { city: { contains: query.q, mode: 'insensitive' } } },
       ];
     }
     if (query.type) {
@@ -319,12 +414,41 @@ export class PropertiesService {
     if (query.bathrooms !== undefined) {
       where.bathrooms = { gte: query.bathrooms };
     }
-    // Bounding box del mapa (§5)
-    if (query.min_lat !== undefined && query.max_lat !== undefined) {
-      where.latitude = { gte: query.min_lat, lte: query.max_lat };
+    // Radius-based geo filter (preferred) or bounding box fallback
+    let geoFilter: any = null;
+    if (query.lat !== undefined && query.lng !== undefined && query.radius_km !== undefined) {
+      // Convert radius to bounding box approximation
+      const kmPerDegreeLat = 111.32;
+      const kmPerDegreeLng = 111.32 * Math.cos((query.lat * Math.PI) / 180);
+      const dLat = query.radius_km / kmPerDegreeLat;
+      const dLng = query.radius_km / kmPerDegreeLng;
+      geoFilter = {
+        OR: [
+          {
+            latitude: { gte: query.lat - dLat, lte: query.lat + dLat },
+            longitude: { gte: query.lng - dLng, lte: query.lng + dLng },
+          },
+          { latitude: null },
+        ],
+      };
+    } else if (
+      query.min_lat !== undefined &&
+      query.max_lat !== undefined &&
+      query.min_lng !== undefined &&
+      query.max_lng !== undefined
+    ) {
+      geoFilter = {
+        OR: [
+          {
+            latitude: { gte: query.min_lat, lte: query.max_lat },
+            longitude: { gte: query.min_lng, lte: query.max_lng },
+          },
+          { latitude: null },
+        ],
+      };
     }
-    if (query.min_lng !== undefined && query.max_lng !== undefined) {
-      where.longitude = { gte: query.min_lng, lte: query.max_lng };
+    if (geoFilter) {
+      where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), geoFilter];
     }
     return where;
   }
@@ -423,14 +547,24 @@ export class PropertiesService {
       conditions.push(Prisma.sql`bedrooms >= ${query.bedrooms}`);
     if (query.bathrooms !== undefined)
       conditions.push(Prisma.sql`bathrooms >= ${query.bathrooms}`);
-    if (query.min_lat !== undefined && query.max_lat !== undefined)
+    if (query.lat !== undefined && query.lng !== undefined && query.radius_km !== undefined) {
+      const kmPerDegreeLat = 111.32;
+      const kmPerDegreeLng = 111.32 * Math.cos((query.lat * Math.PI) / 180);
+      const dLat = query.radius_km / kmPerDegreeLat;
+      const dLng = query.radius_km / kmPerDegreeLng;
       conditions.push(
-        Prisma.sql`latitude BETWEEN ${query.min_lat} AND ${query.max_lat}`,
+        Prisma.sql`(latitude BETWEEN ${query.lat - dLat} AND ${query.lat + dLat} AND longitude BETWEEN ${query.lng - dLng} AND ${query.lng + dLng} OR latitude IS NULL)`,
       );
-    if (query.min_lng !== undefined && query.max_lng !== undefined)
-      conditions.push(
-        Prisma.sql`longitude BETWEEN ${query.min_lng} AND ${query.max_lng}`,
-      );
+    } else {
+      if (query.min_lat !== undefined && query.max_lat !== undefined)
+        conditions.push(
+          Prisma.sql`(latitude BETWEEN ${query.min_lat} AND ${query.max_lat} OR latitude IS NULL)`,
+        );
+      if (query.min_lng !== undefined && query.max_lng !== undefined)
+        conditions.push(
+          Prisma.sql`(longitude BETWEEN ${query.min_lng} AND ${query.max_lng} OR longitude IS NULL)`,
+        );
+    }
 
     const whereSql = Prisma.join(conditions, ' AND ');
     const orderSql =

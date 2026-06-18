@@ -162,6 +162,42 @@ export class SubscriptionsService {
 
   // ── Admin (§13.4) ───────────────────────────────────────────────────────────
 
+  async adminAssign(userId: string, planId: string) {
+    const plan = await this.prisma.subscription_plans.findUnique({
+      where: { id: planId },
+    });
+    if (!plan) throw new NotFoundException('Plan no encontrado');
+
+    const existing = await this.getActiveSubscription(userId);
+    if (existing) {
+      throw new ConflictException('El usuario ya tiene una suscripción activa');
+    }
+
+    const start = new Date();
+    const end = new Date(start.getTime() + plan.duration_days * DAY_MS);
+
+    const sub = await this.prisma.subscriptions.create({
+      data: {
+        user_id: userId,
+        plan_id: planId,
+        status: 'active',
+        start_date: start,
+        end_date: end,
+      },
+      include: { subscription_plans: true, users: { select: { id: true, name: true, email: true } } },
+    });
+
+    await this.notify(
+      userId,
+      'subscription_expiring',
+      'Suscripción activada',
+      `Se te ha asignado el plan "${plan.name}". Tu suscripción está activa.`,
+      { subscription_id: sub.id },
+    );
+
+    return sub;
+  }
+
   adminList(status?: string, userId?: string) {
     return this.prisma.subscriptions.findMany({
       where: {
