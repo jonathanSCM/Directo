@@ -1,0 +1,26 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "production-apk": {
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.directoapp.net/api",
+        "GOOGLE_MAPS_API_KEY": "AIzaSyCcTZm5Oszhtrq7_X3_LIh3mCSaOpckcAA"
+      }
+    },
+    "production-aab": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.directoapp.net/api",
+        "GOOGLE_MAPS_API_KEY": "AIzaSyCcTZm5Oszhtrq7_X3_LIh3mCSaOpckcAA"
+      }
+    }
+  }
+}
