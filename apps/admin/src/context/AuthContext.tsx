@@ -36,18 +36,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     api.get('/auth/me')
       .then((r) => setUser(r.data))
-      .catch(() => localStorage.removeItem('admin_token'))
+      .catch(() => {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_refresh');
+      })
       .finally(() => setLoading(false));
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password });
     localStorage.setItem('admin_token', data.accessToken);
+    if (data.refreshToken) localStorage.setItem('admin_refresh', data.refreshToken);
     setUser(data.user);
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_refresh');
     setUser(null);
   }, []);
 

@@ -79,6 +79,21 @@ export default function Support() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Refrescar lista periódicamente (sin spinner)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const [ticketsRes, visitsRes] = await Promise.all([
+          api.get('/admin/support/tickets', { params: filterStatus ? { status: filterStatus } : {} }),
+          api.get('/admin/support/visit-requests', { params: filterStatus ? { status: filterStatus } : {} }),
+        ]);
+        setTickets(ticketsRes.data);
+        setVisits(visitsRes.data);
+      } catch {}
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [filterStatus]);
+
   const refreshTicketMessages = useCallback(async (ticketId: string) => {
     try {
       const { data } = await api.get(`/admin/support/tickets/${ticketId}/messages`);

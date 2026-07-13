@@ -14,16 +14,38 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+let refreshing: Promise<string> | null = null;
+
+async function refreshAccessToken(): Promise<string> {
+  const refreshToken = localStorage.getItem('admin_refresh');
+  if (!refreshToken) throw new Error('no refresh token');
+  const { data } = await axios.post(`${API_BASE}/auth/refresh`, { refreshToken });
+  localStorage.setItem('admin_token', data.accessToken);
+  if (data.refreshToken) localStorage.setItem('admin_refresh', data.refreshToken);
+  return data.accessToken;
+}
+
 api.interceptors.response.use(
   (res) => res,
-  (error) => {
-    if (
-      error.response?.status === 401 &&
-      !error.config?.url?.includes('/auth/login') &&
-      !error.config?.url?.includes('/auth/me')
-    ) {
-      localStorage.removeItem('admin_token');
-      window.location.href = '/login';
+  async (error) => {
+    const original = error.config;
+    const isAuthCall = original?.url?.includes('/auth/login') || original?.url?.includes('/auth/refresh');
+    if (error.response?.status === 401 && !isAuthCall && !original._retried) {
+      original._retried = true;
+      try {
+        refreshing = refreshing ?? refreshAccessToken();
+        const token = await refreshing;
+        refreshing = null;
+        original.headers.Authorization = `Bearer ${token}`;
+        return api(original);
+      } catch {
+        refreshing = null;
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_refresh');
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   },

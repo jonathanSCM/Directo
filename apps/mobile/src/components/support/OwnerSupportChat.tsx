@@ -86,8 +86,11 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
   const fetchMessages = useCallback(async (convId: string) => {
     try {
       const { data } = await api.get(`/support/conversations/${convId}/messages`);
-      setMessages(data.messages ?? data);
-      scrollDown();
+      const next: Message[] = data.messages ?? data;
+      setMessages((prev) => {
+        if (next.length > prev.length) scrollDown();
+        return next;
+      });
     } catch {}
   }, []);
 
@@ -97,16 +100,19 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
       setView('list');
       setActiveConv(null);
     }
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [visible, fetchConversations]);
 
+  // Polling: mensajes del chat activo, o lista de conversaciones
   useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current);
-    if (activeConv && view === 'chat') {
-      pollRef.current = setInterval(() => fetchMessages(activeConv.id), 5000);
+    if (!visible) return;
+    if (view === 'chat' && activeConv) {
+      pollRef.current = setInterval(() => fetchMessages(activeConv.id), 4000);
+    } else if (view === 'list') {
+      pollRef.current = setInterval(fetchConversations, 8000);
     }
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [activeConv, view, fetchMessages]);
+  }, [visible, activeConv, view, fetchMessages, fetchConversations]);
 
   const openConversation = async (conv: Conversation) => {
     setActiveConv(conv);
