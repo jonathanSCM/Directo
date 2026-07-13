@@ -1,7 +1,9 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+# --include=dev: el builder necesita devDependencies (nest CLI, tsc) aunque
+# el entorno inyecte NODE_ENV=production en build time
+RUN npm install --include=dev
 COPY . .
 RUN npx prisma generate
 RUN npm run build
