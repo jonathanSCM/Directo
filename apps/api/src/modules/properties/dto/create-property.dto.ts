@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsArray,
   IsInt,
   IsLatitude,
   IsLongitude,
@@ -98,4 +99,10 @@ export class CreatePropertyDto {
   @IsString()
   @MaxLength(30)
   whatsapp?: string;
+
+  @ApiPropertyOptional({ type: [String], description: 'IDs de amenidades' })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  amenity_ids?: string[];
 }

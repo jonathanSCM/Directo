@@ -15,18 +15,23 @@ import { QueryPropertiesDto } from './dto/query-properties.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 
 // Vista resumida para listados (incluye imagen principal).
+const amenityInclude = {
+  amenities: { select: { id: true, name: true, slug: true, icon: true, category: true } },
+};
+
 const listInclude = {
   property_types: { select: { id: true, name: true, slug: true } },
   zones: { select: { id: true, name: true, city: true } },
   property_images: { where: { is_main: true }, take: 1 },
+  property_amenities: { select: amenityInclude },
 } satisfies Prisma.propertiesInclude;
 
-// Vista completa para el detalle.
 const detailInclude = {
   property_types: { select: { id: true, name: true, slug: true } },
   zones: { select: { id: true, name: true, city: true } },
   property_images: { orderBy: { sort_order: 'asc' } },
   users: { select: { id: true, name: true, avatar_url: true } },
+  property_amenities: { select: amenityInclude },
 } satisfies Prisma.propertiesInclude;
 
 @Injectable()
@@ -49,18 +54,30 @@ export class PropertiesService {
     // §5: si hay dirección pero no coordenadas, se geocodifica.
     const { latitude, longitude } = await this.resolveCoordinates(dto);
 
-    return this.prisma.properties.create({
+    let address = dto.address;
+    let zoneId = dto.zone_id;
+
+    // Si hay coordenadas pero falta dirección o zona, reverse geocode
+    const lat = latitude ?? dto.latitude;
+    const lng = longitude ?? dto.longitude;
+    if (lat != null && lng != null && (!address || !zoneId)) {
+      const rev = await this.geocoding.reverseGeocode(lat, lng);
+      if (!address && rev.formatted_address) address = rev.formatted_address;
+      if (!zoneId && rev.zone_id) zoneId = rev.zone_id;
+    }
+
+    const property = await this.prisma.properties.create({
       data: {
         owner_id: user.id,
         title: dto.title,
         slug: uniqueSlug(dto.title),
         description: dto.description,
         property_type_id: dto.property_type_id,
-        zone_id: dto.zone_id,
+        zone_id: zoneId,
         operation: dto.operation,
         price: dto.price,
         currency: dto.currency ?? 'USD',
-        address: dto.address,
+        address,
         latitude,
         longitude,
         bedrooms: dto.bedrooms,
@@ -70,9 +87,19 @@ export class PropertiesService {
         whatsapp: dto.whatsapp,
         status: 'draft',
         approval_status: 'pending',
+        ...(dto.amenity_ids?.length
+          ? {
+              property_amenities: {
+                createMany: {
+                  data: dto.amenity_ids.map((id) => ({ amenity_id: id })),
+                },
+              },
+            }
+          : {}),
       },
       include: listInclude,
     });
+    return property;
   }
 
   async update(user: AuthUser, id: string, dto: UpdatePropertyDto) {
@@ -80,8 +107,16 @@ export class PropertiesService {
     if (dto.property_type_id || dto.zone_id) {
       await this.assertTypeAndZone(dto.property_type_id, dto.zone_id);
     }
-    // Re-geocodifica si cambió la dirección y no se enviaron coordenadas.
     const { latitude, longitude } = await this.resolveCoordinates(dto);
+
+    if (dto.amenity_ids !== undefined) {
+      await this.prisma.property_amenities.deleteMany({ where: { property_id: id } });
+      if (dto.amenity_ids.length > 0) {
+        await this.prisma.property_amenities.createMany({
+          data: dto.amenity_ids.map((aid) => ({ property_id: id, amenity_id: aid })),
+        });
+      }
+    }
 
     return this.prisma.properties.update({
       where: { id },
@@ -158,6 +193,34 @@ export class PropertiesService {
     return this.prisma.properties.update({
       where: { id },
       data: { status: 'sold_rented' },
+    });
+  }
+
+  async reactivate(user: AuthUser, id: string) {
+    const prop = await this.getOwnedOrThrow(user, id);
+    if (prop.status !== 'sold_rented' && prop.status !== 'paused') {
+      throw new BadRequestException(
+        'Solo se pueden republicar propiedades vendidas/alquiladas o pausadas',
+      );
+    }
+    await this.subscriptions.assertCanPublish(user.id, id);
+    if (await this.requireApproval()) {
+      return this.prisma.properties.update({
+        where: { id },
+        data: {
+          status: 'pending_approval',
+          approval_status: 'pending',
+          rejection_reason: null,
+        },
+      });
+    }
+    return this.prisma.properties.update({
+      where: { id },
+      data: {
+        status: 'published',
+        approval_status: 'approved',
+        rejection_reason: null,
+      },
     });
   }
 
@@ -325,6 +388,7 @@ export class PropertiesService {
       include: {
         ...detailInclude,
         users: { select: { id: true, name: true, email: true, phone: true, avatar_url: true } },
+        property_amenities: { select: amenityInclude },
       },
     });
     if (!prop) throw new NotFoundException('Propiedad no encontrada');
@@ -423,13 +487,8 @@ export class PropertiesService {
       const dLat = query.radius_km / kmPerDegreeLat;
       const dLng = query.radius_km / kmPerDegreeLng;
       geoFilter = {
-        OR: [
-          {
-            latitude: { gte: query.lat - dLat, lte: query.lat + dLat },
-            longitude: { gte: query.lng - dLng, lte: query.lng + dLng },
-          },
-          { latitude: null },
-        ],
+        latitude: { gte: query.lat - dLat, lte: query.lat + dLat },
+        longitude: { gte: query.lng - dLng, lte: query.lng + dLng },
       };
     } else if (
       query.min_lat !== undefined &&
@@ -438,13 +497,8 @@ export class PropertiesService {
       query.max_lng !== undefined
     ) {
       geoFilter = {
-        OR: [
-          {
-            latitude: { gte: query.min_lat, lte: query.max_lat },
-            longitude: { gte: query.min_lng, lte: query.max_lng },
-          },
-          { latitude: null },
-        ],
+        latitude: { gte: query.min_lat, lte: query.max_lat },
+        longitude: { gte: query.min_lng, lte: query.max_lng },
       };
     }
     if (geoFilter) {
@@ -553,16 +607,16 @@ export class PropertiesService {
       const dLat = query.radius_km / kmPerDegreeLat;
       const dLng = query.radius_km / kmPerDegreeLng;
       conditions.push(
-        Prisma.sql`(latitude BETWEEN ${query.lat - dLat} AND ${query.lat + dLat} AND longitude BETWEEN ${query.lng - dLng} AND ${query.lng + dLng} OR latitude IS NULL)`,
+        Prisma.sql`(latitude IS NOT NULL AND latitude BETWEEN ${query.lat - dLat} AND ${query.lat + dLat} AND longitude BETWEEN ${query.lng - dLng} AND ${query.lng + dLng})`,
       );
     } else {
       if (query.min_lat !== undefined && query.max_lat !== undefined)
         conditions.push(
-          Prisma.sql`(latitude BETWEEN ${query.min_lat} AND ${query.max_lat} OR latitude IS NULL)`,
+          Prisma.sql`(latitude IS NOT NULL AND latitude BETWEEN ${query.min_lat} AND ${query.max_lat})`,
         );
       if (query.min_lng !== undefined && query.max_lng !== undefined)
         conditions.push(
-          Prisma.sql`(longitude BETWEEN ${query.min_lng} AND ${query.max_lng} OR longitude IS NULL)`,
+          Prisma.sql`(longitude IS NOT NULL AND longitude BETWEEN ${query.min_lng} AND ${query.max_lng})`,
         );
     }
 

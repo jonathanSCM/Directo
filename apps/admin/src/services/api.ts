@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: API_BASE,
   timeout: 15_000,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -29,7 +31,7 @@ api.interceptors.response.use(
 
 export default api;
 
-const SERVER_BASE = 'http://localhost:3000';
+const SERVER_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/api$/, '');
 export function getImageUrl(path: string | null | undefined): string {
   if (!path) return '';
   if (path.startsWith('http')) return path;

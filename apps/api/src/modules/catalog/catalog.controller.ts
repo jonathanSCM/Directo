@@ -22,4 +22,11 @@ export class CatalogController {
   zones(@Query('city') city?: string) {
     return this.catalogService.listZones(city);
   }
+
+  @Public()
+  @Get('amenities')
+  @ApiOperation({ summary: 'Listar amenidades activas' })
+  amenities() {
+    return this.catalogService.listAmenities();
+  }
 }

@@ -72,6 +72,13 @@ const PAY_STATUS: Record<string, { cls: string; label: string }> = {
 const OP_LABEL: Record<string, string> = { sale: 'Venta', rent: 'Alquiler', anticretico: 'Anticrético' };
 
 type View = 'list' | 'detail';
+type StatusFilter = '' | 'active' | 'suspended' | 'pending_verification';
+type RoleFilter = '' | 'buyer' | 'owner';
+
+const inputStyle: React.CSSProperties = {
+  padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: 8,
+  fontSize: 14, fontFamily: 'inherit', background: '#fff',
+};
 
 export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
@@ -79,6 +86,9 @@ export default function Users() {
   const [view, setView] = useState<View>('list');
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -264,14 +274,59 @@ export default function Users() {
     );
   }
 
+  const filtered = users.filter((u) => {
+    if (statusFilter && u.status !== statusFilter) return false;
+    if (roleFilter && u.active_role !== roleFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const match =
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        (u.phone || '').toLowerCase().includes(q) ||
+        (u.city || '').toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
+
   // ── List View ───────────────────────────────────────────────────────────────
   return (
     <>
       <div className="page-header">
         <div>
           <h1>Usuarios</h1>
-          <p className="subtitle">{users.length} usuarios registrados</p>
+          <p className="subtitle">{filtered.length} de {users.length} usuarios registrados</p>
         </div>
+      </div>
+
+      {/* Search & filters bar */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 400 }}>
+          <input
+            type="text"
+            placeholder="Buscar por nombre, email, teléfono, ciudad..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ ...inputStyle, width: '100%', paddingLeft: 36 }}
+          />
+          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', fontSize: 14 }}>🔍</span>
+        </div>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)} style={inputStyle}>
+          <option value="">Todos los estados</option>
+          <option value="active">Activos</option>
+          <option value="suspended">Suspendidos</option>
+          <option value="pending_verification">Pendientes</option>
+        </select>
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as RoleFilter)} style={inputStyle}>
+          <option value="">Todos los roles</option>
+          <option value="buyer">Compradores</option>
+          <option value="owner">Propietarios</option>
+        </select>
+        {(search || statusFilter || roleFilter) && (
+          <button className="btn btn-sm btn-outline" onClick={() => { setSearch(''); setStatusFilter(''); setRoleFilter(''); }}>
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -283,14 +338,19 @@ export default function Users() {
               <tr>
                 <th>Nombre</th>
                 <th>Email</th>
+                <th>Rol</th>
                 <th>Ciudad</th>
+                <th>Propiedades</th>
                 <th>Estado</th>
                 <th>Registro</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => {
+              {filtered.length === 0 && (
+                <tr><td colSpan={8} className="empty-row">No se encontraron usuarios</td></tr>
+              )}
+              {filtered.map((u) => {
                 const badge = STATUS_BADGE[u.status] ?? { cls: 'badge-gray', label: u.status };
                 return (
                   <tr key={u.id}>
@@ -303,7 +363,13 @@ export default function Users() {
                       </strong>
                     </td>
                     <td>{u.email}</td>
+                    <td>
+                      <span className={`badge ${u.active_role === 'owner' ? 'badge-blue' : 'badge-gray'}`}>
+                        {u.active_role === 'owner' ? 'Propietario' : 'Comprador'}
+                      </span>
+                    </td>
                     <td>{u.city || '—'}</td>
+                    <td>{u._count?.properties ?? 0}</td>
                     <td><span className={`badge ${badge.cls}`}>{badge.label}</span></td>
                     <td>{new Date(u.created_at).toLocaleDateString('es-BO')}</td>
                     <td className="actions-cell">

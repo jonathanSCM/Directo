@@ -64,12 +64,20 @@ const REJECTION_REASONS = [
   'No cumple con las políticas de publicación',
 ];
 
-type Filter = '' | 'pending' | 'published' | 'draft' | 'rejected' | 'taken_down';
+type Filter = '' | 'pending' | 'published' | 'draft' | 'rejected' | 'taken_down' | 'sold_rented';
+type OpFilter = '' | 'sale' | 'rent' | 'anticretico';
 type View = 'list' | 'detail';
+
+const inputStyle: React.CSSProperties = {
+  padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: 8,
+  fontSize: 14, fontFamily: 'inherit', background: '#fff',
+};
 
 export default function Properties() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [filter, setFilter] = useState<Filter>('');
+  const [opFilter, setOpFilter] = useState<OpFilter>('');
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('list');
   const [detail, setDetail] = useState<Property | null>(null);
@@ -101,14 +109,30 @@ export default function Properties() {
     setDetailLoading(false);
   };
 
-  const filtered = filter
-    ? properties.filter((p) => {
-        if (filter === 'pending') return p.approval_status === 'pending';
-        if (filter === 'rejected') return p.status === 'rejected' || p.approval_status === 'rejected';
-        if (filter === 'taken_down') return p.status === 'taken_down';
-        return p.status === filter;
-      })
-    : properties;
+  const filtered = properties.filter((p) => {
+    if (filter) {
+      if (filter === 'pending' && p.approval_status !== 'pending') return false;
+      if (filter === 'rejected' && p.status !== 'rejected' && p.approval_status !== 'rejected') return false;
+      if (filter === 'taken_down' && p.status !== 'taken_down') return false;
+      if (filter === 'sold_rented' && p.status !== 'sold_rented') return false;
+      if (filter === 'published' && p.status !== 'published') return false;
+      if (filter === 'draft' && p.status !== 'draft') return false;
+    }
+    if (opFilter && p.operation !== opFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const match =
+        p.title.toLowerCase().includes(q) ||
+        (p.address || '').toLowerCase().includes(q) ||
+        (p.users?.name || '').toLowerCase().includes(q) ||
+        (p.users?.email || '').toLowerCase().includes(q) ||
+        (p.zones?.name || '').toLowerCase().includes(q) ||
+        (p.zones?.city || '').toLowerCase().includes(q) ||
+        (p.property_types?.name || '').toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
 
   const getStatusKey = (p: Property) => {
     if (p.approval_status === 'pending') return 'pending';
@@ -166,6 +190,7 @@ export default function Properties() {
     { key: 'published', label: 'Publicadas' },
     { key: 'rejected', label: 'Rechazadas' },
     { key: 'draft', label: 'Borradores' },
+    { key: 'sold_rented', label: 'Vendidas/Alquiladas' },
     { key: 'taken_down', label: 'Dadas de baja' },
   ];
 
@@ -287,7 +312,7 @@ export default function Properties() {
               </div>
             </div>
 
-            <div className="card">
+            <div className="card" style={{ marginBottom: 16 }}>
               <div className="card-header"><h2>Propietario</h2></div>
               <div style={{ padding: 16 }}>
                 <InfoRow label="Nombre" value={detail.users?.name || '—'} />
@@ -295,6 +320,45 @@ export default function Properties() {
                 <InfoRow label="Teléfono" value={detail.users?.phone || '—'} />
               </div>
             </div>
+
+            {/* Location map */}
+            {detail.latitude && detail.longitude && (
+              <div className="card">
+                <div className="card-header"><h2>Ubicación</h2></div>
+                <div style={{ padding: 0 }}>
+                  <a
+                    href={`https://www.google.com/maps?q=${detail.latitude},${detail.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'block' }}
+                  >
+                    <iframe
+                      title="Mapa"
+                      width="100%"
+                      height="220"
+                      style={{ border: 0, borderRadius: '0 0 12px 12px' }}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyCcTZm5Oszhtrq7_X3_LIh3mCSaOpckcAA&q=${detail.latitude},${detail.longitude}&zoom=16&language=es`}
+                    />
+                  </a>
+                  <div style={{ padding: '12px 16px', fontSize: 13, color: '#475569' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <span style={{ fontSize: 15 }}>📍</span>
+                      <strong style={{ color: '#1E293B' }}>{detail.address || 'Sin dirección'}</strong>
+                    </div>
+                    {detail.zones && (
+                      <div style={{ color: '#64748B', marginLeft: 21 }}>
+                        {detail.zones.name}, {detail.zones.city}
+                      </div>
+                    )}
+                    <div style={{ color: '#94A3B8', fontSize: 12, marginTop: 4, marginLeft: 21 }}>
+                      {Number(detail.latitude).toFixed(6)}, {Number(detail.longitude).toFixed(6)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -318,8 +382,33 @@ export default function Properties() {
       <div className="page-header">
         <div>
           <h1>Propiedades</h1>
-          <p className="subtitle">{filtered.length} propiedades</p>
+          <p className="subtitle">{filtered.length} de {properties.length} propiedades</p>
         </div>
+      </div>
+
+      {/* Search & filters bar */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 400 }}>
+          <input
+            type="text"
+            placeholder="Buscar por título, dirección, propietario, zona..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ ...inputStyle, width: '100%', paddingLeft: 36 }}
+          />
+          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', fontSize: 14 }}>🔍</span>
+        </div>
+        <select value={opFilter} onChange={(e) => setOpFilter(e.target.value as OpFilter)} style={inputStyle}>
+          <option value="">Todas las operaciones</option>
+          <option value="sale">Venta</option>
+          <option value="rent">Alquiler</option>
+          <option value="anticretico">Anticrético</option>
+        </select>
+        {(search || opFilter) && (
+          <button className="btn btn-sm btn-outline" onClick={() => { setSearch(''); setOpFilter(''); }}>
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       <div className="tabs">

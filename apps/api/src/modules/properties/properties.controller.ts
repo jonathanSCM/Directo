@@ -98,6 +98,13 @@ export class PropertiesController {
   }
 
   @ApiBearerAuth()
+  @Patch(':id/reactivate')
+  @ApiOperation({ summary: 'Republicar propiedad vendida/alquilada o pausada' })
+  reactivate(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.propertiesService.reactivate(user, id);
+  }
+
+  @ApiBearerAuth()
   @Delete(':id')
   @ApiOperation({ summary: 'Dar de baja una publicación' })
   remove(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {

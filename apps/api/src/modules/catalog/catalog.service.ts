@@ -21,4 +21,11 @@ export class CatalogService {
       orderBy: [{ city: 'asc' }, { name: 'asc' }],
     });
   }
+
+  listAmenities() {
+    return this.prisma.amenities.findMany({
+      where: { is_active: true },
+      orderBy: { sort_order: 'asc' },
+    });
+  }
 }

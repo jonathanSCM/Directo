@@ -14,6 +14,8 @@ import { PropertiesModule } from './modules/properties/properties.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { UsersModule } from './modules/users/users.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { FavoritesModule } from './modules/favorites/favorites.module';
+import { SupportModule } from './modules/support/support.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -30,6 +32,8 @@ import { PrismaModule } from './prisma/prisma.module';
     PaymentsModule,
     NotificationsModule,
     AdminModule,
+    FavoritesModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [
