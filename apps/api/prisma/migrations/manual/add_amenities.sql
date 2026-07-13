@@ -21,5 +21,5 @@ CREATE INDEX IF NOT EXISTS idx_property_amenities_property ON property_amenities
 CREATE INDEX IF NOT EXISTS idx_property_amenities_amenity  ON property_amenities (amenity_id);
 CREATE INDEX IF NOT EXISTS idx_amenities_active            ON amenities (is_active);
 
--- Also add 'admin' sender type for support messages (admin can reply to owner tickets)
-ALTER TYPE support_message_sender ADD VALUE IF NOT EXISTS 'admin';
+-- NOTA: el valor 'admin' del enum support_message_sender se agrega en
+-- add_support_chat.sql, que es donde se crea ese tipo.
