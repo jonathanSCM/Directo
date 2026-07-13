@@ -4,8 +4,8 @@ import './Login.css';
 
 export default function Login() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('admin@inmobiliaria.com');
-  const [password, setPassword] = useState('Admin123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
