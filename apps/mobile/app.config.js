@@ -36,5 +36,11 @@ export default {
       "expo-secure-store",
       "@react-native-community/datetimepicker",
     ],
+    extra: {
+      eas: {
+        projectId: "97bdd240-7a17-45b8-9055-ef20e1ef5ee3",
+      },
+    },
+    owner: "jona2909",
   },
 };

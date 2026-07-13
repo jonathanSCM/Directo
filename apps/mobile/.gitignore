@@ -42,3 +42,7 @@ yarn-error.*
 
 # local env
 .env
+
+# EAS local credentials (NUNCA subir)
+credentials.json
+credentials/

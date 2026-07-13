@@ -5,6 +5,7 @@
   },
   "build": {
     "production-apk": {
+      "credentialsSource": "local",
       "android": {
         "buildType": "apk"
       },
