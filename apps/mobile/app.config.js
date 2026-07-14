@@ -6,7 +6,7 @@ export default {
     orientation: "portrait",
     scheme: "directo",
     userInterfaceStyle: "light",
-    newArchEnabled: false,
+    newArchEnabled: true,
     icon: "./assets/icon.png",
     ios: {
       supportsTablet: false,
