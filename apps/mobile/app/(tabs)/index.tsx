@@ -90,6 +90,45 @@ const getMarkerImage = (operation: string, isSelected: boolean) => {
   return markerImages.anticretico;
 };
 
+// Marcador con imagen-hijo dimensionada en dp (Android ignora el tamaño en la
+// prop `image`, por eso se veían enormes). tracksViewChanges debe ser true al
+// montar para que Android dibuje el marcador custom; luego se apaga por rendimiento.
+function PropertyMarker({
+  prop,
+  selected,
+  onPress,
+}: {
+  prop: Property;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const [tracks, setTracks] = useState(true);
+  useEffect(() => {
+    setTracks(true);
+    const t = setTimeout(() => setTracks(false), 600);
+    return () => clearTimeout(t);
+  }, [selected]);
+
+  const w = selected ? 30 : 26;
+  const h = selected ? 39 : 34;
+
+  return (
+    <Marker
+      identifier={prop.id}
+      coordinate={{ latitude: prop.latitude!, longitude: prop.longitude! }}
+      onPress={onPress}
+      anchor={{ x: 0.5, y: 1 }}
+      tracksViewChanges={tracks}
+    >
+      <Image
+        source={getMarkerImage(prop.operation, selected)}
+        style={{ width: w, height: h }}
+        resizeMode="contain"
+      />
+    </Marker>
+  );
+}
+
 const formatPrice = (p: number, c: string) => {
   if (c === 'USD') return `$${p.toLocaleString()}`;
   return `Bs. ${p.toLocaleString()}`;
@@ -326,17 +365,11 @@ export default function ExploreScreen() {
           strokeWidth={1.5}
         />
         {geoProps.map((p) => (
-          <Marker
+          <PropertyMarker
             key={p.id}
-            identifier={p.id}
-            coordinate={{
-              latitude: p.latitude!,
-              longitude: p.longitude!,
-            }}
+            prop={p}
+            selected={selectedId === p.id}
             onPress={() => onMarkerPress(p)}
-            image={getMarkerImage(p.operation, selectedId === p.id)}
-            style={{ width: 40, height: 50 }}
-            tracksViewChanges={selectedId === p.id}
           />
         ))}
       </MapView>
