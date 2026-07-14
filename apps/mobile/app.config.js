@@ -7,15 +7,20 @@ export default {
     scheme: "directo",
     userInterfaceStyle: "light",
     newArchEnabled: false,
+    icon: "./assets/icon.png",
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.directo.app",
+      icon: "./assets/icon.png",
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
       },
     },
     android: {
       adaptiveIcon: {
+        foregroundImage: "./assets/android-icon-foreground.png",
+        backgroundImage: "./assets/android-icon-background.png",
+        monochromeImage: "./assets/android-icon-monochrome.png",
         backgroundColor: "#2563EB",
       },
       softwareKeyboardLayoutMode: "pan",
