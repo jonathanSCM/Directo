@@ -482,7 +482,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.sm,
   },
-  listContent: { padding: Spacing.lg, gap: Spacing.md },
+  // maxWidth + centrado: en móvil no afecta (pantalla más angosta),
+  // en web evita que las tarjetas se estiren en monitores grandes
+  listContent: { padding: Spacing.lg, gap: Spacing.md, width: '100%', maxWidth: 760, alignSelf: 'center' },
   card: {
     flexDirection: 'row',
     backgroundColor: Colors.white,
@@ -520,6 +522,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     gap: Spacing.sm,
     marginBottom: Spacing.md,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
   statCard: {
     flex: 1,

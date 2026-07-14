@@ -4,6 +4,7 @@ import React from 'react';
 import {
   Alert,
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -52,6 +53,11 @@ export default function ProfileScreen() {
   const initial = user.name?.charAt(0).toUpperCase() ?? '?';
 
   const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      // Alert.alert no muestra botones en react-native-web
+      if (window.confirm('¿Cerrar sesión?')) logout();
+      return;
+    }
     Alert.alert('Cerrar sesión', '¿Estás seguro?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Cerrar sesión', style: 'destructive', onPress: logout },

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Dimensions,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -15,6 +16,10 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Fonts, Radius, Spacing } from '../../constants/theme';
 import api from '../../services/api';
+
+// En escritorio web el chat es una ventana flotante, no pantalla completa
+const isWeb = Platform.OS === 'web';
+const floatingWeb = isWeb && Dimensions.get('window').width >= 768;
 
 const OWNER_PRIMARY = '#7C3AED';
 const OWNER_LIGHT = '#EDE9FE';
@@ -142,18 +147,30 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
     if (!text || !activeConv || sending) return;
     setInputText('');
     setSending(true);
+    // Optimista: mostrar el mensaje al instante, el poll lo reconcilia con el real
+    const tempId = `temp-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      { id: tempId, sender: 'user', content: text, created_at: new Date().toISOString() },
+    ]);
+    scrollDown();
     try {
       await api.post(`/support/conversations/${activeConv.id}/messages`, { content: text });
       await fetchMessages(activeConv.id);
-    } catch {}
+    } catch {
+      // Revertir el optimista si falló el envío
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setInputText(text);
+    }
     setSending(false);
   };
 
   if (!isAuthenticated) {
     return (
-      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-        <View style={styles.container}>
-          <View style={styles.header}>
+      <Modal visible={visible} transparent={floatingWeb} animationType={floatingWeb ? 'fade' : 'slide'} onRequestClose={onClose}>
+        <View style={floatingWeb ? styles.webOverlay : styles.fill} pointerEvents="box-none">
+        <View style={[styles.container, floatingWeb && styles.webFloating]}>
+          <View style={[styles.header, floatingWeb && styles.webHeader]}>
             <View style={styles.headerLeft}>
               <View style={styles.botAvatar}><Ionicons name="headset" size={18} color={Colors.white} /></View>
               <Text style={styles.headerTitle}>Soporte</Text>
@@ -168,14 +185,16 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
             <Text style={styles.authText}>Necesitas una cuenta para contactar soporte</Text>
           </View>
         </View>
+        </View>
       </Modal>
     );
   }
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
+    <Modal visible={visible} transparent={floatingWeb} animationType={floatingWeb ? 'fade' : 'slide'} onRequestClose={onClose}>
+      <View style={floatingWeb ? styles.webOverlay : styles.fill} pointerEvents="box-none">
+      <KeyboardAvoidingView style={[styles.container, floatingWeb && styles.webFloating]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={[styles.header, floatingWeb && styles.webHeader]}>
           <View style={styles.headerLeft}>
             {view === 'chat' && (
               <TouchableOpacity onPress={() => { setView('list'); fetchConversations(); }} hitSlop={8} style={{ marginRight: 8 }}>
@@ -312,6 +331,7 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
           </>
         )}
       </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -325,6 +345,18 @@ const styles = StyleSheet.create({
     elevation: 6, shadowColor: OWNER_PRIMARY,
     shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
   },
+  fill: { flex: 1 },
+  webOverlay: {
+    // @ts-ignore — fixed existe en web
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+  },
+  webFloating: {
+    position: 'absolute', bottom: 24, right: 24,
+    width: 400, height: 640, maxHeight: '88%',
+    borderRadius: 16, overflow: 'hidden',
+    boxShadow: '0 16px 48px rgba(0,0,0,0.28)' as any,
+  },
+  webHeader: { paddingTop: Spacing.md },
   container: { flex: 1, backgroundColor: '#F5F3FF' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

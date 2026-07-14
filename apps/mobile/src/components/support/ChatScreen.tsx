@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Dimensions,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -32,6 +33,10 @@ import {
 } from './chatFlows';
 
 const CHAT_STORAGE_KEY = '@directo_chat_messages';
+
+// En escritorio web el chat es una ventana flotante, no pantalla completa
+const isWeb = Platform.OS === 'web';
+const floatingWeb = isWeb && Dimensions.get('window').width >= 768;
 
 interface ChatMessage {
   id: string;
@@ -592,9 +597,10 @@ export default function ChatScreen({ visible, onClose, propertyId, propertyTitle
 
   if (!isAuthenticated) {
     return (
-      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-        <View style={styles.container}>
-          <View style={styles.header}>
+      <Modal visible={visible} transparent={floatingWeb} animationType={floatingWeb ? 'fade' : 'slide'} onRequestClose={onClose}>
+        <View style={floatingWeb ? styles.webOverlay : styles.fill} pointerEvents="box-none">
+        <View style={[styles.container, floatingWeb && styles.webFloating]}>
+          <View style={[styles.header, floatingWeb && styles.webHeader]}>
             <View style={styles.headerLeft}>
               <View style={styles.botAvatar}>
                 <Ionicons name="chatbubbles" size={18} color={Colors.white} />
@@ -611,17 +617,19 @@ export default function ChatScreen({ visible, onClose, propertyId, propertyTitle
             <Text style={styles.authText}>Necesitas una cuenta para usar el asistente</Text>
           </View>
         </View>
+        </View>
       </Modal>
     );
   }
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent={floatingWeb} animationType={floatingWeb ? 'fade' : 'slide'} onRequestClose={onClose}>
+      <View style={floatingWeb ? styles.webOverlay : styles.fill} pointerEvents="box-none">
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, floatingWeb && styles.webFloating]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.header}>
+        <View style={[styles.header, floatingWeb && styles.webHeader]}>
           <View style={styles.headerLeft}>
             <View style={styles.botAvatar}>
               <Ionicons name="chatbubbles" size={18} color={Colors.white} />
@@ -775,6 +783,7 @@ export default function ChatScreen({ visible, onClose, propertyId, propertyTitle
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -784,6 +793,18 @@ function delay(ms: number) {
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
+  webOverlay: {
+    // @ts-ignore — fixed existe en web
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+  },
+  webFloating: {
+    position: 'absolute', bottom: 24, right: 24,
+    width: 400, height: 640, maxHeight: '88%',
+    borderRadius: 16, overflow: 'hidden',
+    boxShadow: '0 16px 48px rgba(0,0,0,0.28)' as any,
+  },
+  webHeader: { paddingTop: Spacing.md },
   container: { flex: 1, backgroundColor: '#F0F2F5' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
