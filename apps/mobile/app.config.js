@@ -32,7 +32,7 @@ export default {
     web: {
       bundler: "metro",
       output: "single",
-      favicon: "./assets/favicon.png",
+      favicon: "./assets/icon-directo.png",
     },
     plugins: [
       "expo-router",
