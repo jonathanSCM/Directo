@@ -8,6 +8,14 @@
       "port": 5173,
       "cwd": "apps/admin",
       "autoPort": true
+    },
+    {
+      "name": "mobile-web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--web"],
+      "port": 8081,
+      "cwd": "apps/mobile",
+      "autoPort": true
     }
   ]
 }

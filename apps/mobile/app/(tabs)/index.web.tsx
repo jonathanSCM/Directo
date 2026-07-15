@@ -9,17 +9,18 @@ import * as Location from 'expo-location';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Dimensions,
-  FlatList,
   Image,
   Linking,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Circle, MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import { Circle, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import FilterModal, { FilterValues } from '../../src/components/FilterModal';
 import { Logo } from '../../src/components/Logo';
 import { getImageUrl } from '../../src/constants/api';
@@ -27,21 +28,38 @@ import { useFavorites } from '../../src/context/FavoritesContext';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 
-// Inject Leaflet CSS once
+// Inject Leaflet CSS + our own overrides (strip default tooltip chrome so our
+// custom preview card renders without Leaflet's bubble/arrow styling) once
 function useLeafletCSS() {
   useEffect(() => {
-    if (document.getElementById('leaflet-css')) return;
-    const link = document.createElement('link');
-    link.id = 'leaflet-css';
-    link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(link);
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+    if (!document.getElementById('directo-map-css')) {
+      const style = document.createElement('style');
+      style.id = 'directo-map-css';
+      style.textContent = `
+        .leaflet-tooltip.directo-tooltip {
+          background: transparent;
+          border: none;
+          box-shadow: none;
+          padding: 0;
+          border-radius: 0;
+          opacity: 1;
+        }
+        .leaflet-tooltip.directo-tooltip::before { display: none; }
+      `;
+      document.head.appendChild(style);
+    }
   }, []);
 }
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(width * 0.75, 380); // cap at 380 on wide screens
-const CARD_MARGIN = 10;
+const PANEL_WIDTH = Math.min(width, 420);
 const DEFAULT_RADIUS_KM = 5;
 const DEFAULT_CENTER: [number, number] = [-17.7833, -63.1821];
 
@@ -106,18 +124,48 @@ function MapGetter({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> })
   return null;
 }
 
+// Compact hover preview shown above a marker (Leaflet Tooltip handles the
+// hover show/hide automatically — no custom mouse tracking needed)
+function MarkerPreview({ prop }: { prop: Property }) {
+  const imgUrl = getMainImage(prop.property_images);
+  return (
+    <View style={previewStyles.card}>
+      <View style={previewStyles.imgWrap}>
+        {imgUrl ? (
+          <Image source={{ uri: imgUrl }} style={previewStyles.img} />
+        ) : (
+          <View style={[previewStyles.img, previewStyles.noImg]}>
+            <Ionicons name="image-outline" size={18} color={Colors.gray[300]} />
+          </View>
+        )}
+      </View>
+      <View style={previewStyles.info}>
+        <View style={[previewStyles.badge, { backgroundColor: opColor(prop.operation) }]}>
+          <Text style={previewStyles.badgeText}>{opLabel(prop.operation)}</Text>
+        </View>
+        <Text style={previewStyles.title} numberOfLines={1}>{prop.title}</Text>
+        <Text style={previewStyles.address} numberOfLines={1}>
+          {prop.zones ? `${prop.zones.name}, ${prop.zones.city}` : prop.address}
+        </Text>
+        <Text style={previewStyles.price}>{formatPrice(prop.price, prop.currency)}</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function ExploreScreen() {
   const router = useRouter();
   const { isFavorite, toggleFavorite } = useFavorites();
   useLeafletCSS();
 
-  const flatListRef = useRef<FlatList>(null);
   const mapRef = useRef<L.Map | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const panelAnim = useRef(new Animated.Value(0)).current;
 
   const [properties, setProperties] = useState<Property[]>([]);
   const [activeFilter, setActiveFilter] = useState('Todos');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailProp, setDetailProp] = useState<Property | null>(null);
   const [search, setSearch] = useState('');
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -222,13 +270,20 @@ export default function ExploreScreen() {
 
   useEffect(() => () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); }, []);
 
+  useEffect(() => {
+    Animated.timing(panelAnim, {
+      toValue: detailProp ? 1 : 0,
+      duration: 260,
+      useNativeDriver: true,
+    }).start();
+  }, [detailProp]);
+
   const geoProps = properties.filter(p => p.latitude && p.longitude);
 
   const onMarkerPress = (prop: Property) => {
     setSelectedId(prop.id);
+    setDetailProp(prop);
     setFlyTarget({ coord: [prop.latitude!, prop.longitude!], zoom: 16 });
-    const idx = geoProps.findIndex(p => p.id === prop.id);
-    if (idx >= 0) flatListRef.current?.scrollToIndex({ index: idx, animated: true });
   };
 
   const goToMyLocation = () => {
@@ -269,7 +324,11 @@ export default function ExploreScreen() {
               position={[p.latitude!, p.longitude!]}
               icon={makeMarkerIcon(p.operation, selectedId === p.id)}
               eventHandlers={{ click: () => onMarkerPress(p) }}
-            />
+            >
+              <Tooltip direction="top" offset={[0, -44]} opacity={1} className="directo-tooltip">
+                <MarkerPreview prop={p} />
+              </Tooltip>
+            </Marker>
           ))}
           {flyTarget && <MapFly coord={flyTarget.coord} zoom={flyTarget.zoom} />}
           <MapGetter mapRef={mapRef} />
@@ -347,107 +406,104 @@ export default function ExploreScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Bottom panel */}
-      <View style={styles.panel}>
-        <View style={styles.panelHandle} />
-        <View style={styles.panelHeader}>
-          <View style={styles.panelLeft}>
-            <Text style={styles.panelCount}>
-              <Text style={styles.panelCountNum}>{geoProps.length}</Text>
-              {' propiedades'}
-            </Text>
-            {selectedId && (() => {
-              const sel = geoProps.find(p => p.id === selectedId);
-              return sel ? (
-                <TouchableOpacity
-                  style={styles.panelViewBtn}
-                  onPress={() => router.push(`/property/${sel.slug}`)}
-                >
-                  <Text style={styles.panelViewText}>Ver propiedad</Text>
-                  <Ionicons name="arrow-forward" size={14} color={Colors.primary} />
+      {/* Backdrop: click outside the panel to close it (no-op on narrow
+          screens where the panel already spans the full width) */}
+      {detailProp && (
+        <TouchableOpacity
+          style={[styles.backdrop, { left: PANEL_WIDTH }]}
+          activeOpacity={1}
+          onPress={() => setDetailProp(null)}
+        />
+      )}
+
+      {/* Left side detail panel — width caps at 420 so on narrow (mobile web)
+          viewports it naturally becomes a full-width overlay instead */}
+      <Animated.View
+        style={[
+          styles.detailPanel,
+          {
+            width: PANEL_WIDTH,
+            transform: [{
+              translateX: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [-PANEL_WIDTH, 0] }),
+            }],
+          },
+        ]}
+        pointerEvents={detailProp ? 'auto' : 'none'}
+      >
+        {detailProp && (() => {
+          const mainImg = getMainImage(detailProp.property_images);
+          const liked = isFavorite(detailProp.id);
+          return (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.detailImageWrap}>
+                {mainImg ? (
+                  <Image source={{ uri: mainImg }} style={styles.detailImage} />
+                ) : (
+                  <View style={[styles.detailImage, styles.noImage]}>
+                    <Ionicons name="image-outline" size={48} color={Colors.gray[300]} />
+                  </View>
+                )}
+                <TouchableOpacity style={styles.detailCloseBtn} onPress={() => setDetailProp(null)}>
+                  <Ionicons name="close" size={22} color={Colors.white} />
                 </TouchableOpacity>
-              ) : null;
-            })()}
-          </View>
-        </View>
-        <FlatList
-          ref={flatListRef}
-          data={geoProps}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={CARD_WIDTH + CARD_MARGIN * 2}
-          decelerationRate="fast"
-          keyExtractor={item => item.id}
-          contentContainerStyle={{ paddingHorizontal: CARD_MARGIN, paddingBottom: 8 }}
-          renderItem={({ item }) => {
-            const imgUrl = getMainImage(item.property_images);
-            const liked = isFavorite(item.id);
-            const isSelected = selectedId === item.id;
-            return (
-              <TouchableOpacity
-                style={[styles.card, isSelected && styles.cardSelected]}
-                activeOpacity={0.9}
-                onPress={() => {
-                  setSelectedId(item.id);
-                  if (item.latitude && item.longitude) {
-                    setFlyTarget({ coord: [item.latitude, item.longitude], zoom: 16 });
-                  }
-                }}
-              >
-                <View style={styles.cardImageWrap}>
-                  {imgUrl ? (
-                    <Image source={{ uri: imgUrl }} style={styles.cardImage} />
-                  ) : (
-                    <View style={[styles.cardImage, styles.noImage]}>
-                      <Ionicons name="image-outline" size={32} color={Colors.gray[300]} />
+                <TouchableOpacity style={styles.detailHeartBtn} onPress={() => toggleFavorite(detailProp.id)}>
+                  <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? '#EF4444' : Colors.white} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.detailBody}>
+                <View style={styles.detailTopRow}>
+                  <View style={[styles.opTag, { backgroundColor: opColor(detailProp.operation) }]}>
+                    <Text style={styles.opTagText}>{opLabel(detailProp.operation)}</Text>
+                  </View>
+                  <Text style={styles.detailPrice}>{formatPrice(detailProp.price, detailProp.currency)}</Text>
+                </View>
+                <Text style={styles.detailTitle}>{detailProp.title}</Text>
+                <View style={styles.detailAddressRow}>
+                  <Ionicons name="location-outline" size={14} color={Colors.gray[400]} />
+                  <Text style={styles.detailAddress}>
+                    {detailProp.zones ? `${detailProp.zones.name}, ${detailProp.zones.city}` : detailProp.address}
+                  </Text>
+                </View>
+                <View style={styles.detailSpecsRow}>
+                  {detailProp.bedrooms != null && (
+                    <View style={styles.detailSpecItem}>
+                      <Ionicons name="bed-outline" size={16} color={Colors.gray[600]} />
+                      <Text style={styles.detailSpecText}>{detailProp.bedrooms} hab.</Text>
                     </View>
+                  )}
+                  {detailProp.bathrooms != null && (
+                    <View style={styles.detailSpecItem}>
+                      <Ionicons name="water-outline" size={16} color={Colors.gray[600]} />
+                      <Text style={styles.detailSpecText}>{detailProp.bathrooms} baños</Text>
+                    </View>
+                  )}
+                  {detailProp.area_m2 != null && (
+                    <View style={styles.detailSpecItem}>
+                      <Ionicons name="resize-outline" size={16} color={Colors.gray[600]} />
+                      <Text style={styles.detailSpecText}>{detailProp.area_m2} m²</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.detailActions}>
+                  {(detailProp.whatsapp || detailProp.users?.phone) && (
+                    <TouchableOpacity style={styles.detailWaBtn} onPress={() => openWhatsApp(detailProp)}>
+                      <Ionicons name="logo-whatsapp" size={18} color={Colors.white} />
+                      <Text style={styles.detailWaText}>WhatsApp</Text>
+                    </TouchableOpacity>
                   )}
                   <TouchableOpacity
-                    style={styles.heartBtn}
-                    onPress={() => toggleFavorite(item.id)}
+                    style={styles.detailViewBtn}
+                    onPress={() => router.push(`/property/${detailProp.slug}`)}
                   >
-                    <Ionicons
-                      name={liked ? 'heart' : 'heart-outline'}
-                      size={22}
-                      color={liked ? '#EF4444' : Colors.white}
-                    />
+                    <Text style={styles.detailViewText}>Ver detalle completo</Text>
+                    <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
                   </TouchableOpacity>
-                  {isSelected && (
-                    <View style={styles.selectedBadge}>
-                      <Ionicons name="locate" size={12} color="#fff" />
-                      <Text style={styles.selectedBadgeText}>Seleccionado</Text>
-                    </View>
-                  )}
                 </View>
-                <View style={styles.cardBody}>
-                  <View style={styles.cardTop}>
-                    <View style={[styles.opTag, { backgroundColor: opColor(item.operation) }]}>
-                      <Text style={styles.opTagText}>{opLabel(item.operation)}</Text>
-                    </View>
-                    <Text style={styles.cardPrice}>{formatPrice(item.price, item.currency)}</Text>
-                  </View>
-                  <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-                  <Text style={styles.cardAddress} numberOfLines={1}>
-                    {item.zones ? `${item.zones.name}, ${item.zones.city}` : item.address}
-                  </Text>
-                  <View style={styles.cardBottom}>
-                    <View style={styles.cardSpecs}>
-                      {item.bedrooms != null && <Text style={styles.specText}>{item.bedrooms} hab.</Text>}
-                      {item.bathrooms != null && <Text style={styles.specText}>{item.bathrooms} baños</Text>}
-                      {item.area_m2 != null && <Text style={styles.specText}>{item.area_m2} m²</Text>}
-                    </View>
-                    {(item.whatsapp || item.users?.phone) && (
-                      <TouchableOpacity style={styles.waBtn} onPress={() => openWhatsApp(item)}>
-                        <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      </View>
+              </View>
+            </ScrollView>
+          );
+        })()}
+      </Animated.View>
 
       <FilterModal
         visible={showFilters}
@@ -543,7 +599,7 @@ const styles = StyleSheet.create({
   myLocBtn: {
     position: 'absolute',
     right: Spacing.lg,
-    bottom: 270,
+    bottom: Spacing.xl,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -557,7 +613,7 @@ const styles = StyleSheet.create({
   radiusControl: {
     position: 'absolute',
     right: Spacing.lg,
-    bottom: 322,
+    bottom: 78,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
@@ -585,98 +641,111 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Panel
-  panel: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 999,
-    paddingBottom: 12,
-  },
-  panelHandle: { display: 'none' as any },
-  panelHeader: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: 6,
-  },
-  panelLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: Colors.white,
-    borderRadius: Radius.full,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.10)' as any,
-    alignSelf: 'flex-start' as any,
-  },
-  panelCount: { fontSize: Fonts.sizes.sm, color: Colors.gray[600], fontWeight: '500' },
-  panelCountNum: { fontSize: Fonts.sizes.sm, fontWeight: '800', color: Colors.gray[900] },
-  panelHint: { fontSize: 11, color: Colors.gray[400] },
-  panelViewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.primaryLight,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-    cursor: 'pointer' as any,
-  },
-  panelViewText: { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.primary },
-
-  // Card
-  card: {
-    width: CARD_WIDTH,
-    marginHorizontal: CARD_MARGIN,
-    marginTop: 12,
-    backgroundColor: Colors.white,
-    borderRadius: Radius.lg,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.10)' as any,
-    cursor: 'pointer' as any,
-  },
-  cardSelected: {
-    borderColor: Colors.primary,
-    boxShadow: '0 0 0 4px rgba(37,99,235,0.15), 0 4px 16px rgba(37,99,235,0.2)' as any,
-  },
-  cardImageWrap: { borderRadius: Radius.lg - 2, overflow: 'hidden' as any },
-  cardImage: { width: '100%', height: 120 },
   noImage: { backgroundColor: Colors.gray[100], justifyContent: 'center', alignItems: 'center' },
-  heartBtn: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  selectedBadge: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: Radius.full,
-  },
-  selectedBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  cardBody: { padding: Spacing.md },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
   opTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   opTagText: { color: Colors.white, fontSize: 10, fontWeight: '700' },
-  cardPrice: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.gray[900] },
-  cardTitle: { fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.gray[800] },
-  cardAddress: { fontSize: Fonts.sizes.sm, color: Colors.gray[500], marginTop: 2 },
-  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm },
-  cardSpecs: { flexDirection: 'row', gap: Spacing.md },
-  specText: { fontSize: Fonts.sizes.xs, color: Colors.gray[500] },
-  waBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#E8F5E9', justifyContent: 'center', alignItems: 'center' },
+
+  // Backdrop behind the side panel — click to dismiss
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1500,
+    cursor: 'pointer' as any,
+  },
+
+  // Left side detail panel (caps at 420px; on narrow/mobile web viewports
+  // this equals the screen width, becoming a natural full-width overlay)
+  detailPanel: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    zIndex: 2000,
+    backgroundColor: Colors.white,
+    boxShadow: '4px 0 24px rgba(0,0,0,0.18)' as any,
+  },
+  detailImageWrap: { width: '100%', height: 260 },
+  detailImage: { width: '100%', height: '100%' as any },
+  detailCloseBtn: {
+    position: 'absolute',
+    top: Spacing.lg,
+    left: Spacing.lg,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    cursor: 'pointer' as any,
+  },
+  detailHeartBtn: {
+    position: 'absolute',
+    top: Spacing.lg,
+    right: Spacing.lg,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    cursor: 'pointer' as any,
+  },
+  detailBody: { padding: Spacing.xl },
+  detailTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
+  detailPrice: { fontSize: Fonts.sizes.xl, fontWeight: '800', color: Colors.gray[900] },
+  detailTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.gray[900], marginBottom: 6 },
+  detailAddressRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.lg },
+  detailAddress: { fontSize: Fonts.sizes.sm, color: Colors.gray[500] },
+  detailSpecsRow: { flexDirection: 'row', gap: Spacing.lg, marginBottom: Spacing.xl },
+  detailSpecItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  detailSpecText: { fontSize: Fonts.sizes.sm, color: Colors.gray[600], fontWeight: '500' },
+  detailActions: { flexDirection: 'row', gap: Spacing.sm },
+  detailWaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#25D366',
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.lg,
+    cursor: 'pointer' as any,
+  },
+  detailWaText: { color: Colors.white, fontSize: Fonts.sizes.sm, fontWeight: '700' },
+  detailViewBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.primaryLight,
+    paddingVertical: 12,
+    borderRadius: Radius.lg,
+    cursor: 'pointer' as any,
+  },
+  detailViewText: { color: Colors.primary, fontSize: Fonts.sizes.sm, fontWeight: '700' },
+});
+
+// Hover preview card shown above a marker
+const previewStyles = StyleSheet.create({
+  card: {
+    width: 220,
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: Colors.white,
+    borderRadius: Radius.md,
+    padding: 8,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.18)' as any,
+  },
+  imgWrap: { borderRadius: Radius.sm, overflow: 'hidden' as any },
+  img: { width: 56, height: 56 },
+  noImg: { backgroundColor: Colors.gray[100], justifyContent: 'center', alignItems: 'center' },
+  info: { flex: 1, justifyContent: 'center' },
+  badge: { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 3, marginBottom: 3 },
+  badgeText: { color: Colors.white, fontSize: 9, fontWeight: '700' },
+  title: { fontSize: Fonts.sizes.xs, fontWeight: '600', color: Colors.gray[800] },
+  address: { fontSize: 10, color: Colors.gray[400], marginTop: 1 },
+  price: { fontSize: Fonts.sizes.sm, fontWeight: '800', color: Colors.gray[900], marginTop: 2 },
 });
