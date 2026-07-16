@@ -8,6 +8,7 @@ import ChatFAB from '../../src/components/support/ChatFAB';
 import OwnerSupportFAB from '../../src/components/support/OwnerSupportChat';
 import SubscriptionPromoModal from '../../src/components/subscription/SubscriptionPromoModal';
 import PublishFreeBanner from '../../src/components/subscription/PublishFreeBanner';
+import AdPopup from '../../src/components/ads/AdPopup';
 import { useRoleColors } from '../../src/hooks/useRoleColors';
 
 export default function TabsLayout() {
@@ -77,6 +78,7 @@ export default function TabsLayout() {
     {isOwner ? <OwnerSupportFAB /> : <ChatFAB />}
     <SubscriptionPromoModal />
     <PublishFreeBanner />
+    <AdPopup />
     </View>
   );
 }

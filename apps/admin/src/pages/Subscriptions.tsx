@@ -14,6 +14,8 @@ interface Plan {
   allows_featured: boolean;
   includes_statistics: boolean;
   priority_in_results: boolean;
+  is_business: boolean;
+  ad_views: number;
   publication_duration_days: number | null;
   is_active: boolean;
 }
@@ -56,6 +58,8 @@ const EMPTY_PLAN_FORM = {
   allows_featured: false,
   includes_statistics: false,
   priority_in_results: false,
+  is_business: false,
+  ad_views: 0,
   publication_duration_days: '' as number | '',
   is_active: true,
 };
@@ -135,6 +139,8 @@ export default function Subscriptions() {
       allows_featured: p.allows_featured,
       includes_statistics: p.includes_statistics,
       priority_in_results: p.priority_in_results,
+      is_business: p.is_business ?? false,
+      ad_views: p.ad_views ?? 0,
       publication_duration_days: p.publication_duration_days ?? '',
       is_active: p.is_active,
     });
@@ -297,6 +303,7 @@ export default function Subscriptions() {
                       {p.allows_featured && <span className="badge badge-blue">Destacadas</span>}
                       {p.includes_statistics && <span className="badge badge-blue">Estadísticas</span>}
                       {p.priority_in_results && <span className="badge badge-blue">Prioridad</span>}
+                      {p.is_business && <span className="badge badge-yellow">Empresas · {Number(p.ad_views).toLocaleString()} vistas</span>}
                       {!p.allows_featured && !p.includes_statistics && !p.priority_in_results && (
                         <span className="text-muted">Básico</span>
                       )}
@@ -431,6 +438,12 @@ export default function Subscriptions() {
               <label>Propiedades incluidas</label>
               <input type="number" min="1" value={planForm.included_properties} onChange={(e) => setPlanForm({ ...planForm, included_properties: Number(e.target.value) })} />
             </div>
+            {planForm.is_business && (
+              <div className="form-group">
+                <label>Vistas de publicidad incluidas</label>
+                <input type="number" min="0" value={planForm.ad_views} onChange={(e) => setPlanForm({ ...planForm, ad_views: Number(e.target.value) })} />
+              </div>
+            )}
             <div className="form-group">
               <label>Precio por propiedad extra</label>
               <input type="number" min="0" step="0.01" value={planForm.extra_property_price} onChange={(e) => setPlanForm({ ...planForm, extra_property_price: Number(e.target.value) })} placeholder="0 = sin extras" />
@@ -453,6 +466,10 @@ export default function Subscriptions() {
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
               <input type="checkbox" checked={planForm.priority_in_results} onChange={(e) => setPlanForm({ ...planForm, priority_in_results: e.target.checked })} />
               Prioridad en resultados
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
+              <input type="checkbox" checked={planForm.is_business} onChange={(e) => setPlanForm({ ...planForm, is_business: e.target.checked })} />
+              Plan de empresas (publicidad)
             </label>
           </div>
 

@@ -36,6 +36,8 @@ export class PlansService {
         includes_statistics: dto.includes_statistics ?? false,
         priority_in_results: dto.priority_in_results ?? false,
         publication_duration_days: dto.publication_duration_days,
+        is_business: dto.is_business ?? false,
+        ad_views: dto.ad_views ?? 0,
         is_active: dto.is_active ?? true,
       },
     });
@@ -57,6 +59,8 @@ export class PlansService {
         includes_statistics: dto.includes_statistics,
         priority_in_results: dto.priority_in_results,
         publication_duration_days: dto.publication_duration_days,
+        is_business: dto.is_business,
+        ad_views: dto.ad_views,
         is_active: dto.is_active,
       },
     });

@@ -82,4 +82,15 @@ export class CreatePlanDto {
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  @ApiPropertyOptional({ default: false, description: 'Plan de empresas (publicidad)' })
+  @IsOptional()
+  @IsBoolean()
+  is_business?: boolean;
+
+  @ApiPropertyOptional({ default: 0, description: 'Vistas de publicidad incluidas' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  ad_views?: number;
 }

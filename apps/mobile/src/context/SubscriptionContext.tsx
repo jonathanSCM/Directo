@@ -16,6 +16,8 @@ export interface Plan {
   includes_statistics: boolean;
   priority_in_results: boolean;
   publication_duration_days: number | null;
+  is_business: boolean;
+  ad_views: number;
   is_active: boolean;
 }
 

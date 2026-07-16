@@ -54,6 +54,10 @@ export default function RootLayout() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="company"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="notifications"
             options={{ headerShown: false }}
           />
