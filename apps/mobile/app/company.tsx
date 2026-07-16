@@ -106,13 +106,23 @@ export default function CompanyScreen() {
       const formData = new FormData();
       formData.append('title', adTitle.trim());
       if (adLink.trim()) formData.append('link_url', adLink.trim());
-      const ext = adImage.uri.split('.').pop() ?? 'jpg';
-      formData.append('image', {
-        uri: adImage.uri,
-        type: adImage.mimeType ?? `image/${ext}`,
-        name: adImage.fileName ?? `ad.${ext}`,
-      } as any);
-      await api.post('/companies/mine/ads', formData);
+      if (Platform.OS === 'web') {
+        const resp = await fetch(adImage.uri);
+        const blob = await resp.blob();
+        const ext = adImage.fileName?.split('.').pop() ?? 'jpg';
+        formData.append('image', blob, adImage.fileName ?? `ad.${ext}`);
+        await api.post('/companies/mine/ads', formData, {
+          headers: { 'Content-Type': undefined },
+        });
+      } else {
+        const ext = adImage.uri.split('.').pop() ?? 'jpg';
+        formData.append('image', {
+          uri: adImage.uri,
+          type: adImage.mimeType ?? `image/${ext}`,
+          name: adImage.fileName ?? `ad.${ext}`,
+        } as any);
+        await api.post('/companies/mine/ads', formData);
+      }
       setAdTitle('');
       setAdLink('');
       setAdImage(null);
