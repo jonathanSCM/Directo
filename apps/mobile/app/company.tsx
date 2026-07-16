@@ -112,9 +112,7 @@ export default function CompanyScreen() {
         type: adImage.mimeType ?? `image/${ext}`,
         name: adImage.fileName ?? `ad.${ext}`,
       } as any);
-      await api.post('/companies/mine/ads', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      await api.post('/companies/mine/ads', formData);
       setAdTitle('');
       setAdLink('');
       setAdImage(null);
