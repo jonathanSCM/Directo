@@ -152,14 +152,14 @@ export default function CreatePropertyWeb() {
 
   // ── Image picker ──
   const pickImages = async () => {
-    if (selectedImages.length >= 5) { setError('Máximo 5 imágenes por propiedad'); return; }
+    if (selectedImages.length >= 10) { setError('Máximo 10 fotos por propiedad'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      selectionLimit: 5 - selectedImages.length,
+      selectionLimit: 10 - selectedImages.length,
       quality: 0.8,
     });
-    if (!result.canceled) setSelectedImages((prev) => [...prev, ...result.assets].slice(0, 5));
+    if (!result.canceled) setSelectedImages((prev) => [...prev, ...result.assets].slice(0, 10));
   };
 
   // ── Submit ──
@@ -407,7 +407,7 @@ export default function CreatePropertyWeb() {
         )}
 
         {/* Images */}
-        <Text style={styles.sectionTitle}>Fotos ({selectedImages.length}/5)</Text>
+        <Text style={styles.sectionTitle}>Fotos ({selectedImages.length}/10)</Text>
         <View style={styles.imagesRow}>
           {selectedImages.map((img, idx) => (
             <View key={idx} style={styles.imageThumb}>
@@ -417,7 +417,7 @@ export default function CreatePropertyWeb() {
               </TouchableOpacity>
             </View>
           ))}
-          {selectedImages.length < 5 && (
+          {selectedImages.length < 10 && (
             <TouchableOpacity style={styles.addImageBtn} onPress={pickImages}>
               <Ionicons name="camera-outline" size={28} color={Colors.gray[400]} />
               <Text style={styles.addImageText}>Añadir</Text>

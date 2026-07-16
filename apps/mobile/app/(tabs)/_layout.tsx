@@ -7,18 +7,20 @@ import { Colors } from '../../src/constants/theme';
 import ChatFAB from '../../src/components/support/ChatFAB';
 import OwnerSupportFAB from '../../src/components/support/OwnerSupportChat';
 import SubscriptionPromoModal from '../../src/components/subscription/SubscriptionPromoModal';
-import SubscriptionToast from '../../src/components/subscription/SubscriptionToast';
+import PublishFreeBanner from '../../src/components/subscription/PublishFreeBanner';
+import { useRoleColors } from '../../src/hooks/useRoleColors';
 
 export default function TabsLayout() {
   const { user } = useAuth();
   const isOwner = user?.active_role === 'owner';
+  const { accent } = useRoleColors();
 
   return (
     <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
+        tabBarActiveTintColor: accent,
         tabBarInactiveTintColor: Colors.gray[400],
         tabBarStyle: {
           height: 85,
@@ -74,7 +76,7 @@ export default function TabsLayout() {
     </Tabs>
     {isOwner ? <OwnerSupportFAB /> : <ChatFAB />}
     <SubscriptionPromoModal />
-    <SubscriptionToast />
+    <PublishFreeBanner />
     </View>
   );
 }

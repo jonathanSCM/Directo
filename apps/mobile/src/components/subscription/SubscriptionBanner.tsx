@@ -13,19 +13,17 @@ export default function SubscriptionBanner() {
 
   const bestPlan = plans.reduce<typeof plans[0] | null>((best, p) => {
     if (!best) return p;
-    const bMax = best.max_active_properties ?? 999;
-    const pMax = p.max_active_properties ?? 999;
-    return pMax > bMax ? p : best;
+    return (p.included_properties ?? 1) > (best.included_properties ?? 1) ? p : best;
   }, null);
 
   const headline = !freeTrialUsed
-    ? '¡Prueba gratis 30 días!'
+    ? '¡Publica tu propiedad GRATIS!'
     : bestPlan
-      ? `Publica hasta ${bestPlan.max_active_properties ?? '∞'} propiedades`
+      ? `Publica hasta ${bestPlan.included_properties} propiedades o más`
       : 'Suscríbete para publicar';
 
   const subtitle = !freeTrialUsed
-    ? 'Activa tu prueba gratuita y publica tu primera propiedad'
+    ? '1 propiedad · 30 días · un solo uso'
     : bestPlan
       ? `Plan ${bestPlan.name} desde ${bestPlan.currency === 'USD' ? '$' : 'Bs.'} ${Number(bestPlan.price).toLocaleString()}`
       : 'Elige un plan y empieza a vender hoy';

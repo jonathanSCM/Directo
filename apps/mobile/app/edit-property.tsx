@@ -121,18 +121,18 @@ export default function EditPropertyScreen() {
   const canSubmit = title.trim().length >= 5 && propertyTypeId && price;
 
   const pickImages = async () => {
-    if (totalImages >= 5) {
-      Alert.alert('Límite', 'Máximo 5 imágenes por propiedad');
+    if (totalImages >= 10) {
+      Alert.alert('Límite', 'Máximo 10 fotos por propiedad');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      selectionLimit: 5 - totalImages,
+      selectionLimit: 10 - totalImages,
       quality: 0.8,
     });
     if (!result.canceled) {
-      setNewImages((prev) => [...prev, ...result.assets].slice(0, 5 - existingImages.length));
+      setNewImages((prev) => [...prev, ...result.assets].slice(0, 10 - existingImages.length));
     }
   };
 

@@ -131,18 +131,18 @@ export default function CreatePropertyScreen() {
   const selectedZone = zones.find((z) => z.id === zoneId);
 
   const pickImages = async () => {
-    if (selectedImages.length >= 5) {
-      Alert.alert('Límite', 'Máximo 5 imágenes por propiedad');
+    if (selectedImages.length >= 10) {
+      Alert.alert('Límite', 'Máximo 10 fotos por propiedad');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      selectionLimit: 5 - selectedImages.length,
+      selectionLimit: 10 - selectedImages.length,
       quality: 0.8,
     });
     if (!result.canceled) {
-      setSelectedImages((prev) => [...prev, ...result.assets].slice(0, 5));
+      setSelectedImages((prev) => [...prev, ...result.assets].slice(0, 10));
     }
   };
 
@@ -538,7 +538,7 @@ export default function CreatePropertyScreen() {
         )}
 
         {/* Images */}
-        <Text style={styles.sectionTitle}>Fotos ({selectedImages.length}/5)</Text>
+        <Text style={styles.sectionTitle}>Fotos ({selectedImages.length}/10)</Text>
         <View style={styles.imagesRow}>
           {selectedImages.map((img, idx) => (
             <View key={idx} style={styles.imageThumb}>
@@ -548,7 +548,7 @@ export default function CreatePropertyScreen() {
               </TouchableOpacity>
             </View>
           ))}
-          {selectedImages.length < 5 && (
+          {selectedImages.length < 10 && (
             <TouchableOpacity style={styles.addImageBtn} onPress={pickImages}>
               <Ionicons name="camera-outline" size={28} color={Colors.gray[400]} />
               <Text style={styles.addImageText}>Añadir</Text>

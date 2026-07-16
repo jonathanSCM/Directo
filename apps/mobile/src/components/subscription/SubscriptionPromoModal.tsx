@@ -23,13 +23,15 @@ function planFeatures(plan: Plan): { icon: string; text: string }[] {
   const feats: { icon: string; text: string }[] = [];
   feats.push({
     icon: 'home',
-    text: plan.max_active_properties
-      ? `Hasta ${plan.max_active_properties} propiedad(es) activas`
-      : 'Propiedades ilimitadas',
+    text: `${plan.included_properties} propiedad(es) incluidas`,
   });
-  if (plan.max_images_per_property) {
-    feats.push({ icon: 'images', text: `${plan.max_images_per_property} fotos por propiedad` });
+  if (Number(plan.extra_property_price) > 0) {
+    feats.push({
+      icon: 'add-circle',
+      text: `Propiedades extra a ${plan.currency === 'USD' ? '$' : 'Bs.'} ${Number(plan.extra_property_price)}`,
+    });
   }
+  feats.push({ icon: 'images', text: 'Hasta 10 fotos por propiedad' });
   if (plan.priority_in_results) {
     feats.push({ icon: 'trending-up', text: 'Prioridad en resultados de búsqueda' });
   }
@@ -84,7 +86,7 @@ export default function SubscriptionPromoModal() {
   if (!visible || plans.length === 0) return null;
 
   const topPlan = plans.reduce((a, b) =>
-    (a.max_active_properties ?? 999) > (b.max_active_properties ?? 999) ? a : b,
+    (a.included_properties ?? 1) > (b.included_properties ?? 1) ? a : b,
   );
 
   return (

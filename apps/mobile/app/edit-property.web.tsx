@@ -137,12 +137,12 @@ export default function EditPropertyWeb() {
   const canSubmit = title.trim().length >= 5 && propertyTypeId && price;
 
   const pickImages = async () => {
-    if (totalImages >= 5) { setError('Máximo 5 imágenes por propiedad'); return; }
+    if (totalImages >= 10) { setError('Máximo 10 fotos por propiedad'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'], allowsMultipleSelection: true,
-      selectionLimit: 5 - totalImages, quality: 0.8,
+      selectionLimit: 10 - totalImages, quality: 0.8,
     });
-    if (!result.canceled) setNewImages((prev) => [...prev, ...result.assets].slice(0, 5 - existingImages.length));
+    if (!result.canceled) setNewImages((prev) => [...prev, ...result.assets].slice(0, 10 - existingImages.length));
   };
 
   const removeExistingImage = async (imageId: string) => {
@@ -342,7 +342,7 @@ export default function EditPropertyWeb() {
           <TextInput style={styles.input} value={whatsapp} onChangeText={setWhatsapp} placeholder="+591 70000000" placeholderTextColor={Colors.gray[400]} keyboardType="phone-pad" />
         )}
 
-        <Text style={styles.sectionTitle}>Fotos ({totalImages}/5)</Text>
+        <Text style={styles.sectionTitle}>Fotos ({totalImages}/10)</Text>
         <View style={styles.imagesRow}>
           {existingImages.map((img) => (
             <View key={img.id} style={styles.imageThumb}>
@@ -361,7 +361,7 @@ export default function EditPropertyWeb() {
               </TouchableOpacity>
             </View>
           ))}
-          {totalImages < 5 && (
+          {totalImages < 10 && (
             <TouchableOpacity style={styles.addImageBtn} onPress={pickImages}>
               <Ionicons name="camera-outline" size={28} color={Colors.gray[400]} />
               <Text style={styles.addImageText}>Añadir</Text>

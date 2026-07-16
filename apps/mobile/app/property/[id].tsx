@@ -85,7 +85,7 @@ const formatPrice = (p: number, c: string) => {
 export default function PropertyDetailScreen() {
   const { id: slug } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const isOwner = user?.active_role === 'owner';
   const { isFavorite, toggleFavorite } = useFavorites();
   const [property, setProperty] = useState<PropertyDetail | null>(null);
@@ -286,6 +286,27 @@ export default function PropertyDetailScreen() {
             )}
           </Text>
 
+          {/* Sin sesión: el resto del detalle queda bloqueado */}
+          {!isAuthenticated && (
+            <View style={styles.loginGate}>
+              <Ionicons name="lock-closed" size={40} color={Colors.primary} />
+              <Text style={styles.loginGateTitle}>Inicia sesión para ver todo</Text>
+              <Text style={styles.loginGateText}>
+                Detalles completos, fotos, amenidades y contacto directo con el propietario.
+              </Text>
+              <TouchableOpacity
+                style={styles.loginGateBtn}
+                onPress={() => router.push('/(auth)/login')}
+              >
+                <Text style={styles.loginGateBtnText}>Iniciar sesión</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+                <Text style={styles.loginGateLink}>Crear cuenta gratis</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {isAuthenticated && (<>
           {/* Specs */}
           <View style={styles.specs}>
             {property.bedrooms != null && (
@@ -402,11 +423,12 @@ export default function PropertyDetailScreen() {
               </TouchableOpacity>
             </View>
           )}
+          </>)}
         </View>
       </ScrollView>
 
       {/* Bottom bar */}
-      {phone && (
+      {isAuthenticated && phone && (
         <View style={styles.bottomBar}>
           <TouchableOpacity
             style={styles.callBtn}
@@ -428,6 +450,24 @@ export default function PropertyDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.white },
+  loginGate: {
+    alignItems: 'center',
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.lg,
+    padding: Spacing.xxl,
+    marginTop: Spacing.xl,
+  },
+  loginGateTitle: { fontSize: Fonts.sizes.lg, fontWeight: '800', color: Colors.gray[900], marginTop: Spacing.md },
+  loginGateText: { fontSize: Fonts.sizes.sm, color: Colors.gray[600], textAlign: 'center', marginTop: Spacing.sm, lineHeight: 20 },
+  loginGateBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.xxl,
+    borderRadius: Radius.lg,
+    marginTop: Spacing.lg,
+  },
+  loginGateBtnText: { color: Colors.white, fontWeight: '700', fontSize: Fonts.sizes.md },
+  loginGateLink: { color: Colors.primary, fontWeight: '600', fontSize: Fonts.sizes.sm, marginTop: Spacing.md },
   center: {
     flex: 1,
     justifyContent: 'center',

@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAuth } from '../../src/context/AuthContext';
 import { useFavorites } from '../../src/context/FavoritesContext';
 import { getImageUrl } from '../../src/constants/api';
 import api from '../../src/services/api';
@@ -183,6 +184,7 @@ const lb = StyleSheet.create({
 export default function PropertyDetailWeb() {
   const { id: slug } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [property, setProperty] = useState<PropertyDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -348,6 +350,24 @@ export default function PropertyDetailWeb() {
               {property.operation === 'rent' && <Text style={S.perMonth}> /mes</Text>}
             </Text>
 
+            {/* Sin sesión: bloquear el resto del detalle */}
+            {!isAuthenticated && (
+              <View style={S.loginGate}>
+                <Ionicons name="lock-closed" size={40} color={Colors.primary} />
+                <Text style={S.loginGateTitle}>Inicia sesión para ver todo</Text>
+                <Text style={S.loginGateText}>
+                  Detalles completos, amenidades, ubicación y contacto directo con el propietario.
+                </Text>
+                <TouchableOpacity style={S.loginGateBtn} onPress={() => router.push('/(auth)/login')}>
+                  <Text style={S.loginGateBtnText}>Iniciar sesión</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+                  <Text style={S.loginGateLink}>Crear cuenta gratis</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {isAuthenticated && (<>
             {/* Specs */}
             {(property.bedrooms != null || property.bathrooms != null || property.area_m2 != null) && (
               <View style={S.specs}>
@@ -412,6 +432,7 @@ export default function PropertyDetailWeb() {
                 </TouchableOpacity>
               </View>
             )}
+            </>)}
           </View>
 
           {/* Sidebar */}
@@ -423,8 +444,8 @@ export default function PropertyDetailWeb() {
               {property.operation === 'rent' && <Text style={S.priceCardSub}>por mes</Text>}
             </View>
 
-            {/* Owner card */}
-            {property.users && (
+            {/* Owner card (solo con sesión) */}
+            {isAuthenticated && property.users && (
               <View style={S.ownerCard}>
                 <Text style={S.ownerCardTitle}>Propietario</Text>
                 <View style={S.ownerRow}>
@@ -459,6 +480,25 @@ export default function PropertyDetailWeb() {
 
 const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.white },
+  loginGate: {
+    alignItems: 'center',
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.lg,
+    padding: Spacing.xxl,
+    marginTop: Spacing.xl,
+  },
+  loginGateTitle: { fontSize: Fonts.sizes.lg, fontWeight: '800', color: Colors.gray[900], marginTop: Spacing.md },
+  loginGateText: { fontSize: Fonts.sizes.sm, color: Colors.gray[600], textAlign: 'center', marginTop: Spacing.sm, lineHeight: 20 },
+  loginGateBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.xxl,
+    borderRadius: Radius.lg,
+    marginTop: Spacing.lg,
+    cursor: 'pointer' as any,
+  },
+  loginGateBtnText: { color: Colors.white, fontWeight: '700', fontSize: Fonts.sizes.md },
+  loginGateLink: { color: Colors.primary, fontWeight: '600', fontSize: Fonts.sizes.sm, marginTop: Spacing.md, cursor: 'pointer' as any },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md },
   errorText: { fontSize: Fonts.sizes.md, color: Colors.gray[500] },
   backLink: { color: Colors.primary, fontWeight: '600', fontSize: Fonts.sizes.md },

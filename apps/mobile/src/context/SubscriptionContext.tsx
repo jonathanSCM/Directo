@@ -10,8 +10,8 @@ export interface Plan {
   price: string;
   currency: string;
   duration_days: number;
-  max_active_properties: number | null;
-  max_images_per_property: number | null;
+  included_properties: number;
+  extra_property_price: string;
   allows_featured: boolean;
   includes_statistics: boolean;
   priority_in_results: boolean;

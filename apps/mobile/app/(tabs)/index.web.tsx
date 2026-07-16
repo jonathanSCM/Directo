@@ -52,6 +52,11 @@ function useLeafletCSS() {
           opacity: 1;
         }
         .leaflet-tooltip.directo-tooltip::before { display: none; }
+        /* La preview fija del marcador seleccionado debe recibir clics */
+        .leaflet-tooltip.directo-tooltip.directo-tooltip-open {
+          pointer-events: auto;
+          cursor: pointer;
+        }
       `;
       document.head.appendChild(style);
     }
@@ -60,6 +65,9 @@ function useLeafletCSS() {
 
 const { width } = Dimensions.get('window');
 const PANEL_WIDTH = Math.min(width, 420);
+// Escritorio: preview al primer clic + panel que no bloquea el mapa.
+// Móvil web: comportamiento directo (clic = abrir detalle) como hasta ahora.
+const isDesktop = width >= 768;
 const DEFAULT_RADIUS_KM = 5;
 const DEFAULT_CENTER: [number, number] = [-17.7833, -63.1821];
 
@@ -124,12 +132,12 @@ function MapGetter({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> })
   return null;
 }
 
-// Compact hover preview shown above a marker (Leaflet Tooltip handles the
-// hover show/hide automatically — no custom mouse tracking needed)
-function MarkerPreview({ prop }: { prop: Property }) {
+// Compact preview shown above a marker. En hover es informativa; cuando el
+// marcador está seleccionado queda fija y clickeable para abrir el detalle.
+function MarkerPreview({ prop, onOpen }: { prop: Property; onOpen?: () => void }) {
   const imgUrl = getMainImage(prop.property_images);
-  return (
-    <View style={previewStyles.card}>
+  const body = (
+    <View style={[previewStyles.card, !!onOpen && previewStyles.cardClickable]}>
       <View style={previewStyles.imgWrap}>
         {imgUrl ? (
           <Image source={{ uri: imgUrl }} style={previewStyles.img} />
@@ -148,8 +156,15 @@ function MarkerPreview({ prop }: { prop: Property }) {
           {prop.zones ? `${prop.zones.name}, ${prop.zones.city}` : prop.address}
         </Text>
         <Text style={previewStyles.price}>{formatPrice(prop.price, prop.currency)}</Text>
+        {!!onOpen && <Text style={previewStyles.openHint}>Toca para ver detalles →</Text>}
       </View>
     </View>
+  );
+  if (!onOpen) return body;
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={onOpen}>
+      {body}
+    </TouchableOpacity>
   );
 }
 
@@ -281,9 +296,30 @@ export default function ExploreScreen() {
   const geoProps = properties.filter(p => p.latitude && p.longitude);
 
   const onMarkerPress = (prop: Property) => {
-    setSelectedId(prop.id);
-    setDetailProp(prop);
     setFlyTarget({ coord: [prop.latitude!, prop.longitude!], zoom: 16 });
+
+    if (!isDesktop) {
+      // Móvil web: clic abre el detalle directo (como siempre)
+      setSelectedId(prop.id);
+      setDetailProp(prop);
+      return;
+    }
+
+    if (detailProp) {
+      // Panel abierto: seleccionar otro marcador cambia el detalle al vuelo
+      setSelectedId(prop.id);
+      setDetailProp(prop);
+      return;
+    }
+
+    if (selectedId === prop.id) {
+      // Segundo clic en el mismo marcador también abre el detalle
+      setDetailProp(prop);
+      return;
+    }
+
+    // Primer clic: solo fija la preview sobre el marcador
+    setSelectedId(prop.id);
   };
 
   const goToMyLocation = () => {
@@ -318,18 +354,36 @@ export default function ExploreScreen() {
             radius={radiusKm * 1000}
             pathOptions={{ color: 'rgba(37,99,235,0.3)', fillColor: 'rgba(37,99,235,0.05)', weight: 1.5 }}
           />
-          {geoProps.map(p => (
-            <Marker
-              key={p.id}
-              position={[p.latitude!, p.longitude!]}
-              icon={makeMarkerIcon(p.operation, selectedId === p.id)}
-              eventHandlers={{ click: () => onMarkerPress(p) }}
-            >
-              <Tooltip direction="top" offset={[0, -44]} opacity={1} className="directo-tooltip">
-                <MarkerPreview prop={p} />
-              </Tooltip>
-            </Marker>
-          ))}
+          {geoProps.map(p => {
+            const isSelected = selectedId === p.id;
+            // En escritorio la preview del seleccionado queda fija (permanent)
+            // y clickeable; en el resto solo aparece al hover.
+            const sticky = isDesktop && isSelected;
+            return (
+              <Marker
+                key={p.id}
+                position={[p.latitude!, p.longitude!]}
+                icon={makeMarkerIcon(p.operation, isSelected)}
+                eventHandlers={{ click: () => onMarkerPress(p) }}
+              >
+                <Tooltip
+                  // permanent no cambia en caliente: remount al alternar
+                  key={`${p.id}-${sticky ? 'stick' : 'hover'}`}
+                  direction="top"
+                  offset={[0, sticky ? -50 : -44]}
+                  opacity={1}
+                  permanent={sticky}
+                  interactive={sticky}
+                  className={`directo-tooltip${sticky ? ' directo-tooltip-open' : ''}`}
+                >
+                  <MarkerPreview
+                    prop={p}
+                    onOpen={sticky ? () => { setDetailProp(p); } : undefined}
+                  />
+                </Tooltip>
+              </Marker>
+            );
+          })}
           {flyTarget && <MapFly coord={flyTarget.coord} zoom={flyTarget.zoom} />}
           <MapGetter mapRef={mapRef} />
         </MapContainer>
@@ -406,18 +460,10 @@ export default function ExploreScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Backdrop: click outside the panel to close it (no-op on narrow
-          screens where the panel already spans the full width) */}
-      {detailProp && (
-        <TouchableOpacity
-          style={[styles.backdrop, { left: PANEL_WIDTH }]}
-          activeOpacity={1}
-          onPress={() => setDetailProp(null)}
-        />
-      )}
-
       {/* Left side detail panel — width caps at 420 so on narrow (mobile web)
-          viewports it naturally becomes a full-width overlay instead */}
+          viewports it naturally becomes a full-width overlay instead.
+          En escritorio NO bloquea el mapa: se puede seguir explorando y
+          seleccionar otra propiedad reemplaza el contenido del panel. */}
       <Animated.View
         style={[
           styles.detailPanel,
@@ -645,16 +691,6 @@ const styles = StyleSheet.create({
   opTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   opTagText: { color: Colors.white, fontSize: 10, fontWeight: '700' },
 
-  // Backdrop behind the side panel — click to dismiss
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1500,
-    cursor: 'pointer' as any,
-  },
-
   // Left side detail panel (caps at 420px; on narrow/mobile web viewports
   // this equals the screen width, becoming a natural full-width overlay)
   detailPanel: {
@@ -748,4 +784,10 @@ const previewStyles = StyleSheet.create({
   title: { fontSize: Fonts.sizes.xs, fontWeight: '600', color: Colors.gray[800] },
   address: { fontSize: 10, color: Colors.gray[400], marginTop: 1 },
   price: { fontSize: Fonts.sizes.sm, fontWeight: '800', color: Colors.gray[900], marginTop: 2 },
+  cardClickable: {
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    cursor: 'pointer' as any,
+  },
+  openHint: { fontSize: 9, fontWeight: '700', color: Colors.primary, marginTop: 3 },
 });

@@ -55,10 +55,8 @@ export default function SubscriptionGate({ visible, onClose, reason = 'no_subscr
                     <View style={styles.planInfo}>
                       <Text style={styles.planName}>{plan.name}</Text>
                       <Text style={styles.planDetail}>
-                        {plan.max_active_properties
-                          ? `${plan.max_active_properties} prop.`
-                          : 'Ilimitadas'}{' '}
-                        · {plan.duration_days} días
+                        {plan.included_properties} prop. incluidas
+                        {' '}· {plan.duration_days} días
                       </Text>
                     </View>
                     <Text style={styles.planPrice}>
