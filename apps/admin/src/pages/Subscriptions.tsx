@@ -9,8 +9,8 @@ interface Plan {
   price: string;
   currency: string;
   duration_days: number;
-  max_active_properties: number | null;
-  max_images_per_property: number | null;
+  included_properties: number;
+  extra_property_price: string;
   allows_featured: boolean;
   includes_statistics: boolean;
   priority_in_results: boolean;
@@ -24,6 +24,8 @@ interface Subscription {
   start_date: string | null;
   end_date: string | null;
   created_at: string;
+  property_count: number | null;
+  renews_subscription_id: string | null;
   users?: { id: string; name: string; email: string };
   subscription_plans?: { name: string };
 }
@@ -39,8 +41,8 @@ const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
   expired: { cls: 'badge-red', label: 'Vencida' },
   pending_payment: { cls: 'badge-yellow', label: 'Pendiente pago' },
   cancelled: { cls: 'badge-gray', label: 'Cancelada' },
-  in_review: { cls: 'badge-blue', label: 'En revisión' },
-  renewed: { cls: 'badge-green', label: 'Renovada' },
+  in_review: { cls: 'badge-blue', label: 'Renovación pendiente' },
+  renewed: { cls: 'badge-gray', label: 'Renovación aplicada' },
 };
 
 const EMPTY_PLAN_FORM = {
@@ -49,8 +51,8 @@ const EMPTY_PLAN_FORM = {
   price: 0,
   currency: 'BOB',
   duration_days: 30,
-  max_active_properties: '' as number | '',
-  max_images_per_property: '' as number | '',
+  included_properties: 1,
+  extra_property_price: 0,
   allows_featured: false,
   includes_statistics: false,
   priority_in_results: false,
@@ -128,8 +130,8 @@ export default function Subscriptions() {
       price: Number(p.price),
       currency: p.currency,
       duration_days: p.duration_days,
-      max_active_properties: p.max_active_properties ?? '',
-      max_images_per_property: p.max_images_per_property ?? '',
+      included_properties: p.included_properties ?? 1,
+      extra_property_price: Number(p.extra_property_price ?? 0),
       allows_featured: p.allows_featured,
       includes_statistics: p.includes_statistics,
       priority_in_results: p.priority_in_results,
@@ -144,8 +146,8 @@ export default function Subscriptions() {
     try {
       const body = {
         ...planForm,
-        max_active_properties: planForm.max_active_properties === '' ? null : Number(planForm.max_active_properties),
-        max_images_per_property: planForm.max_images_per_property === '' ? null : Number(planForm.max_images_per_property),
+        included_properties: Number(planForm.included_properties) || 1,
+        extra_property_price: Number(planForm.extra_property_price) || 0,
         publication_duration_days: planForm.publication_duration_days === '' ? null : Number(planForm.publication_duration_days),
         price: Number(planForm.price),
       };
@@ -264,8 +266,8 @@ export default function Subscriptions() {
                 <th>Plan</th>
                 <th>Precio</th>
                 <th>Duración</th>
-                <th>Máx. propiedades</th>
-                <th>Máx. imágenes</th>
+                <th>Prop. incluidas</th>
+                <th>Precio extra c/u</th>
                 <th>Características</th>
                 <th>Estado</th>
                 <th>Acciones</th>
@@ -288,8 +290,8 @@ export default function Subscriptions() {
                     }
                   </td>
                   <td>{p.duration_days} días</td>
-                  <td>{p.max_active_properties ?? '∞'}</td>
-                  <td>{p.max_images_per_property ?? '∞'}</td>
+                  <td>{p.included_properties}</td>
+                  <td>{Number(p.extra_property_price) > 0 ? `$${Number(p.extra_property_price).toFixed(2)}` : '—'}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {p.allows_featured && <span className="badge badge-blue">Destacadas</span>}
@@ -336,6 +338,7 @@ export default function Subscriptions() {
               <option value="">Todos los estados</option>
               <option value="active">Activas</option>
               <option value="pending_payment">Pendiente pago</option>
+              <option value="in_review">Renovación pendiente</option>
               <option value="expired">Vencidas</option>
               <option value="cancelled">Canceladas</option>
             </select>
@@ -345,6 +348,7 @@ export default function Subscriptions() {
               <tr>
                 <th>Usuario</th>
                 <th>Plan</th>
+                <th>Propiedades</th>
                 <th>Estado</th>
                 <th>Inicio</th>
                 <th>Vencimiento</th>
@@ -353,7 +357,7 @@ export default function Subscriptions() {
             </thead>
             <tbody>
               {filteredSubs.length === 0 && (
-                <tr><td colSpan={6} className="empty-row">No hay suscripciones</td></tr>
+                <tr><td colSpan={7} className="empty-row">No hay suscripciones</td></tr>
               )}
               {filteredSubs.map((s) => {
                 const badge = STATUS_BADGE[s.status] ?? { cls: 'badge-gray', label: s.status };
@@ -365,7 +369,13 @@ export default function Subscriptions() {
                       <strong>{s.users?.name || '—'}</strong>
                       <br /><span className="text-muted">{s.users?.email}</span>
                     </td>
-                    <td>{s.subscription_plans?.name || '—'}</td>
+                    <td>
+                      {s.subscription_plans?.name || '—'}
+                      {s.renews_subscription_id && (
+                        <><br /><span className="text-muted" style={{ fontSize: 12 }}>↻ renueva la actual</span></>
+                      )}
+                    </td>
+                    <td>{s.property_count ?? '—'}</td>
                     <td><span className={`badge ${badge.cls}`}>{badge.label}</span></td>
                     <td>{fmt(s.start_date)}</td>
                     <td>{fmt(s.end_date)}</td>
@@ -418,12 +428,12 @@ export default function Subscriptions() {
               <input type="number" min="1" value={planForm.duration_days} onChange={(e) => setPlanForm({ ...planForm, duration_days: Number(e.target.value) })} />
             </div>
             <div className="form-group">
-              <label>Máx. propiedades activas</label>
-              <input type="number" min="1" value={planForm.max_active_properties} onChange={(e) => setPlanForm({ ...planForm, max_active_properties: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Vacío = ilimitado" />
+              <label>Propiedades incluidas</label>
+              <input type="number" min="1" value={planForm.included_properties} onChange={(e) => setPlanForm({ ...planForm, included_properties: Number(e.target.value) })} />
             </div>
             <div className="form-group">
-              <label>Máx. imágenes por propiedad</label>
-              <input type="number" min="1" value={planForm.max_images_per_property} onChange={(e) => setPlanForm({ ...planForm, max_images_per_property: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Vacío = ilimitado" />
+              <label>Precio por propiedad extra</label>
+              <input type="number" min="0" step="0.01" value={planForm.extra_property_price} onChange={(e) => setPlanForm({ ...planForm, extra_property_price: Number(e.target.value) })} placeholder="0 = sin extras" />
             </div>
             <div className="form-group">
               <label>Duración publicación (días)</label>
