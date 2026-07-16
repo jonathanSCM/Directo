@@ -141,17 +141,17 @@ ON CONFLICT (slug) DO NOTHING;
 -- ---------------------------------------------------------------------------
 INSERT INTO subscription_plans
     (name, slug, description, price, currency, duration_days,
-     max_active_properties, max_images_per_property,
+     included_properties, extra_property_price,
      allows_featured, includes_statistics, priority_in_results, publication_duration_days, is_active)
 VALUES
-    ('Gratis',       'gratis',       'Plan inicial para probar la plataforma.',
-        0,   'USD', 30,  1,    5,  FALSE, FALSE, FALSE, 30, TRUE),
+    ('Gratis',       'gratis',       'Publica tu primera propiedad gratis por 30 días (un solo uso).',
+        0,   'USD', 30,  1,  3.99, FALSE, FALSE, FALSE, 30, TRUE),
     ('Básico',       'basico',       'Para vendedores ocasionales.',
-        9.99,'USD', 30,  5,    10, FALSE, FALSE, FALSE, 30, TRUE),
+        9.99,'USD', 30,  5,  1.99, FALSE, FALSE, FALSE, 30, TRUE),
     ('Profesional',  'profesional',  'Para agentes activos: más propiedades y estadísticas.',
-        24.99,'USD',30,  20,   20, TRUE,  TRUE,  FALSE, 60, TRUE),
+        24.99,'USD',30,  20, 0.99, TRUE,  TRUE,  FALSE, 60, TRUE),
     ('Premium',      'premium',      'Máxima visibilidad: destacadas y prioridad en resultados.',
-        49.99,'USD',30,  NULL, 30, TRUE,  TRUE,  TRUE,  90, TRUE)
+        49.99,'USD',30,  50, 0.49, TRUE,  TRUE,  TRUE,  90, TRUE)
 ON CONFLICT (slug) DO NOTHING;
 
 -- ---------------------------------------------------------------------------

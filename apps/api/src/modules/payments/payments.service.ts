@@ -49,7 +49,8 @@ export class PaymentsService {
     if (!subscription || subscription.user_id !== userId) {
       throw new NotFoundException('Suscripción no encontrada');
     }
-    if (subscription.status !== 'pending_payment') {
+    // pending_payment: compra nueva; in_review: renovación anticipada
+    if (!['pending_payment', 'in_review'].includes(subscription.status)) {
       throw new BadRequestException(
         'La suscripción no está pendiente de pago',
       );
@@ -57,8 +58,14 @@ export class PaymentsService {
 
     const method = dto.method;
     const provider = this.resolveProvider(method);
-    const amount = Number(subscription.subscription_plans.price);
-    const currency = subscription.subscription_plans.currency;
+    // Total con propiedades extra incluidas
+    const quote = this.subscriptions.computePrice(
+      subscription.subscription_plans,
+      subscription.property_count ??
+        subscription.subscription_plans.included_properties,
+    );
+    const amount = quote.total;
+    const currency = quote.currency;
     const reference = this.newReference();
 
     const payment = await this.prisma.payments.create({

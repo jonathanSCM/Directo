@@ -9,6 +9,9 @@ import { join } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { AuthUser } from '../auth/types/jwt-payload.interface';
 
+/** Tope global de fotos por propiedad, igual para todos los planes. */
+const MAX_IMAGES_PER_PROPERTY = 10;
+
 @Injectable()
 export class PropertyImagesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -26,6 +29,11 @@ export class PropertyImagesService {
     const count = await this.prisma.property_images.count({
       where: { property_id: propertyId },
     });
+    if (count + files.length > MAX_IMAGES_PER_PROPERTY) {
+      throw new BadRequestException(
+        `Máximo ${MAX_IMAGES_PER_PROPERTY} fotos por propiedad (tienes ${count}).`,
+      );
+    }
     const hasMain =
       (await this.prisma.property_images.count({
         where: { property_id: propertyId, is_main: true },

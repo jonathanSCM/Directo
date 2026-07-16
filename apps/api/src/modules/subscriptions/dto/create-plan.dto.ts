@@ -39,17 +39,23 @@ export class CreatePlanDto {
   @Min(1)
   duration_days: number;
 
-  @ApiPropertyOptional({ description: 'Máx. propiedades activas (omitir = ilimitado)' })
+  @ApiPropertyOptional({
+    description: 'Propiedades incluidas en el precio base',
+    default: 1,
+  })
   @IsOptional()
   @IsInt()
-  @Min(0)
-  max_active_properties?: number;
+  @Min(1)
+  included_properties?: number;
 
-  @ApiPropertyOptional({ description: 'Máx. fotos por propiedad (omitir = ilimitado)' })
+  @ApiPropertyOptional({
+    description: 'Precio por cada propiedad extra sobre las incluidas',
+    default: 0,
+  })
   @IsOptional()
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  max_images_per_property?: number;
+  extra_property_price?: number;
 
   @ApiPropertyOptional({ default: false })
   @IsOptional()

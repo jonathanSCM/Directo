@@ -2,7 +2,10 @@ import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types/jwt-payload.interface';
-import { ActivateSubscriptionDto } from './dto/activate-subscription.dto';
+import {
+  ActivateSubscriptionDto,
+  RenewSubscriptionDto,
+} from './dto/activate-subscription.dto';
 import { SubscriptionsService } from './subscriptions.service';
 
 @ApiTags('subscriptions')
@@ -23,13 +26,20 @@ export class SubscriptionsController {
     @CurrentUser('id') userId: string,
     @Body() dto: ActivateSubscriptionDto,
   ) {
-    return this.subscriptionsService.activate(userId, dto.plan_id);
+    return this.subscriptionsService.activate(
+      userId,
+      dto.plan_id,
+      dto.property_count,
+    );
   }
 
   @Post('renew')
-  @ApiOperation({ summary: 'Renovar mi suscripción' })
-  renew(@CurrentUser('id') userId: string) {
-    return this.subscriptionsService.renew(userId);
+  @ApiOperation({ summary: 'Renovar mi suscripción (solo planes de pago)' })
+  renew(
+    @CurrentUser('id') userId: string,
+    @Body() dto: RenewSubscriptionDto,
+  ) {
+    return this.subscriptionsService.renew(userId, dto?.property_count);
   }
 
   @Post('free-trial')

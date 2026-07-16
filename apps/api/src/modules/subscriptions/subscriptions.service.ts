@@ -5,14 +5,65 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const DAY_MS = 86_400_000;
 const ACTIVE_PROPERTY_STATUSES = ['published', 'pending_approval'] as const;
 
+type PlanRow = {
+  id: string;
+  price: Prisma.Decimal;
+  currency: string;
+  duration_days: number;
+  included_properties: number;
+  extra_property_price: Prisma.Decimal;
+  name: string;
+  is_active: boolean;
+};
+
 @Injectable()
 export class SubscriptionsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // ── Precio ──────────────────────────────────────────────────────────────────
+
+  /**
+   * Precio total = precio base del plan + (propiedades por encima de las
+   * incluidas) * precio por propiedad extra.
+   */
+  computePrice(plan: PlanRow, propertyCount: number) {
+    const included = plan.included_properties;
+    const extraCount = Math.max(0, propertyCount - included);
+    const base = Number(plan.price);
+    const extraEach = Number(plan.extra_property_price);
+    return {
+      base,
+      included_properties: included,
+      extra_count: extraCount,
+      extra_each: extraEach,
+      total: base + extraCount * extraEach,
+      currency: plan.currency,
+    };
+  }
+
+  /** Cotización pública para el selector de propiedades del cliente. */
+  async quote(planId: string, propertyCount: number) {
+    const plan = await this.prisma.subscription_plans.findUnique({
+      where: { id: planId },
+    });
+    if (!plan || !plan.is_active) {
+      throw new NotFoundException('Plan no encontrado');
+    }
+    this.assertValidCount(propertyCount);
+    return this.computePrice(plan, propertyCount);
+  }
+
+  private assertValidCount(count: number) {
+    if (!Number.isInteger(count) || count < 1 || count > 100) {
+      throw new BadRequestException('Cantidad de propiedades inválida (1-100)');
+    }
+  }
 
   // ── Usuario ─────────────────────────────────────────────────────────────────
 
@@ -26,41 +77,88 @@ export class SubscriptionsService {
     });
   }
 
-  async activate(userId: string, planId: string) {
+  async activate(userId: string, planId: string, propertyCount?: number) {
     const plan = await this.prisma.subscription_plans.findUnique({
       where: { id: planId },
     });
     if (!plan || !plan.is_active) {
       throw new BadRequestException('Plan inválido o inactivo');
     }
+
+    const isFree = Number(plan.price) === 0;
+    // El plan gratis siempre es con sus propiedades incluidas (1); en los
+    // pagos el usuario elige cuántas quiere.
+    const count = isFree
+      ? plan.included_properties
+      : (propertyCount ?? plan.included_properties);
+    this.assertValidCount(count);
+
     const existing = await this.getActiveSubscription(userId);
     if (existing) {
       throw new ConflictException('Ya tienes una suscripción activa');
     }
 
-    // Plan gratuito: se activa de inmediato. Plan de pago: queda pendiente de pago.
-    if (Number(plan.price) === 0) {
+    if (isFree) {
+      const user = await this.prisma.users.findUnique({
+        where: { id: userId },
+        select: { free_trial_used: true },
+      });
+      if (!user) throw new NotFoundException('Usuario no encontrado');
+      if (user.free_trial_used) {
+        throw new ForbiddenException(
+          'Ya usaste tu plan gratis. Elige un plan de pago para seguir publicando.',
+        );
+      }
       const start = new Date();
       const end = new Date(start.getTime() + plan.duration_days * DAY_MS);
-      return this.prisma.subscriptions.create({
+      try {
+        const [sub] = await this.prisma.$transaction([
+          this.prisma.subscriptions.create({
+            data: {
+              user_id: userId,
+              plan_id: planId,
+              status: 'active',
+              start_date: start,
+              end_date: end,
+              property_count: count,
+            },
+            include: { subscription_plans: true },
+          }),
+          this.prisma.users.update({
+            where: { id: userId },
+            data: { free_trial_used: true },
+          }),
+        ]);
+        return sub;
+      } catch (e) {
+        this.rethrowUniqueAsConflict(e);
+      }
+    }
+
+    try {
+      return await this.prisma.subscriptions.create({
         data: {
           user_id: userId,
           plan_id: planId,
-          status: 'active',
-          start_date: start,
-          end_date: end,
+          status: 'pending_payment',
+          property_count: count,
         },
         include: { subscription_plans: true },
       });
+    } catch (e) {
+      this.rethrowUniqueAsConflict(e);
     }
-
-    return this.prisma.subscriptions.create({
-      data: { user_id: userId, plan_id: planId, status: 'pending_payment' },
-      include: { subscription_plans: true },
-    });
   }
 
-  async renew(userId: string) {
+  /**
+   * Renovación:
+   * - Plan gratis: nunca se renueva (un solo uso).
+   * - Plan pago vencido: nueva suscripción pendiente de pago (compra normal).
+   * - Plan pago aún activo: se crea una renovación en `in_review` vinculada,
+   *   SIN tocar la suscripción activa — el acceso no se corta. Al confirmarse
+   *   el pago se extiende desde el end_date real.
+   */
+  async renew(userId: string, propertyCount?: number) {
     const sub = await this.prisma.subscriptions.findFirst({
       where: { user_id: userId, status: { in: ['active', 'expired'] } },
       orderBy: { created_at: 'desc' },
@@ -71,66 +169,62 @@ export class SubscriptionsService {
     }
 
     const plan = sub.subscription_plans;
-    if (Number(plan.price) !== 0) {
-      // Plan de pago: la renovación se confirma con el pago (§18).
-      return this.prisma.subscriptions.update({
-        where: { id: sub.id },
-        data: { status: 'pending_payment' },
-        include: { subscription_plans: true },
-      });
-    }
-
-    const base =
-      sub.end_date && sub.end_date > new Date() ? sub.end_date : new Date();
-    return this.prisma.subscriptions.update({
-      where: { id: sub.id },
-      data: {
-        status: 'active',
-        start_date: sub.start_date ?? new Date(),
-        end_date: new Date(base.getTime() + plan.duration_days * DAY_MS),
-        renewed_at: new Date(),
-      },
-      include: { subscription_plans: true },
-    });
-  }
-
-  async claimFreeTrial(userId: string) {
-    const user = await this.prisma.users.findUnique({
-      where: { id: userId },
-      select: { free_trial_used: true },
-    });
-    if (!user) throw new NotFoundException('Usuario no encontrado');
-    if (user.free_trial_used) {
-      throw new BadRequestException(
-        'Ya utilizaste tu periodo de prueba gratuito',
+    if (Number(plan.price) === 0) {
+      throw new ForbiddenException(
+        'El plan gratis no se puede renovar. Elige un plan de pago para seguir publicando.',
       );
     }
-    const existing = await this.getActiveSubscription(userId);
-    if (existing) {
-      throw new ConflictException('Ya tienes una suscripción activa');
+
+    const count = propertyCount ?? sub.property_count ?? plan.included_properties;
+    this.assertValidCount(count);
+
+    // Evitar renovaciones pendientes duplicadas
+    const pendingRenewal = await this.prisma.subscriptions.findFirst({
+      where: {
+        user_id: userId,
+        status: { in: ['in_review', 'pending_payment'] },
+      },
+    });
+    if (pendingRenewal) {
+      throw new ConflictException(
+        'Ya tienes una renovación pendiente de pago. Complétala o espera su confirmación.',
+      );
     }
 
-    const start = new Date();
-    const end = new Date(start.getTime() + 30 * DAY_MS);
+    const stillActive =
+      sub.status === 'active' && sub.end_date && sub.end_date > new Date();
 
-    const [sub] = await this.prisma.$transaction([
-      this.prisma.subscriptions.create({
+    try {
+      return await this.prisma.subscriptions.create({
         data: {
           user_id: userId,
-          plan_id: await this.getOrCreateTrialPlanId(),
-          status: 'active',
-          start_date: start,
-          end_date: end,
+          plan_id: plan.id,
+          // Renovación anticipada: in_review (no choca con la activa en el
+          // índice único). Vencida: compra normal pendiente de pago.
+          status: stillActive ? 'in_review' : 'pending_payment',
+          property_count: count,
+          renews_subscription_id: stillActive ? sub.id : null,
         },
         include: { subscription_plans: true },
-      }),
-      this.prisma.users.update({
-        where: { id: userId },
-        data: { free_trial_used: true },
-      }),
-    ]);
+      });
+    } catch (e) {
+      this.rethrowUniqueAsConflict(e);
+    }
+  }
 
-    return sub;
+  /**
+   * Compatibilidad con clientes antiguos (POST /subscriptions/free-trial):
+   * activa el plan gratis público. Mismas reglas de un solo uso.
+   */
+  async claimFreeTrial(userId: string) {
+    const freePlan = await this.prisma.subscription_plans.findFirst({
+      where: { price: 0, is_active: true },
+      orderBy: { created_at: 'asc' },
+    });
+    if (!freePlan) {
+      throw new NotFoundException('No hay un plan gratis disponible');
+    }
+    return this.activate(userId, freePlan.id);
   }
 
   async hasUsedFreeTrial(userId: string): Promise<boolean> {
@@ -141,32 +235,16 @@ export class SubscriptionsService {
     return user?.free_trial_used ?? false;
   }
 
-  private async getOrCreateTrialPlanId(): Promise<string> {
-    const existing = await this.prisma.subscription_plans.findUnique({
-      where: { slug: 'trial-30' },
-    });
-    if (existing) return existing.id;
-    const plan = await this.prisma.subscription_plans.create({
-      data: {
-        name: 'Prueba Gratuita 30 días',
-        slug: 'trial-30',
-        price: 0,
-        currency: 'BOB',
-        duration_days: 30,
-        max_active_properties: 1,
-        is_active: false,
-      },
-    });
-    return plan.id;
-  }
-
   // ── Admin (§13.4) ───────────────────────────────────────────────────────────
 
-  async adminAssign(userId: string, planId: string) {
+  async adminAssign(userId: string, planId: string, propertyCount?: number) {
     const plan = await this.prisma.subscription_plans.findUnique({
       where: { id: planId },
     });
     if (!plan) throw new NotFoundException('Plan no encontrado');
+
+    const count = propertyCount ?? plan.included_properties;
+    this.assertValidCount(count);
 
     const existing = await this.getActiveSubscription(userId);
     if (existing) {
@@ -176,16 +254,25 @@ export class SubscriptionsService {
     const start = new Date();
     const end = new Date(start.getTime() + plan.duration_days * DAY_MS);
 
-    const sub = await this.prisma.subscriptions.create({
-      data: {
-        user_id: userId,
-        plan_id: planId,
-        status: 'active',
-        start_date: start,
-        end_date: end,
-      },
-      include: { subscription_plans: true, users: { select: { id: true, name: true, email: true } } },
-    });
+    let sub;
+    try {
+      sub = await this.prisma.subscriptions.create({
+        data: {
+          user_id: userId,
+          plan_id: planId,
+          status: 'active',
+          start_date: start,
+          end_date: end,
+          property_count: count,
+        },
+        include: {
+          subscription_plans: true,
+          users: { select: { id: true, name: true, email: true } },
+        },
+      });
+    } catch (e) {
+      this.rethrowUniqueAsConflict(e);
+    }
 
     await this.notify(
       userId,
@@ -212,7 +299,12 @@ export class SubscriptionsService {
     });
   }
 
-  /** Activa una suscripción manualmente o tras confirmar un pago (§18). */
+  /**
+   * Confirma una suscripción (admin o webhook de pago).
+   * - Compra nueva (pending_payment sin vínculo): activa desde ahora.
+   * - Renovación anticipada (in_review con renews_subscription_id): extiende
+   *   la suscripción activa desde su end_date real — no se pierde ni un día.
+   */
   async activateSubscription(subscriptionId: string) {
     const sub = await this.prisma.subscriptions.findUnique({
       where: { id: subscriptionId },
@@ -221,6 +313,59 @@ export class SubscriptionsService {
     if (!sub) {
       throw new NotFoundException('Suscripción no encontrada');
     }
+    if (!['pending_payment', 'in_review', 'expired'].includes(sub.status)) {
+      throw new BadRequestException(
+        `No se puede activar una suscripción en estado "${sub.status}"`,
+      );
+    }
+
+    const durationMs = sub.subscription_plans.duration_days * DAY_MS;
+
+    // ¿Es una renovación anticipada de una suscripción que sigue activa?
+    if (sub.renews_subscription_id) {
+      const current = await this.prisma.subscriptions.findUnique({
+        where: { id: sub.renews_subscription_id },
+      });
+      if (
+        current &&
+        current.status === 'active' &&
+        current.end_date &&
+        current.end_date > new Date()
+      ) {
+        // Extender la suscripción vigente; la fila de renovación queda como
+        // registro histórico en estado `renewed`.
+        const [extended] = await this.prisma.$transaction([
+          this.prisma.subscriptions.update({
+            where: { id: current.id },
+            data: {
+              end_date: new Date(current.end_date.getTime() + durationMs),
+              renewed_at: new Date(),
+              property_count: sub.property_count ?? current.property_count,
+            },
+            include: { subscription_plans: true },
+          }),
+          this.prisma.subscriptions.update({
+            where: { id: sub.id },
+            data: {
+              status: 'renewed',
+              start_date: current.end_date,
+              end_date: new Date(current.end_date.getTime() + durationMs),
+            },
+          }),
+        ]);
+        await this.notify(
+          sub.user_id,
+          'subscription_expiring',
+          'Renovación confirmada',
+          `Tu suscripción se extendió hasta el ${extended.end_date!.toLocaleDateString('es-BO')}.`,
+          { subscription_id: extended.id },
+        );
+        return extended;
+      }
+      // La original ya venció mientras se confirmaba: activar la renovación
+      // como una suscripción nueva desde ahora (cae al flujo de abajo).
+    }
+
     const other = await this.prisma.subscriptions.findFirst({
       where: { user_id: sub.user_id, status: 'active', NOT: { id: sub.id } },
     });
@@ -228,12 +373,17 @@ export class SubscriptionsService {
       throw new ConflictException('El usuario ya tiene una suscripción activa');
     }
     const start = new Date();
-    const end = new Date(start.getTime() + sub.subscription_plans.duration_days * DAY_MS);
-    const updated = await this.prisma.subscriptions.update({
-      where: { id: subscriptionId },
-      data: { status: 'active', start_date: start, end_date: end },
-      include: { subscription_plans: true },
-    });
+    const end = new Date(start.getTime() + durationMs);
+    let updated;
+    try {
+      updated = await this.prisma.subscriptions.update({
+        where: { id: subscriptionId },
+        data: { status: 'active', start_date: start, end_date: end },
+        include: { subscription_plans: true },
+      });
+    } catch (e) {
+      this.rethrowUniqueAsConflict(e);
+    }
     await this.notify(
       sub.user_id,
       'subscription_expiring',
@@ -276,7 +426,7 @@ export class SubscriptionsService {
         userId,
         'subscription_expired',
         'Suscripción vencida',
-        'Tu suscripción ha vencido. Renuévala para seguir publicando.',
+        'Tu suscripción ha vencido. Compra un plan para seguir publicando.',
         { subscription_id: sub.id },
       );
       return null;
@@ -284,7 +434,7 @@ export class SubscriptionsService {
     return sub;
   }
 
-  /** Valida que el usuario pueda publicar según su suscripción y el plan (§18). */
+  /** Valida que el usuario pueda publicar según su suscripción (§18). */
   async assertCanPublish(userId: string, excludePropertyId?: string) {
     const enforce = await this.getBoolSetting(
       'subscriptions.require_for_publish',
@@ -298,24 +448,35 @@ export class SubscriptionsService {
         'Necesitas una suscripción activa para publicar una propiedad',
       );
     }
-    const max = sub.subscription_plans.max_active_properties;
-    if (max != null) {
-      const count = await this.prisma.properties.count({
-        where: {
-          owner_id: userId,
-          status: { in: [...ACTIVE_PROPERTY_STATUSES] },
-          ...(excludePropertyId ? { id: { not: excludePropertyId } } : {}),
-        },
-      });
-      if (count >= max) {
-        throw new ForbiddenException(
-          `Tu plan permite ${max} propiedad(es) activa(s). Mejora tu plan para publicar más.`,
-        );
-      }
+    // Tope = propiedades compradas por el usuario (fallback: incluidas del plan)
+    const max =
+      sub.property_count ?? sub.subscription_plans.included_properties;
+    const count = await this.prisma.properties.count({
+      where: {
+        owner_id: userId,
+        status: { in: [...ACTIVE_PROPERTY_STATUSES] },
+        ...(excludePropertyId ? { id: { not: excludePropertyId } } : {}),
+      },
+    });
+    if (count >= max) {
+      throw new ForbiddenException(
+        `Tu suscripción permite ${max} propiedad(es) activa(s). Amplía tu plan para publicar más.`,
+      );
     }
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  /** El índice único parcial de BD es la última línea de defensa contra carreras. */
+  private rethrowUniqueAsConflict(e: unknown): never {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === 'P2002'
+    ) {
+      throw new ConflictException('Ya tienes una suscripción vigente');
+    }
+    throw e;
+  }
 
   private async getBoolSetting(key: string, fallback: boolean) {
     const setting = await this.prisma.settings.findUnique({ where: { key } });

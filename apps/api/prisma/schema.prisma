@@ -208,8 +208,8 @@ model subscription_plans {
   price                     Decimal         @default(0) @db.Decimal(12, 2)
   currency                  String          @default("USD") @db.VarChar(3)
   duration_days             Int
-  max_active_properties     Int?
-  max_images_per_property   Int?
+  included_properties       Int             @default(1)
+  extra_property_price      Decimal         @default(0) @db.Decimal(12, 2)
   allows_featured           Boolean         @default(false)
   includes_statistics       Boolean         @default(false)
   priority_in_results       Boolean         @default(false)
@@ -223,19 +223,23 @@ model subscription_plans {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model subscriptions {
-  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id            String              @db.Uuid
-  plan_id            String              @db.Uuid
-  status             subscription_status @default(pending_payment)
-  start_date         DateTime?           @db.Timestamptz(6)
-  end_date           DateTime?           @db.Timestamptz(6)
-  renewed_at         DateTime?           @db.Timestamptz(6)
-  auto_renew         Boolean             @default(false)
-  created_at         DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime            @default(now()) @db.Timestamptz(6)
-  payments           payments[]
-  subscription_plans subscription_plans  @relation(fields: [plan_id], references: [id], onUpdate: NoAction)
-  users              users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                     String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                String              @db.Uuid
+  plan_id                String              @db.Uuid
+  status                 subscription_status @default(pending_payment)
+  start_date             DateTime?           @db.Timestamptz(6)
+  end_date               DateTime?           @db.Timestamptz(6)
+  renewed_at             DateTime?           @db.Timestamptz(6)
+  auto_renew             Boolean             @default(false)
+  property_count         Int?
+  renews_subscription_id String?             @db.Uuid
+  created_at             DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime            @default(now()) @db.Timestamptz(6)
+  payments               payments[]
+  subscription_plans     subscription_plans  @relation(fields: [plan_id], references: [id], onUpdate: NoAction)
+  users                  users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  renews                 subscriptions?      @relation("renewal", fields: [renews_subscription_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  renewed_by             subscriptions[]     @relation("renewal")
 
   @@index([end_date], map: "idx_subscriptions_end")
   @@index([plan_id], map: "idx_subscriptions_plan")
