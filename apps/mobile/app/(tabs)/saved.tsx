@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   FlatList,
   Image,
   Linking,
@@ -68,6 +69,12 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
 
 const formatPrice = (p: number, c: string) =>
   c === 'USD' ? `$${p.toLocaleString()}` : `Bs. ${p.toLocaleString()}`;
+
+// En escritorio la lista pasa a grid; en móvil sigue siendo una sola columna
+const { width: SCREEN_W } = Dimensions.get('window');
+const IS_DESKTOP = SCREEN_W >= 768;
+const NUM_COLUMNS = IS_DESKTOP ? (SCREEN_W >= 1300 ? 3 : 2) : 1;
+const GRID_MAX_WIDTH = IS_DESKTOP ? (NUM_COLUMNS === 3 ? 1180 : 820) : 760;
 
 const getImage = (imgs: Property['property_images']) => {
   if (!imgs?.length) return null;
@@ -330,9 +337,20 @@ function OwnerView() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Mis Propiedades</Text>
-      <View style={{ paddingHorizontal: Spacing.xxl, marginBottom: Spacing.md }}>
-        <RoleBadge />
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.header}>Mis Propiedades</Text>
+          <RoleBadge />
+        </View>
+        {properties.length > 0 && (
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => router.push('/create-property')}
+          >
+            <Ionicons name="add" size={20} color={Colors.white} />
+            <Text style={styles.addBtnText}>Publicar propiedad</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <SubscriptionBanner />
@@ -355,17 +373,28 @@ function OwnerView() {
 
       {properties.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="add-circle-outline" size={64} color={Colors.gray[300]} />
-          <Text style={styles.emptyTitle}>Sin propiedades</Text>
+          <Ionicons name="home-outline" size={64} color={Colors.gray[300]} />
+          <Text style={styles.emptyTitle}>Aún no tienes propiedades</Text>
           <Text style={styles.emptyText}>
-            Publica tu primera propiedad y empieza a recibir interesados
+            Publica tu primera propiedad para que los interesados te contacten
+            directamente por WhatsApp
           </Text>
+          <TouchableOpacity
+            style={styles.emptyBtn}
+            onPress={() => router.push('/create-property')}
+          >
+            <Ionicons name="add-circle" size={20} color={Colors.white} />
+            <Text style={styles.emptyBtnText}>Publicar mi primera propiedad</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
+          key={NUM_COLUMNS}
           data={properties}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          numColumns={NUM_COLUMNS}
+          columnWrapperStyle={NUM_COLUMNS > 1 ? styles.gridRow : undefined}
+          contentContainerStyle={styles.ownerListContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -374,32 +403,32 @@ function OwnerView() {
             const st = STATUS_MAP[item.status] ?? STATUS_MAP.draft;
             return (
               <TouchableOpacity
-                style={styles.card}
+                style={styles.ownerCard}
                 activeOpacity={0.9}
                 onPress={() => router.push(`/property/${item.slug}`)}
               >
-                {img ? (
-                  <Image source={{ uri: img }} style={styles.cardImg} />
-                ) : (
-                  <View style={[styles.cardImg, styles.noImg]}>
-                    <Ionicons name="image-outline" size={28} color={Colors.gray[300]} />
-                  </View>
-                )}
-                <View style={styles.cardContent}>
-                  <View style={styles.cardRow}>
-                    <View style={[styles.badge, { backgroundColor: st.bg }]}>
-                      <Text style={[styles.badgeText, { color: st.color }]}>{st.label}</Text>
+                <View style={styles.ownerCardImgWrap}>
+                  {img ? (
+                    <Image source={{ uri: img }} style={styles.ownerCardImg} />
+                  ) : (
+                    <View style={[styles.ownerCardImg, styles.ownerNoImg]}>
+                      <Ionicons name="image-outline" size={32} color={Colors.gray[300]} />
                     </View>
-                    <View style={styles.viewsRow}>
-                      <Ionicons name="eye-outline" size={14} color={Colors.gray[400]} />
-                      <Text style={styles.viewsText}>{item.views_count}</Text>
-                    </View>
+                  )}
+                  <View style={[styles.ownerBadge, { backgroundColor: st.bg }]}>
+                    <Text style={[styles.ownerBadgeText, { color: st.color }]}>{st.label}</Text>
                   </View>
-                  <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-                  <Text style={styles.cardSub} numberOfLines={1}>
+                  <View style={styles.viewsPill}>
+                    <Ionicons name="eye-outline" size={12} color={Colors.white} />
+                    <Text style={styles.viewsPillText}>{item.views_count}</Text>
+                  </View>
+                </View>
+                <View style={styles.ownerCardContent}>
+                  <Text style={styles.ownerCardTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.ownerCardSub} numberOfLines={1}>
                     {item.zones ? `${item.zones.name}, ${item.zones.city}` : ''}
                   </Text>
-                  <Text style={styles.cardPrice}>{formatPrice(item.price, item.currency)}</Text>
+                  <Text style={styles.ownerCardPrice}>{formatPrice(item.price, item.currency)}</Text>
                   {item.status === 'rejected' && item.rejection_reason && (
                     <View style={styles.rejectBanner}>
                       <Ionicons name="alert-circle" size={14} color="#DC2626" />
@@ -460,14 +489,34 @@ function OwnerView() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.white, paddingTop: 60 },
   center: { justifyContent: 'center', alignItems: 'center' },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: Spacing.xxl,
+    marginBottom: Spacing.md,
+    width: '100%',
+    maxWidth: GRID_MAX_WIDTH,
+    alignSelf: 'center',
+  },
   header: {
     fontSize: Fonts.sizes.xl,
     fontWeight: '700',
     color: Colors.gray[900],
-    paddingHorizontal: Spacing.xxl,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.xs,
   },
   headerCount: { color: Colors.gray[400], fontWeight: '400' },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: Radius.full,
+    cursor: 'pointer' as any,
+  },
+  addBtnText: { color: Colors.white, fontWeight: '700', fontSize: Fonts.sizes.sm },
   empty: {
     flex: 1,
     justifyContent: 'center',
@@ -486,6 +535,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.sm,
   },
+  emptyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: 14,
+    borderRadius: Radius.lg,
+    marginTop: Spacing.xl,
+    cursor: 'pointer' as any,
+  },
+  emptyBtnText: { color: Colors.white, fontWeight: '700', fontSize: Fonts.sizes.md },
   // maxWidth + centrado: en móvil no afecta (pantalla más angosta),
   // en web evita que las tarjetas se estiren en monitores grandes
   listContent: { padding: Spacing.lg, gap: Spacing.md, width: '100%', maxWidth: 760, alignSelf: 'center' },
@@ -521,13 +582,61 @@ const styles = StyleSheet.create({
   },
   viewsRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   viewsText: { fontSize: Fonts.sizes.xs, color: Colors.gray[400] },
+
+  // ── Owner grid (Mis Propiedades) — namespace propio para no chocar con
+  // el layout de tarjeta horizontal de Guardados ──
+  ownerListContent: { padding: Spacing.lg, gap: Spacing.md, width: '100%', maxWidth: GRID_MAX_WIDTH, alignSelf: 'center' },
+  gridRow: { gap: Spacing.md },
+  ownerCard: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.gray[100],
+    marginBottom: NUM_COLUMNS > 1 ? 0 : Spacing.md,
+  },
+  ownerCardImgWrap: { position: 'relative', width: '100%', aspectRatio: 16 / 10 },
+  ownerCardImg: { width: '100%', height: '100%' },
+  ownerNoImg: { backgroundColor: Colors.gray[100], justifyContent: 'center', alignItems: 'center' },
+  ownerCardContent: { padding: Spacing.md },
+  ownerBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  ownerBadgeText: { color: Colors.white, fontSize: 10, fontWeight: '700' },
+  ownerCardTitle: { fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.gray[800] },
+  ownerCardSub: { fontSize: Fonts.sizes.xs, color: Colors.gray[500], marginTop: 2 },
+  ownerCardPrice: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.gray[900], marginTop: 4 },
+  viewsPill: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+  },
+  viewsPillText: { fontSize: 11, fontWeight: '700', color: Colors.white },
   statsRow: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.lg,
     gap: Spacing.sm,
     marginBottom: Spacing.md,
     width: '100%',
-    maxWidth: 760,
+    maxWidth: GRID_MAX_WIDTH,
     alignSelf: 'center',
   },
   statCard: {

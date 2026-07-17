@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import {
   Alert,
+  Dimensions,
   Linking,
   Platform,
   ScrollView,
@@ -17,6 +18,8 @@ import { useNotifications } from '../../src/context/NotificationContext';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import { useRoleColors } from '../../src/hooks/useRoleColors';
 import RoleBadge from '../../src/components/RoleBadge';
+
+const IS_DESKTOP = Dimensions.get('window').width >= 768;
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -75,15 +78,10 @@ export default function ProfileScreen() {
     }
   };
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: 40 }}
-    >
-      <Text style={styles.header}>Perfil</Text>
-
+  const summaryBlock = (
+    <>
       {/* User card */}
-      <View style={styles.userCard}>
+      <View style={[styles.userCard, IS_DESKTOP && styles.noHPad]}>
         <View style={[styles.avatar, { backgroundColor: accentLight }]}>
           <Text style={[styles.avatarText, { color: accent }]}>{initial}</Text>
         </View>
@@ -101,7 +99,7 @@ export default function ProfileScreen() {
 
       {/* Role switcher */}
       {roles.includes('buyer') && roles.includes('owner') && (
-        <View style={styles.roleCard}>
+        <View style={[styles.roleCard, IS_DESKTOP && styles.noHMargin]}>
           <Text style={styles.roleLabel}>Modo actual</Text>
           <View style={styles.roleSwitch}>
             <TouchableOpacity
@@ -144,7 +142,7 @@ export default function ProfileScreen() {
       )}
 
       {/* Quick stats */}
-      <View style={styles.quickStats}>
+      <View style={[styles.quickStats, IS_DESKTOP && styles.noHPad]}>
         <TouchableOpacity
           style={styles.quickStatItem}
           onPress={() => router.push('/(tabs)/saved')}
@@ -156,7 +154,7 @@ export default function ProfileScreen() {
         {isOwner && (
           <TouchableOpacity
             style={styles.quickStatItem}
-            onPress={() => router.push('/my-properties')}
+            onPress={() => router.push('/(tabs)/saved')}
           >
             <Ionicons name="business" size={22} color={Colors.primary} />
             <Text style={styles.quickStatNum}>Ver</Text>
@@ -165,85 +163,126 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      {/* Menu */}
-      <View style={styles.menu}>
-        <Text style={styles.menuSection}>General</Text>
-
-        <MenuItem
-          icon="person-outline"
-          label="Editar perfil"
-          onPress={() => router.push('/edit-profile')}
-        />
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/notifications')}>
-          <View>
-            <Ionicons name="notifications-outline" size={22} color={Colors.gray[600]} />
-            {unreadCount > 0 && (
-              <View style={styles.notifBadge}>
-                <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.menuText}>Notificaciones</Text>
-          <Ionicons name="chevron-forward" size={18} color={Colors.gray[400]} />
-        </TouchableOpacity>
-
-        {isOwner && (
-          <>
-            <Text style={[styles.menuSection, { marginTop: Spacing.lg }]}>
-              Propietario
-            </Text>
-            <MenuItem
-              icon="business-outline"
-              label="Mis propiedades"
-              onPress={() => router.push('/my-properties')}
-            />
-            <MenuItem
-              icon="add-circle-outline"
-              label="Publicar propiedad"
-              onPress={() => router.push('/create-property')}
-            />
-            <MenuItem
-              icon="card-outline"
-              label="Mi suscripción"
-              onPress={() => router.push('/subscription')}
-            />
-          </>
-        )}
-
-        <Text style={[styles.menuSection, { marginTop: Spacing.lg }]}>
-          Soporte
-        </Text>
-        <MenuItem
-          icon="help-circle-outline"
-          label="Ayuda"
-          onPress={() => {}}
-        />
-        <MenuItem
-          icon="logo-whatsapp"
-          label="Contactar soporte"
-          color="#25D366"
-          onPress={() =>
-            Linking.openURL(
-              'https://wa.me/59170000000?text=Hola, necesito ayuda con DIRECTO',
-            )
-          }
-        />
-
+      {/* CTA principal para un propietario nuevo */}
+      {isOwner && (
         <TouchableOpacity
-          style={[styles.menuItem, { marginTop: Spacing.lg }]}
-          onPress={handleLogout}
+          style={[styles.publishCta, IS_DESKTOP && styles.noHMargin]}
+          onPress={() => router.push('/create-property')}
         >
-          <Ionicons name="log-out-outline" size={22} color={Colors.error} />
-          <Text style={[styles.menuText, { color: Colors.error }]}>
-            Cerrar sesión
-          </Text>
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={Colors.gray[400]}
-          />
+          <Ionicons name="add-circle" size={22} color={Colors.white} />
+          <Text style={styles.publishCtaText}>Publicar una propiedad</Text>
         </TouchableOpacity>
-      </View>
+      )}
+    </>
+  );
+
+  const menuBlock = (
+    <View style={[styles.menu, IS_DESKTOP && styles.noHPad]}>
+      <Text style={styles.menuSection}>General</Text>
+
+      <MenuItem
+        icon="person-outline"
+        label="Editar perfil"
+        onPress={() => router.push('/edit-profile')}
+      />
+      <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/notifications')}>
+        <View>
+          <Ionicons name="notifications-outline" size={22} color={Colors.gray[600]} />
+          {unreadCount > 0 && (
+            <View style={styles.notifBadge}>
+              <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.menuText}>Notificaciones</Text>
+        <Ionicons name="chevron-forward" size={18} color={Colors.gray[400]} />
+      </TouchableOpacity>
+
+      {isOwner && (
+        <>
+          <Text style={[styles.menuSection, { marginTop: Spacing.lg }]}>
+            Propietario
+          </Text>
+          <Text style={styles.menuSectionHint}>
+            Administra tus propiedades, tu plan y tu publicidad
+          </Text>
+          <MenuItem
+            icon="add-circle-outline"
+            label="Publicar propiedad"
+            onPress={() => router.push('/create-property')}
+          />
+          <MenuItem
+            icon="business-outline"
+            label="Mis propiedades"
+            onPress={() => router.push('/(tabs)/saved')}
+          />
+          <MenuItem
+            icon="card-outline"
+            label="Mi suscripción"
+            onPress={() => router.push('/subscription')}
+          />
+          <MenuItem
+            icon="megaphone-outline"
+            label="Mi empresa y publicidad"
+            onPress={() => router.push('/company')}
+          />
+        </>
+      )}
+
+      <Text style={[styles.menuSection, { marginTop: Spacing.lg }]}>
+        Soporte
+      </Text>
+      <MenuItem
+        icon="help-circle-outline"
+        label="Ayuda"
+        onPress={() => {}}
+      />
+      <MenuItem
+        icon="logo-whatsapp"
+        label="Contactar soporte"
+        color="#25D366"
+        onPress={() =>
+          Linking.openURL(
+            'https://wa.me/59170000000?text=Hola, necesito ayuda con DIRECTO',
+          )
+        }
+      />
+
+      <TouchableOpacity
+        style={[styles.menuItem, { marginTop: Spacing.lg }]}
+        onPress={handleLogout}
+      >
+        <Ionicons name="log-out-outline" size={22} color={Colors.error} />
+        <Text style={[styles.menuText, { color: Colors.error }]}>
+          Cerrar sesión
+        </Text>
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={Colors.gray[400]}
+        />
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 40 }}
+    >
+      <Text style={styles.header}>Perfil</Text>
+
+      {IS_DESKTOP ? (
+        <View style={styles.desktopRow}>
+          <View style={styles.desktopCol}>{summaryBlock}</View>
+          <View style={[styles.desktopCol, styles.desktopColMenu]}>{menuBlock}</View>
+        </View>
+      ) : (
+        <>
+          {summaryBlock}
+          {menuBlock}
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -457,5 +496,42 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 9,
     fontWeight: '700',
+  },
+
+  // ── Escritorio: resumen a la izquierda, menú a la derecha ──
+  desktopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.xxl,
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.xxl,
+  },
+  desktopCol: { flex: 1 },
+  desktopColMenu: { flex: 1.2 },
+  // El padding/margen horizontal de las tarjetas ya lo aporta desktopRow;
+  // se anula en los hijos para no duplicarlo en escritorio.
+  noHPad: { paddingHorizontal: 0 },
+  noHMargin: { marginHorizontal: 0 },
+
+  publishCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    marginHorizontal: Spacing.xxl,
+    paddingVertical: 14,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.lg,
+    cursor: 'pointer' as any,
+  },
+  publishCtaText: { color: Colors.white, fontWeight: '700', fontSize: Fonts.sizes.md },
+  menuSectionHint: {
+    fontSize: Fonts.sizes.xs,
+    color: Colors.gray[400],
+    marginTop: -Spacing.xs,
+    marginBottom: Spacing.sm,
   },
 });
