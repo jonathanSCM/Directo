@@ -254,16 +254,17 @@ function OwnerView() {
 
   const toggleVisibility = useCallback(async (prop: Property) => {
     const isPublished = prop.status === 'published';
+    const isDraft = prop.status === 'draft';
     const action = isPublished ? 'unpublish' : 'publish';
-    const label = isPublished ? 'ocultar' : 'republicar';
+    const label = isPublished ? 'ocultar' : isDraft ? 'publicar' : 'republicar';
 
     Alert.alert(
-      isPublished ? 'Ocultar propiedad' : 'Republicar propiedad',
+      isPublished ? 'Ocultar propiedad' : isDraft ? 'Publicar propiedad' : 'Republicar propiedad',
       `¿Deseas ${label} "${prop.title}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: isPublished ? 'Ocultar' : 'Republicar',
+          text: isPublished ? 'Ocultar' : isDraft ? 'Publicar' : 'Republicar',
           style: isPublished ? 'destructive' : 'default',
           onPress: async () => {
             try {
@@ -454,7 +455,7 @@ function OwnerView() {
                         <Text style={[styles.actionBtnText, { color: '#059669' }]}>Reenviar</Text>
                       </TouchableOpacity>
                     )}
-                    {(item.status === 'published' || item.status === 'paused') && (
+                    {(item.status === 'published' || item.status === 'paused' || item.status === 'draft') && (
                       <TouchableOpacity
                         style={[styles.actionBtn, item.status === 'published' && styles.actionBtnDanger]}
                         onPress={() => toggleVisibility(item)}
@@ -466,7 +467,7 @@ function OwnerView() {
                           color={item.status === 'published' ? '#DC2626' : Colors.success}
                         />
                         <Text style={[styles.actionBtnText, item.status === 'published' ? { color: '#DC2626' } : { color: Colors.success }]}>
-                          {item.status === 'published' ? 'Ocultar' : 'Mostrar'}
+                          {item.status === 'published' ? 'Ocultar' : item.status === 'draft' ? 'Publicar' : 'Mostrar'}
                         </Text>
                       </TouchableOpacity>
                     )}

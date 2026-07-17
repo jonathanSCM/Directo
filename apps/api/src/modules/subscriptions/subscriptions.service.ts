@@ -435,7 +435,12 @@ export class SubscriptionsService {
   }
 
   /** Valida que el usuario pueda publicar según su suscripción (§18). */
-  async assertCanPublish(userId: string, excludePropertyId?: string) {
+  /**
+   * Exige suscripción activa (bloquea si no hay). El tope de propiedades ya
+   * NO bloquea la publicación: se resuelve en `isWithinPropertyLimit`, para
+   * que la propiedad pueda aprobarse pero quedar en pausa si excede el plan.
+   */
+  async assertHasActiveSubscription(userId: string) {
     const enforce = await this.getBoolSetting(
       'subscriptions.require_for_publish',
       true,
@@ -448,6 +453,19 @@ export class SubscriptionsService {
         'Necesitas una suscripción activa para publicar una propiedad',
       );
     }
+  }
+
+  /** true si el dueño todavía tiene cupo en su plan para otra propiedad activa. */
+  async isWithinPropertyLimit(userId: string, excludePropertyId?: string) {
+    const enforce = await this.getBoolSetting(
+      'subscriptions.require_for_publish',
+      true,
+    );
+    if (!enforce) return true;
+
+    const sub = await this.getActiveSubscription(userId);
+    if (!sub) return false;
+
     // Tope = propiedades compradas por el usuario (fallback: incluidas del plan)
     const max =
       sub.property_count ?? sub.subscription_plans.included_properties;
@@ -458,11 +476,7 @@ export class SubscriptionsService {
         ...(excludePropertyId ? { id: { not: excludePropertyId } } : {}),
       },
     });
-    if (count >= max) {
-      throw new ForbiddenException(
-        `Tu suscripción permite ${max} propiedad(es) activa(s). Amplía tu plan para publicar más.`,
-      );
-    }
+    return count < max;
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────

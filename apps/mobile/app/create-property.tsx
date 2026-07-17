@@ -199,11 +199,18 @@ export default function CreatePropertyScreen() {
         });
       }
 
-      Alert.alert(
-        'Propiedad creada',
-        'Tu propiedad fue enviada para revisión. Aparecerá publicada una vez aprobada.',
-        [{ text: 'OK', onPress: () => router.back() }],
-      );
+      // Envía la propiedad a revisión/publicación (puede quedar en pausa si supera el límite del plan).
+      const { data: published } = await api.patch(`/properties/${created.id}/publish`);
+      const finalStatus = published.status;
+
+      const message =
+        finalStatus === 'paused'
+          ? 'Tu propiedad fue aprobada, pero quedó en pausa porque supera el límite de tu plan. Amplía tu plan para publicarla.'
+          : finalStatus === 'published'
+          ? 'Tu propiedad ya está publicada.'
+          : 'Tu propiedad fue enviada para revisión. Aparecerá publicada una vez aprobada.';
+
+      Alert.alert('Propiedad creada', message, [{ text: 'OK', onPress: () => router.back() }]);
     } catch (e: any) {
       const msg = e.response?.data?.message;
       const msgStr = typeof msg === 'string' ? msg : Array.isArray(msg) ? msg[0] : '';

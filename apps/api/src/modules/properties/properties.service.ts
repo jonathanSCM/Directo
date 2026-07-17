@@ -146,8 +146,8 @@ export class PropertiesService {
     if (prop.status === 'taken_down') {
       throw new BadRequestException('La propiedad está dada de baja');
     }
-    // Regla §18: suscripción activa y dentro del límite del plan.
-    await this.subscriptions.assertCanPublish(user.id, id);
+    // Regla §18: exige suscripción activa (el tope de propiedades ya no bloquea).
+    await this.subscriptions.assertHasActiveSubscription(user.id);
     // Regla §18: si se requiere aprobación, queda pendiente para el admin.
     if (await this.requireApproval()) {
       return this.prisma.properties.update({
@@ -159,13 +159,17 @@ export class PropertiesService {
         },
       });
     }
+    // Sin moderación: publica de una si hay cupo, si no queda aprobada pero en pausa.
+    const withinLimit = await this.subscriptions.isWithinPropertyLimit(user.id, id);
     return this.prisma.properties.update({
       where: { id },
-      data: {
-        status: 'published',
-        approval_status: 'approved',
-        published_at: prop.published_at ?? new Date(),
-      },
+      data: withinLimit
+        ? {
+            status: 'published',
+            approval_status: 'approved',
+            published_at: prop.published_at ?? new Date(),
+          }
+        : { status: 'paused', approval_status: 'approved' },
     });
   }
 
@@ -203,7 +207,7 @@ export class PropertiesService {
         'Solo se pueden republicar propiedades vendidas/alquiladas o pausadas',
       );
     }
-    await this.subscriptions.assertCanPublish(user.id, id);
+    await this.subscriptions.assertHasActiveSubscription(user.id);
     if (await this.requireApproval()) {
       return this.prisma.properties.update({
         where: { id },
@@ -214,13 +218,12 @@ export class PropertiesService {
         },
       });
     }
+    const withinLimit = await this.subscriptions.isWithinPropertyLimit(user.id, id);
     return this.prisma.properties.update({
       where: { id },
-      data: {
-        status: 'published',
-        approval_status: 'approved',
-        rejection_reason: null,
-      },
+      data: withinLimit
+        ? { status: 'published', approval_status: 'approved', rejection_reason: null }
+        : { status: 'paused', approval_status: 'approved', rejection_reason: null },
     });
   }
 
@@ -284,14 +287,24 @@ export class PropertiesService {
 
   async adminApprove(id: string) {
     const prop = await this.findOrThrow(id);
+    const withinLimit = await this.subscriptions.isWithinPropertyLimit(
+      prop.owner_id,
+      id,
+    );
     const updated = await this.prisma.properties.update({
       where: { id },
-      data: {
-        approval_status: 'approved',
-        status: 'published',
-        published_at: prop.published_at ?? new Date(),
-        rejection_reason: null,
-      },
+      data: withinLimit
+        ? {
+            approval_status: 'approved',
+            status: 'published',
+            published_at: prop.published_at ?? new Date(),
+            rejection_reason: null,
+          }
+        : {
+            approval_status: 'approved',
+            status: 'paused',
+            rejection_reason: null,
+          },
     });
 
     await this.prisma.notifications.create({
@@ -299,7 +312,9 @@ export class PropertiesService {
         user_id: prop.owner_id,
         type: 'property_approved',
         title: 'Propiedad aprobada',
-        message: `Tu propiedad "${prop.title}" fue aprobada y ya está publicada.`,
+        message: withinLimit
+          ? `Tu propiedad "${prop.title}" fue aprobada y ya está publicada.`
+          : `Tu propiedad "${prop.title}" fue aprobada, pero quedó en pausa porque supera el límite de tu plan. Amplía tu plan para publicarla.`,
         channel: 'in_app',
         status: 'pending',
         data: { property_id: id } as Prisma.InputJsonValue,
@@ -362,9 +377,15 @@ export class PropertiesService {
     if (prop.status !== 'taken_down') {
       throw new BadRequestException('La propiedad no está dada de baja');
     }
+    const withinLimit = await this.subscriptions.isWithinPropertyLimit(
+      prop.owner_id,
+      id,
+    );
     const updated = await this.prisma.properties.update({
       where: { id },
-      data: { status: 'published', approval_status: 'approved' },
+      data: withinLimit
+        ? { status: 'published', approval_status: 'approved' }
+        : { status: 'paused', approval_status: 'approved' },
     });
 
     await this.prisma.notifications.create({
@@ -372,7 +393,9 @@ export class PropertiesService {
         user_id: prop.owner_id,
         type: 'system',
         title: 'Propiedad restaurada',
-        message: `Tu propiedad "${prop.title}" ha sido restaurada y ya está publicada nuevamente.`,
+        message: withinLimit
+          ? `Tu propiedad "${prop.title}" ha sido restaurada y ya está publicada nuevamente.`
+          : `Tu propiedad "${prop.title}" fue restaurada, pero quedó en pausa porque supera el límite de tu plan.`,
         channel: 'in_app',
         status: 'pending',
         data: { property_id: id } as Prisma.InputJsonValue,
