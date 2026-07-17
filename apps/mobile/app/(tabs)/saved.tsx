@@ -8,6 +8,7 @@ import {
   FlatList,
   Image,
   Linking,
+  Platform,
   RefreshControl,
   StyleSheet,
   Text,
@@ -252,62 +253,73 @@ function OwnerView() {
     setLoading(false);
   }, []);
 
-  const toggleVisibility = useCallback(async (prop: Property) => {
+  // Alert.alert no muestra botones en react-native-web: en web se usa window.confirm.
+  const confirmAction = useCallback((title: string, message: string, confirmText: string, destructive: boolean, onConfirm: () => void) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${title}\n\n${message}`)) onConfirm();
+      return;
+    }
+    Alert.alert(title, message, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: confirmText, style: destructive ? 'destructive' : 'default', onPress: onConfirm },
+    ]);
+  }, []);
+
+  const notify = useCallback((title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+      return;
+    }
+    Alert.alert(title, message);
+  }, []);
+
+  const toggleVisibility = useCallback((prop: Property) => {
     const isPublished = prop.status === 'published';
     const isDraft = prop.status === 'draft';
     const action = isPublished ? 'unpublish' : 'publish';
     const label = isPublished ? 'ocultar' : isDraft ? 'publicar' : 'republicar';
 
-    Alert.alert(
+    confirmAction(
       isPublished ? 'Ocultar propiedad' : isDraft ? 'Publicar propiedad' : 'Republicar propiedad',
       `¿Deseas ${label} "${prop.title}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: isPublished ? 'Ocultar' : isDraft ? 'Publicar' : 'Republicar',
-          style: isPublished ? 'destructive' : 'default',
-          onPress: async () => {
-            try {
-              await api.patch(`/properties/${prop.id}/${action}`);
-              fetchMine();
-            } catch (e: any) {
-              const msg = e.response?.data?.message;
-              const msgStr = typeof msg === 'string' ? msg : '';
-              if (e.response?.status === 403 && (msgStr.includes('suscripción') || msgStr.includes('subscription'))) {
-                setSubGateReason(msgStr.includes('límite') || msgStr.includes('limit') ? 'limit_reached' : 'no_subscription');
-                setShowSubGate(true);
-              } else {
-                Alert.alert('Error', msgStr || `No se pudo ${label}`);
-              }
-            }
-          },
-        },
-      ],
+      isPublished ? 'Ocultar' : isDraft ? 'Publicar' : 'Republicar',
+      isPublished,
+      async () => {
+        try {
+          await api.patch(`/properties/${prop.id}/${action}`);
+          fetchMine();
+        } catch (e: any) {
+          const msg = e.response?.data?.message;
+          const msgStr = typeof msg === 'string' ? msg : '';
+          if (e.response?.status === 403 && (msgStr.includes('suscripción') || msgStr.includes('subscription'))) {
+            setSubGateReason(msgStr.includes('límite') || msgStr.includes('limit') ? 'limit_reached' : 'no_subscription');
+            setShowSubGate(true);
+          } else {
+            notify('Error', msgStr || `No se pudo ${label}`);
+          }
+        }
+      },
     );
-  }, [fetchMine]);
+  }, [fetchMine, confirmAction, notify]);
 
-  const resubmit = useCallback(async (prop: Property) => {
-    Alert.alert(
+  const resubmit = useCallback((prop: Property) => {
+    confirmAction(
       'Reenviar para aprobación',
       `¿Deseas reenviar "${prop.title}" para revisión? Asegúrate de haber corregido lo indicado en el motivo de rechazo.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Reenviar',
-          onPress: async () => {
-            try {
-              await api.patch(`/properties/${prop.id}/publish`);
-              fetchMine();
-              Alert.alert('Enviado', 'Tu propiedad fue reenviada para revisión.');
-            } catch (e: any) {
-              const msg = e.response?.data?.message;
-              Alert.alert('Error', typeof msg === 'string' ? msg : 'No se pudo reenviar');
-            }
-          },
-        },
-      ],
+      'Reenviar',
+      false,
+      async () => {
+        try {
+          await api.patch(`/properties/${prop.id}/publish`);
+          fetchMine();
+          notify('Enviado', 'Tu propiedad fue reenviada para revisión.');
+        } catch (e: any) {
+          const msg = e.response?.data?.message;
+          notify('Error', typeof msg === 'string' ? msg : 'No se pudo reenviar');
+        }
+      },
     );
-  }, [fetchMine]);
+  }, [fetchMine, confirmAction, notify]);
 
   useEffect(() => {
     fetchMine();
