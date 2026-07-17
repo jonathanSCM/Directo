@@ -245,10 +245,21 @@ model ads {
   starts_at       DateTime  @default(now()) @db.Timestamptz(6)
   ends_at         DateTime? @db.Timestamptz(6)
   created_at      DateTime  @default(now()) @db.Timestamptz(6)
-  companies       companies @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  companies       companies  @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  ad_zones        ad_zones[]
 
   @@index([company_id], map: "idx_ads_company")
   @@index([status, ends_at], map: "idx_ads_serving")
+}
+
+model ad_zones {
+  ad_id   String @db.Uuid
+  zone_id String @db.Uuid
+  ads     ads    @relation(fields: [ad_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  zones   zones  @relation(fields: [zone_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([ad_id, zone_id])
+  @@index([zone_id], map: "idx_ad_zones_zone")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -338,6 +349,7 @@ model zones {
   created_at DateTime     @default(now()) @db.Timestamptz(6)
   updated_at DateTime     @default(now()) @db.Timestamptz(6)
   properties properties[]
+  ad_zones   ad_zones[]
 
   @@unique([name, city], map: "zones_name_city_uniq")
   @@index([is_active], map: "idx_zones_active")

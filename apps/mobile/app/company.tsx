@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -36,6 +36,12 @@ interface Company {
   ads: Ad[];
 }
 
+interface Zone {
+  id: string;
+  name: string;
+  city: string;
+}
+
 const notice = (title: string, msg: string) => {
   if (Platform.OS === 'web') window.alert(`${title}\n\n${msg}`);
   else Alert.alert(title, msg);
@@ -55,6 +61,8 @@ export default function CompanyScreen() {
   const [adTitle, setAdTitle] = useState('');
   const [adLink, setAdLink] = useState('');
   const [adImage, setAdImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [selectedZones, setSelectedZones] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -69,6 +77,21 @@ export default function CompanyScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { api.get('/zones').then((r) => setZones(r.data ?? [])).catch(() => {}); }, []);
+
+  const zonesByCity = useMemo(() => {
+    const map: Record<string, Zone[]> = {};
+    for (const z of zones) (map[z.city] ??= []).push(z);
+    return map;
+  }, [zones]);
+
+  const toggleZone = (id: string) => {
+    setSelectedZones((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const saveCompany = async () => {
     if (name.trim().length < 2) {
@@ -106,6 +129,9 @@ export default function CompanyScreen() {
       const formData = new FormData();
       formData.append('title', adTitle.trim());
       if (adLink.trim()) formData.append('link_url', adLink.trim());
+      if (selectedZones.size > 0) {
+        formData.append('zone_ids', JSON.stringify(Array.from(selectedZones)));
+      }
       if (Platform.OS === 'web') {
         const resp = await fetch(adImage.uri);
         const blob = await resp.blob();
@@ -126,6 +152,7 @@ export default function CompanyScreen() {
       setAdTitle('');
       setAdLink('');
       setAdImage(null);
+      setSelectedZones(new Set());
       notice('Anuncio creado', 'Tu publicidad ya está circulando en la app y la web.');
       load();
     } catch (e: any) {
@@ -229,6 +256,35 @@ export default function CompanyScreen() {
               placeholderTextColor={Colors.gray[400]}
               autoCapitalize="none"
             />
+
+            <Text style={styles.label}>Zonas donde quieres publicidad (opcional)</Text>
+            <Text style={styles.hint}>
+              Elige las zonas donde quieres aparecer primero. El sistema detecta la
+              ubicación del cliente y prioriza tu anuncio ahí; si no eliges ninguna,
+              tu anuncio se muestra en cualquier sector.
+            </Text>
+            {Object.entries(zonesByCity).map(([city, cityZones]) => (
+              <View key={city} style={styles.zoneCityBlock}>
+                <Text style={styles.zoneCityLabel}>{city}</Text>
+                <View style={styles.zoneChipsWrap}>
+                  {cityZones.map((z) => {
+                    const active = selectedZones.has(z.id);
+                    return (
+                      <TouchableOpacity
+                        key={z.id}
+                        style={[styles.zoneChip, active && styles.zoneChipActive]}
+                        onPress={() => toggleZone(z.id)}
+                      >
+                        <Text style={[styles.zoneChipText, active && styles.zoneChipTextActive]}>
+                          {z.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+
             <TouchableOpacity style={styles.primaryBtn} onPress={createAd} disabled={saving}>
               <Text style={styles.primaryBtnText}>{saving ? 'Creando...' : 'Publicar anuncio'}</Text>
             </TouchableOpacity>
@@ -365,4 +421,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  zoneCityBlock: { marginTop: Spacing.md },
+  zoneCityLabel: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '700',
+    color: Colors.gray[400],
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  zoneChipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  zoneChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: Colors.gray[200],
+    backgroundColor: Colors.white,
+  },
+  zoneChipActive: { backgroundColor: '#0EA5E9', borderColor: '#0EA5E9' },
+  zoneChipText: { fontSize: Fonts.sizes.xs, fontWeight: '600', color: Colors.gray[600] },
+  zoneChipTextActive: { color: Colors.white },
 });

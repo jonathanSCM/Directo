@@ -4,6 +4,7 @@ import { Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-
 import { getImageUrl } from '../../constants/api';
 import { Colors, Fonts, Radius, Spacing } from '../../constants/theme';
 import api from '../../services/api';
+import { getSilentCoords } from '../../services/adLocation';
 
 interface Ad {
   id: string;
@@ -44,7 +45,13 @@ export default function AdSlot() {
   const [ads, setAds] = useState<Ad[]>([]);
 
   useEffect(() => {
-    api.get('/ads/serve', { params: { count: 2 } }).then((r) => setAds(r.data ?? [])).catch(() => {});
+    (async () => {
+      const coords = await getSilentCoords();
+      try {
+        const { data } = await api.get('/ads/serve', { params: { count: 2, ...(coords ?? {}) } });
+        setAds(data ?? []);
+      } catch {}
+    })();
   }, []);
 
   if (ads.length === 0) return null;

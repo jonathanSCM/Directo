@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   Linking,
   ScrollView,
@@ -47,6 +48,11 @@ const AMENITY_ICONS: Record<string, string> = {
 const opLabel = (op: string) => op === 'sale' ? 'Venta' : op === 'rent' ? 'Alquiler' : 'Anticrético';
 const opColor = (op: string) => op === 'sale' ? '#F59E0B' : op === 'rent' ? '#EF4444' : '#22C55E';
 const formatPrice = (p: number, c: string) => c === 'USD' ? `$${p.toLocaleString()}` : `Bs. ${p.toLocaleString()}`;
+
+// El sidebar de precio/contacto tiene ancho fijo (320) pensado para
+// escritorio; en pantallas angostas (mobile web) debe apilarse a ancho
+// completo en vez de compartir fila con el contenido principal.
+const IS_NARROW = Dimensions.get('window').width < 768;
 
 // ── Lightbox ─────────────────────────────────────────────────────────────────
 function Lightbox({
@@ -322,7 +328,7 @@ export default function PropertyDetailWeb() {
         </View>
 
         {/* ── Content ── */}
-        <View style={S.content}>
+        <View style={[S.content, IS_NARROW && S.contentNarrow]}>
           {/* Left column */}
           <View style={S.main}>
             {/* Tags */}
@@ -440,7 +446,7 @@ export default function PropertyDetailWeb() {
           </View>
 
           {/* Sidebar */}
-          <View style={S.sidebar}>
+          <View style={[S.sidebar, IS_NARROW && S.sidebarNarrow]}>
             {/* Price card */}
             <View style={S.priceCard}>
               <Text style={S.priceCardLabel}>Precio</Text>
@@ -568,8 +574,15 @@ const S = StyleSheet.create({
     maxWidth: 1100, alignSelf: 'center', width: '100%',
     paddingHorizontal: 32, paddingVertical: 32,
   },
+  contentNarrow: {
+    flexDirection: 'column',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.lg,
+  },
   main: { flex: 1 },
   sidebar: { width: 320, gap: 16 },
+  sidebarNarrow: { width: '100%' },
 
   tags: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 12 },
   opTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.sm },

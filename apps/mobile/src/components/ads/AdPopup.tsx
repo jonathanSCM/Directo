@@ -13,6 +13,7 @@ import {
 import { getImageUrl } from '../../constants/api';
 import { Colors, Fonts, Radius, Spacing } from '../../constants/theme';
 import api from '../../services/api';
+import { getSilentCoords } from '../../services/adLocation';
 
 interface Ad {
   id: string;
@@ -35,7 +36,8 @@ export default function AdPopup() {
     shownThisSession = true;
     const t = setTimeout(async () => {
       try {
-        const { data } = await api.get('/ads/serve');
+        const coords = await getSilentCoords();
+        const { data } = await api.get('/ads/serve', { params: coords ?? {} });
         const first = Array.isArray(data) ? data[0] : data;
         if (first) {
           setAd(first);

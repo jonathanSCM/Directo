@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseFloatPipe,
   ParseIntPipe,
   ParseUUIDPipe,
   Patch,
@@ -29,9 +30,15 @@ export class AdsController {
 
   @Public()
   @Get('ads/serve')
-  @ApiOperation({ summary: 'Anuncios aleatorios elegibles (descuenta una vista c/u)' })
-  serve(@Query('count', new ParseIntPipe({ optional: true })) count?: number) {
-    return this.adsService.serve(count ?? 1);
+  @ApiOperation({
+    summary: 'Anuncios elegibles (descuenta una vista c/u); prioriza por zona si se envía lat/lng',
+  })
+  serve(
+    @Query('count', new ParseIntPipe({ optional: true })) count?: number,
+    @Query('lat', new ParseFloatPipe({ optional: true })) lat?: number,
+    @Query('lng', new ParseFloatPipe({ optional: true })) lng?: number,
+  ) {
+    return this.adsService.serve(count ?? 1, lat, lng);
   }
 
   // ── Empresa (dueño) ─────────────────────────────────────────────────────────

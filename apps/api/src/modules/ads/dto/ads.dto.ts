@@ -30,4 +30,13 @@ export class CreateAdDto {
   @IsOptional()
   @IsUrl({ require_protocol: true })
   link_url?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'IDs de zona objetivo, como JSON stringificado (ej. \'["uuid1","uuid2"]\'). Vacío = se muestra en cualquier sector.',
+    example: '["3fa85f64-5717-4562-b3fc-2c963f66afa6"]',
+  })
+  @IsOptional()
+  @IsString()
+  zone_ids?: string;
 }
