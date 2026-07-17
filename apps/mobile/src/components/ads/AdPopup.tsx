@@ -36,8 +36,9 @@ export default function AdPopup() {
     const t = setTimeout(async () => {
       try {
         const { data } = await api.get('/ads/serve');
-        if (data) {
-          setAd(data);
+        const first = Array.isArray(data) ? data[0] : data;
+        if (first) {
+          setAd(first);
           setVisible(true);
         }
       } catch {}

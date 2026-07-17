@@ -20,7 +20,6 @@ import { useFavorites } from '../../src/context/FavoritesContext';
 import { getImageUrl } from '../../src/constants/api';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
-import ChatFAB from '../../src/components/support/ChatFAB';
 import OwnerSupportFAB from '../../src/components/support/OwnerSupportChat';
 import AdSlot from '../../src/components/ads/AdSlot';
 
@@ -447,7 +446,7 @@ export default function PropertyDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
-      {isOwner ? <OwnerSupportFAB /> : <ChatFAB propertyId={property.id} propertyTitle={property.title} />}
+      {isOwner && <OwnerSupportFAB />}
     </View>
   );
 }

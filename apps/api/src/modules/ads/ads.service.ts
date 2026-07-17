@@ -118,10 +118,11 @@ export class AdsService {
   // ── Serving público ─────────────────────────────────────────────────────────
 
   /**
-   * Anuncio aleatorio elegible (activo, vigente y con vistas disponibles).
-   * Cada entrega descuenta una vista.
+   * Hasta `count` anuncios aleatorios distintos, elegibles (activos, vigentes
+   * y con vistas disponibles). Cada entrega descuenta una vista.
    */
-  async serve() {
+  async serve(count = 1) {
+    const take = Math.max(1, Math.min(count, 10));
     const eligible = await this.prisma.ads.findMany({
       where: {
         status: 'active',
@@ -130,22 +131,33 @@ export class AdsService {
       include: { companies: { select: { name: true, logo_url: true } } },
     });
     const withViews = eligible.filter((a) => a.views_used < a.views_purchased);
-    if (withViews.length === 0) return null;
+    if (withViews.length === 0) return [];
 
-    const ad = withViews[Math.floor(Math.random() * withViews.length)];
+    // Fisher-Yates para elegir sin repetir
+    const shuffled = [...withViews];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const picked = shuffled.slice(0, Math.min(take, shuffled.length));
+
     // Descuento atómico; si otra request agotó el cupo, no pasa de purchased
-    await this.prisma.ads.updateMany({
-      where: { id: ad.id, views_used: { lt: ad.views_purchased } },
-      data: { views_used: { increment: 1 } },
-    });
+    await Promise.all(
+      picked.map((ad) =>
+        this.prisma.ads.updateMany({
+          where: { id: ad.id, views_used: { lt: ad.views_purchased } },
+          data: { views_used: { increment: 1 } },
+        }),
+      ),
+    );
 
-    return {
+    return picked.map((ad) => ({
       id: ad.id,
       title: ad.title,
       image_url: ad.image_url,
       link_url: ad.link_url,
       company: ad.companies,
-    };
+    }));
   }
 
   // ── Admin ───────────────────────────────────────────────────────────────────

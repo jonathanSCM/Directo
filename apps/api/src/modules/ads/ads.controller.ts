@@ -3,9 +3,11 @@ import {
   Controller,
   Get,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -27,9 +29,9 @@ export class AdsController {
 
   @Public()
   @Get('ads/serve')
-  @ApiOperation({ summary: 'Anuncio aleatorio elegible (descuenta una vista)' })
-  serve() {
-    return this.adsService.serve();
+  @ApiOperation({ summary: 'Anuncios aleatorios elegibles (descuenta una vista c/u)' })
+  serve(@Query('count', new ParseIntPipe({ optional: true })) count?: number) {
+    return this.adsService.serve(count ?? 1);
   }
 
   // ── Empresa (dueño) ─────────────────────────────────────────────────────────

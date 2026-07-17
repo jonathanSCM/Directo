@@ -15,12 +15,15 @@ import { useAuth } from '../../src/context/AuthContext';
 import { useFavorites } from '../../src/context/FavoritesContext';
 import { useNotifications } from '../../src/context/NotificationContext';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
+import { useRoleColors } from '../../src/hooks/useRoleColors';
+import RoleBadge from '../../src/components/RoleBadge';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, roles, isAuthenticated, switchRole, logout } = useAuth();
   const { count: savedCount } = useFavorites();
   const { unreadCount } = useNotifications();
+  const { accent, accentLight } = useRoleColors();
 
   if (!isAuthenticated || !user) {
     return (
@@ -81,8 +84,8 @@ export default function ProfileScreen() {
 
       {/* User card */}
       <View style={styles.userCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initial}</Text>
+        <View style={[styles.avatar, { backgroundColor: accentLight }]}>
+          <Text style={[styles.avatarText, { color: accent }]}>{initial}</Text>
         </View>
         <View style={styles.userInfo}>
           <Text style={styles.userName}>{user.name}</Text>
@@ -90,6 +93,9 @@ export default function ProfileScreen() {
           {user.phone && (
             <Text style={styles.userPhone}>{user.phone}</Text>
           )}
+          <View style={{ marginTop: 6 }}>
+            <RoleBadge />
+          </View>
         </View>
       </View>
 
@@ -99,7 +105,7 @@ export default function ProfileScreen() {
           <Text style={styles.roleLabel}>Modo actual</Text>
           <View style={styles.roleSwitch}>
             <TouchableOpacity
-              style={[styles.roleBtn, !isOwner && styles.roleBtnActive]}
+              style={[styles.roleBtn, !isOwner && { backgroundColor: Colors.primary }]}
               onPress={() => handleSwitchRole(false)}
             >
               <Ionicons
@@ -114,7 +120,7 @@ export default function ProfileScreen() {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.roleBtn, isOwner && styles.roleBtnActive]}
+              style={[styles.roleBtn, isOwner && { backgroundColor: '#7C3AED' }]}
               onPress={() => handleSwitchRole(true)}
             >
               <Ionicons
@@ -377,7 +383,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: Radius.full,
   },
-  roleBtnActive: { backgroundColor: Colors.primary },
   roleBtnText: {
     fontSize: Fonts.sizes.sm,
     fontWeight: '600',

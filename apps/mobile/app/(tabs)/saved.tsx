@@ -20,6 +20,7 @@ import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import SubscriptionBanner from '../../src/components/subscription/SubscriptionBanner';
 import SubscriptionGate from '../../src/components/subscription/SubscriptionGate';
+import RoleBadge from '../../src/components/RoleBadge';
 
 interface Property {
   id: string;
@@ -330,6 +331,9 @@ function OwnerView() {
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Mis Propiedades</Text>
+      <View style={{ paddingHorizontal: Spacing.xxl, marginBottom: Spacing.md }}>
+        <RoleBadge />
+      </View>
 
       <SubscriptionBanner />
 
