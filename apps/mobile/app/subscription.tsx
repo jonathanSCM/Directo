@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Platform,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
+const IS_DESKTOP = Dimensions.get('window').width >= 900;
 import { Colors, Fonts, Radius, Spacing } from '../src/constants/theme';
 import { useSubscription, Plan } from '../src/context/SubscriptionContext';
 import api from '../src/services/api';
@@ -162,18 +165,8 @@ export default function SubscriptionScreen() {
     );
   }
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.gray[900]} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mi suscripción</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Current subscription */}
+  const currentBlock = (
+    <>
         {subscription ? (
           <View style={styles.currentCard}>
             <View style={styles.currentHeader}>
@@ -260,9 +253,14 @@ export default function SubscriptionScreen() {
             </Text>
           </View>
         )}
+    </>
+  );
 
+  const plansBlock = (
+    <>
         {/* Plans */}
         <Text style={styles.sectionTitle}>Planes disponibles</Text>
+        <View style={IS_DESKTOP ? styles.plansGrid : undefined}>
         {plans.map((plan) => {
           const isFree = Number(plan.price) === 0;
           const isCurrent = subscription?.subscription_plans?.id === plan.id && isActive;
@@ -272,7 +270,7 @@ export default function SubscriptionScreen() {
           const extraCount = Math.max(0, count - plan.included_properties);
 
           return (
-            <View key={plan.id} style={[styles.planCard, isCurrent && styles.planCardCurrent, freeBlocked && styles.planCardDisabled]}>
+            <View key={plan.id} style={[styles.planCard, IS_DESKTOP && styles.planCardGrid, isCurrent && styles.planCardCurrent, freeBlocked && styles.planCardDisabled]}>
               <View style={styles.planHeader}>
                 <Text style={styles.planCardName}>{plan.name}</Text>
                 {isCurrent && (
@@ -410,6 +408,32 @@ export default function SubscriptionScreen() {
             </View>
           );
         })}
+        </View>
+    </>
+  );
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={Colors.gray[900]} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Mi suscripción</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={[styles.content, IS_DESKTOP && styles.contentDesktop]} showsVerticalScrollIndicator={false}>
+        {IS_DESKTOP ? (
+          <View style={styles.desktopRow}>
+            <View style={styles.desktopSidebar}>{currentBlock}</View>
+            <View style={styles.desktopMain}>{plansBlock}</View>
+          </View>
+        ) : (
+          <>
+            {currentBlock}
+            {plansBlock}
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -432,6 +456,12 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.gray[900] },
   content: { padding: Spacing.xxl, paddingBottom: 60, width: '100%', maxWidth: 640, alignSelf: 'center' },
+  contentDesktop: { maxWidth: 1120 },
+  desktopRow: { flexDirection: 'row', gap: Spacing.xxl, alignItems: 'flex-start' },
+  desktopSidebar: { width: 340 },
+  desktopMain: { flex: 1 },
+  plansGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.lg },
+  planCardGrid: { width: '48%', marginBottom: 0 },
 
   currentCard: {
     backgroundColor: Colors.white,
