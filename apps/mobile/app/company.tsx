@@ -63,6 +63,7 @@ export default function CompanyScreen() {
   const [adImage, setAdImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [zones, setZones] = useState<Zone[]>([]);
   const [selectedZones, setSelectedZones] = useState<Set<string>>(new Set());
+  const [expandedCities, setExpandedCities] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -89,6 +90,14 @@ export default function CompanyScreen() {
     setSelectedZones((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleCity = (city: string) => {
+    setExpandedCities((prev) => {
+      const next = new Set(prev);
+      if (next.has(city)) next.delete(city); else next.add(city);
       return next;
     });
   };
@@ -263,27 +272,52 @@ export default function CompanyScreen() {
               ubicación del cliente y prioriza tu anuncio ahí; si no eliges ninguna,
               tu anuncio se muestra en cualquier sector.
             </Text>
-            {Object.entries(zonesByCity).map(([city, cityZones]) => (
-              <View key={city} style={styles.zoneCityBlock}>
-                <Text style={styles.zoneCityLabel}>{city}</Text>
-                <View style={styles.zoneChipsWrap}>
-                  {cityZones.map((z) => {
-                    const active = selectedZones.has(z.id);
-                    return (
-                      <TouchableOpacity
-                        key={z.id}
-                        style={[styles.zoneChip, active && styles.zoneChipActive]}
-                        onPress={() => toggleZone(z.id)}
-                      >
-                        <Text style={[styles.zoneChipText, active && styles.zoneChipTextActive]}>
-                          {z.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+            {Object.entries(zonesByCity).map(([city, cityZones]) => {
+              const expanded = expandedCities.has(city);
+              const selectedCount = cityZones.filter((z) => selectedZones.has(z.id)).length;
+              return (
+                <View key={city} style={styles.zoneCityBlock}>
+                  <TouchableOpacity
+                    style={styles.zoneCityHeader}
+                    onPress={() => toggleCity(city)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.zoneCityHeaderLeft}>
+                      <Text style={styles.zoneCityLabel}>{city}</Text>
+                      <Text style={styles.zoneCityCount}>{cityZones.length}</Text>
+                      {selectedCount > 0 && (
+                        <View style={styles.zoneCitySelectedBadge}>
+                          <Text style={styles.zoneCitySelectedBadgeText}>{selectedCount}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Ionicons
+                      name={expanded ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color={Colors.gray[400]}
+                    />
+                  </TouchableOpacity>
+                  {expanded && (
+                    <View style={styles.zoneChipsWrap}>
+                      {cityZones.map((z) => {
+                        const active = selectedZones.has(z.id);
+                        return (
+                          <TouchableOpacity
+                            key={z.id}
+                            style={[styles.zoneChip, active && styles.zoneChipActive]}
+                            onPress={() => toggleZone(z.id)}
+                          >
+                            <Text style={[styles.zoneChipText, active && styles.zoneChipTextActive]}>
+                              {z.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
-              </View>
-            ))}
+              );
+            })}
 
             <TouchableOpacity style={styles.primaryBtn} onPress={createAd} disabled={saving}>
               <Text style={styles.primaryBtnText}>{saving ? 'Creando...' : 'Publicar anuncio'}</Text>
@@ -422,15 +456,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  zoneCityBlock: { marginTop: Spacing.md },
-  zoneCityLabel: {
-    fontSize: Fonts.sizes.xs,
-    fontWeight: '700',
-    color: Colors.gray[400],
-    textTransform: 'uppercase',
-    marginBottom: 6,
+  zoneCityBlock: {
+    marginTop: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.gray[100],
+    borderRadius: Radius.md,
+    overflow: 'hidden',
   },
-  zoneChipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  zoneCityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    backgroundColor: Colors.gray[50],
+  },
+  zoneCityHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  zoneCityLabel: {
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '700',
+    color: Colors.gray[700],
+  },
+  zoneCityCount: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '600',
+    color: Colors.gray[400],
+  },
+  zoneCitySelectedBadge: {
+    backgroundColor: '#0EA5E9',
+    borderRadius: Radius.full,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoneCitySelectedBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.white },
+  zoneChipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: Spacing.md },
   zoneChip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
