@@ -578,18 +578,32 @@ export default function ExploreScreen() {
   );
 }
 
+// Plomo/gris claro, igual look que las teselas CartoDB "light_all" de la versión web.
 const mapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#f2f2f2' }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#707070' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#f2f2f2' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#d6d6d6' }] },
+  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
   {
     featureType: 'poi',
     elementType: 'labels',
     stylers: [{ visibility: 'off' }],
   },
   { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e5e8e5' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e0e0e0' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#e8e8e8' }] },
+  { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#8a8a8a' }] },
   {
     featureType: 'transit',
     elementType: 'labels.icon',
     stylers: [{ visibility: 'off' }],
   },
+  { featureType: 'transit.line', elementType: 'geometry', stylers: [{ color: '#e0e0e0' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#dde3e8' }] },
 ];
 
 const styles = StyleSheet.create({
