@@ -244,21 +244,25 @@ export class SupportService {
     return conv;
   }
 
-  async createAdvisorRequest(
-    userId: string,
-    data: { need: string; details?: string; contactName: string; contactPhone: string },
-  ) {
+  async createAdvisorRequest(userId: string, data: { need: string; details?: string }) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: { name: true, phone: true, email: true },
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
     const needLabel = ADVISOR_NEED_LABELS[data.need] ?? data.need;
     const created = await this.startConversation(userId, 'advisor_request');
 
+    // El contacto se toma del perfil, no se le pide al usuario en el formulario.
     const conv = await this.prisma.support_conversations.update({
       where: { id: created.id },
       data: {
         metadata: {
           need: data.need,
           details: data.details ?? null,
-          contact_name: data.contactName,
-          contact_phone: data.contactPhone,
+          contact_name: user.name,
+          contact_phone: user.phone,
         },
       },
     });
@@ -266,7 +270,6 @@ export class SupportService {
     const summary = [
       `Solicita ayuda de un asesor: ${needLabel}`,
       data.details ? `Detalle: ${data.details}` : null,
-      `Contacto: ${data.contactName} — ${data.contactPhone}`,
     ]
       .filter(Boolean)
       .join('\n');
@@ -282,7 +285,7 @@ export class SupportService {
           user_id: admin.user_id,
           type: 'system',
           title: 'Nueva solicitud de asesor',
-          message: `${data.contactName} necesita ayuda: ${needLabel}`,
+          message: `${user.name} necesita ayuda: ${needLabel}`,
           data: { conversation_id: conv.id },
         },
       });

@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -94,11 +93,12 @@ function AdvisorScreen({ visible, onClose }: { visible: boolean; onClose: () => 
   const flatListRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Formulario
+  // Intake conversacional (reemplaza el formulario estático)
+  const [intakeLog, setIntakeLog] = useState<{ id: string; sender: 'bot' | 'user'; text: string }[]>([]);
+  const [intakePhase, setIntakePhase] = useState<'need' | 'gather'>('need');
   const [need, setNeed] = useState<string | null>(null);
-  const [details, setDetails] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
+  const [detailsMsgs, setDetailsMsgs] = useState<string[]>([]);
+  const [intakeInput, setIntakeInput] = useState('');
 
   const scrollDown = () => setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
@@ -124,13 +124,18 @@ function AdvisorScreen({ visible, onClose }: { visible: boolean; onClose: () => 
   }, []);
 
   // Al abrir: si ya hay una solicitud de asesor activa, va directo a ese chat.
-  // Si no, muestra el formulario para levantar una nueva.
+  // Si no, reinicia el intake conversacional.
   useEffect(() => {
     if (!visible) return;
-    setContactName(user?.name ?? '');
-    setContactPhone(user?.phone ?? '');
+    setIntakeLog([{
+      id: 'greet',
+      sender: 'bot',
+      text: `¡Hola${user?.name ? ', ' + user.name.split(' ')[0] : ''}! ¿En qué te ayudamos hoy? Elige una opción o cuéntanos con tus palabras.`,
+    }]);
+    setIntakePhase('need');
     setNeed(null);
-    setDetails('');
+    setDetailsMsgs([]);
+    setIntakeInput('');
     (async () => {
       setLoading(true);
       const convs = await fetchConversations();
@@ -168,26 +173,56 @@ function AdvisorScreen({ visible, onClose }: { visible: boolean; onClose: () => 
     setLoading(false);
   };
 
-  const submitForm = async () => {
+  const pickNeed = (opt: { id: string; label: string }) => {
+    setIntakeLog((prev) => [...prev, { id: `u-${Date.now()}`, sender: 'user', text: opt.label }]);
+    setNeed(opt.id);
+    setIntakeLog((prev) => [
+      ...prev,
+      {
+        id: `b-${Date.now()}`,
+        sender: 'bot',
+        text: opt.id === 'other'
+          ? 'Cuéntanos qué necesitas'
+          : '¿Quieres contarnos algo más antes de enviar tu solicitud? Escribe abajo, o toca "Enviar solicitud".',
+      },
+    ]);
+    setIntakePhase('gather');
+  };
+
+  const sendIntakeMessage = () => {
+    const text = intakeInput.trim();
+    if (!text) return;
+    setIntakeInput('');
+    setIntakeLog((prev) => [...prev, { id: `u-${Date.now()}`, sender: 'user', text }]);
+    if (intakePhase === 'need') {
+      // Escribió directo, sin tocar un chip: eso mismo es lo que necesita.
+      setNeed('other');
+      setDetailsMsgs([text]);
+      setIntakeLog((prev) => [
+        ...prev,
+        { id: `b-${Date.now()}`, sender: 'bot', text: 'Gracias, recibido. ¿Algo más antes de enviar? Escribe abajo, o toca "Enviar solicitud".' },
+      ]);
+      setIntakePhase('gather');
+    } else {
+      setDetailsMsgs((prev) => [...prev, text]);
+    }
+  };
+
+  const submitIntake = async () => {
     if (!need) {
-      notice('Falta un dato', '¿Qué necesitas?');
+      notice('Falta un dato', 'Cuéntanos qué necesitas');
       return;
     }
-    if (contactName.trim().length < 2) {
-      notice('Falta un dato', 'Escribe tu nombre');
-      return;
-    }
-    if (contactPhone.trim().length < 6) {
-      notice('Falta un dato', 'Escribe tu número de WhatsApp');
+    const details = detailsMsgs.join('\n').trim();
+    if (need === 'other' && !details) {
+      notice('Falta un dato', 'Cuéntanos con más detalle qué necesitas');
       return;
     }
     setSubmitting(true);
     try {
       const { data } = await api.post('/support/advisor-requests', {
         need,
-        details: details.trim() || undefined,
-        contactName: contactName.trim(),
-        contactPhone: contactPhone.trim(),
+        details: details || undefined,
       });
       setActiveConv(data);
       setView('chat');
@@ -282,17 +317,16 @@ function AdvisorScreen({ visible, onClose }: { visible: boolean; onClose: () => 
         </View>
 
         {view === 'form' ? (
-          <FormView
-            need={need}
-            setNeed={setNeed}
-            details={details}
-            setDetails={setDetails}
-            contactName={contactName}
-            setContactName={setContactName}
-            contactPhone={contactPhone}
-            setContactPhone={setContactPhone}
+          <IntakeView
+            log={intakeLog}
+            phase={intakePhase}
+            onPickNeed={pickNeed}
+            inputText={intakeInput}
+            setInputText={setIntakeInput}
+            onSend={sendIntakeMessage}
             submitting={submitting}
-            onSubmit={submitForm}
+            onSubmit={submitIntake}
+            hasPhone={!!user?.phone}
             onShowHistory={conversations.length > 0 ? () => setView('list') : undefined}
           />
         ) : view === 'list' ? (
@@ -349,8 +383,9 @@ function AdvisorScreen({ visible, onClose }: { visible: boolean; onClose: () => 
               <View style={styles.sentBanner}>
                 <Ionicons name="checkmark-circle" size={18} color="#059669" />
                 <Text style={styles.sentBannerText}>
-                  ¡Solicitud enviada! Un asesor te va a contactar por WhatsApp al{' '}
-                  {activeConv.metadata?.contact_phone || contactPhone || 'número que dejaste'} muy pronto.
+                  {(activeConv.metadata?.contact_phone || user?.phone)
+                    ? `¡Solicitud enviada! Un asesor te va a contactar por WhatsApp al ${activeConv.metadata?.contact_phone || user?.phone} muy pronto.`
+                    : '¡Solicitud enviada! No tienes un WhatsApp guardado en tu perfil — un asesor te va a contactar por otro medio.'}
                 </Text>
               </View>
             )}
@@ -423,93 +458,105 @@ function AdvisorScreen({ visible, onClose }: { visible: boolean; onClose: () => 
   );
 }
 
-function FormView({
-  need, setNeed, details, setDetails, contactName, setContactName, contactPhone, setContactPhone,
-  submitting, onSubmit, onShowHistory,
+function IntakeView({
+  log, phase, onPickNeed, inputText, setInputText, onSend, submitting, onSubmit, hasPhone, onShowHistory,
 }: {
-  need: string | null;
-  setNeed: (v: string) => void;
-  details: string;
-  setDetails: (v: string) => void;
-  contactName: string;
-  setContactName: (v: string) => void;
-  contactPhone: string;
-  setContactPhone: (v: string) => void;
+  log: { id: string; sender: 'bot' | 'user'; text: string }[];
+  phase: 'need' | 'gather';
+  onPickNeed: (opt: { id: string; label: string }) => void;
+  inputText: string;
+  setInputText: (v: string) => void;
+  onSend: () => void;
   submitting: boolean;
   onSubmit: () => void;
+  hasPhone: boolean;
   onShowHistory?: () => void;
 }) {
+  const listRef = useRef<FlatList>(null);
+  const scrollDown = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <ScrollView
-      contentContainerStyle={styles.formScroll}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
-          <Text style={styles.formIntro}>
-            ¿No tienes tiempo de vender o alquilar tu propiedad? Cuéntanos qué necesitas
-            y un asesor de DIRECTO te contacta por WhatsApp para ayudarte con todo.
-          </Text>
-
-          <Text style={styles.formLabel}>¿Qué necesitas? *</Text>
-          <View style={styles.needList}>
-            {NEED_OPTIONS.map((opt) => {
-              const active = need === opt.id;
-              return (
+      <FlatList
+        ref={listRef}
+        data={log}
+        keyExtractor={(m) => m.id}
+        contentContainerStyle={styles.messageList}
+        onContentSizeChange={scrollDown}
+        renderItem={({ item }) => {
+          const isUser = item.sender === 'user';
+          return (
+            <View style={[styles.bubble, isUser ? styles.userBubble : styles.botBubble]}>
+              {!isUser && (
+                <View style={styles.msgAvatar}>
+                  <Ionicons name="chatbubbles" size={12} color={Colors.white} />
+                </View>
+              )}
+              <View style={[styles.bubbleContent, isUser && styles.userBubbleContent]}>
+                <Text style={[styles.msgText, isUser && styles.userMsgText]}>{item.text}</Text>
+              </View>
+            </View>
+          );
+        }}
+        ListFooterComponent={
+          phase === 'need' ? (
+            <View style={styles.quickReplies}>
+              {NEED_OPTIONS.map((opt) => (
                 <TouchableOpacity
                   key={opt.id}
-                  style={[styles.needChip, active && styles.needChipActive]}
-                  onPress={() => setNeed(opt.id)}
+                  style={styles.needChip}
+                  onPress={() => onPickNeed(opt)}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name={opt.icon} size={18} color={active ? Colors.white : OWNER_PRIMARY} />
-                  <Text style={[styles.needChipText, active && styles.needChipTextActive]}>{opt.label}</Text>
+                  <Ionicons name={opt.icon} size={16} color={OWNER_PRIMARY} />
+                  <Text style={styles.needChipText}>{opt.label}</Text>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
+              ))}
+              {onShowHistory && (
+                <TouchableOpacity style={styles.historyLink} onPress={onShowHistory}>
+                  <Text style={styles.historyLinkText}>Ver mis solicitudes anteriores</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <View style={styles.quickReplies}>
+              {!hasPhone && (
+                <View style={styles.noPhoneNote}>
+                  <Ionicons name="information-circle" size={14} color="#92400E" />
+                  <Text style={styles.noPhoneNoteText}>
+                    No tienes un WhatsApp guardado en tu perfil, te contactaremos por otro medio.
+                  </Text>
+                </View>
+              )}
+              <TouchableOpacity style={styles.submitBtn} onPress={onSubmit} disabled={submitting}>
+                <Ionicons name="paper-plane" size={18} color={Colors.white} />
+                <Text style={styles.submitBtnText}>{submitting ? 'Enviando...' : 'Enviar solicitud'}</Text>
+              </TouchableOpacity>
+            </View>
+          )
+        }
+      />
 
-          <Text style={styles.formLabel}>Cuéntanos más (opcional)</Text>
-          <TextInput
-            style={styles.formTextarea}
-            value={details}
-            onChangeText={setDetails}
-            placeholder="Ej: Tengo un depa en Equipetrol, quiero venderlo rápido"
-            placeholderTextColor={Colors.gray[400]}
-            multiline
-            maxLength={500}
-          />
-
-          <Text style={styles.formLabel}>Tu nombre *</Text>
-          <TextInput
-            style={styles.formInput}
-            value={contactName}
-            onChangeText={setContactName}
-            placeholder="Nombre completo"
-            placeholderTextColor={Colors.gray[400]}
-          />
-
-          <Text style={styles.formLabel}>Tu WhatsApp *</Text>
-          <TextInput
-            style={styles.formInput}
-            value={contactPhone}
-            onChangeText={setContactPhone}
-            placeholder="Ej: 70000000"
-            placeholderTextColor={Colors.gray[400]}
-            keyboardType="phone-pad"
-          />
-
-          <TouchableOpacity style={styles.submitBtn} onPress={onSubmit} disabled={submitting}>
-            <Ionicons name="paper-plane" size={18} color={Colors.white} />
-            <Text style={styles.submitBtnText}>{submitting ? 'Enviando...' : 'Solicitar asesor'}</Text>
-          </TouchableOpacity>
-
-          {onShowHistory && (
-            <TouchableOpacity style={styles.historyLink} onPress={onShowHistory}>
-              <Text style={styles.historyLinkText}>Ver mis solicitudes anteriores</Text>
-            </TouchableOpacity>
-          )}
-    </ScrollView>
+      <View style={styles.inputBar}>
+        <TextInput
+          style={styles.textInput}
+          placeholder="Escribe qué necesitas..."
+          placeholderTextColor={Colors.gray[400]}
+          value={inputText}
+          onChangeText={setInputText}
+          onSubmitEditing={onSend}
+          returnKeyType="send"
+          multiline
+          maxLength={500}
+        />
+        <TouchableOpacity
+          style={[styles.sendBtn, !inputText.trim() && styles.sendBtnOff]}
+          onPress={onSend}
+          disabled={!inputText.trim()}
+        >
+          <Ionicons name="send" size={18} color={Colors.white} />
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -551,36 +598,26 @@ const styles = StyleSheet.create({
   onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4ADE80' },
   onlineText: { fontSize: Fonts.sizes.xs, color: 'rgba(255,255,255,0.8)' },
 
-  // Formulario
-  formScroll: { padding: Spacing.lg, paddingBottom: 40 },
-  formIntro: { fontSize: Fonts.sizes.sm, color: Colors.gray[600], lineHeight: 20, marginBottom: Spacing.lg },
-  formLabel: { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.gray[700], marginTop: Spacing.md, marginBottom: 8 },
-  needList: { gap: 8 },
+  // Intake conversacional (quick replies + input persistente)
+  quickReplies: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, gap: 8 },
   needChip: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: Spacing.md, paddingVertical: 12,
     borderRadius: Radius.lg, borderWidth: 1.5, borderColor: Colors.gray[200],
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.white, alignSelf: 'flex-start',
   },
-  needChipActive: { backgroundColor: OWNER_PRIMARY, borderColor: OWNER_PRIMARY },
   needChipText: { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.gray[700], flexShrink: 1 },
-  needChipTextActive: { color: Colors.white },
-  formTextarea: {
-    borderWidth: 1, borderColor: Colors.gray[200], borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md, paddingVertical: 10, minHeight: 70,
-    fontSize: Fonts.sizes.md, color: Colors.gray[900], backgroundColor: Colors.white, textAlignVertical: 'top',
+  noPhoneNote: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#FFFBEB', padding: Spacing.sm, borderRadius: Radius.md,
   },
-  formInput: {
-    borderWidth: 1, borderColor: Colors.gray[200], borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md, paddingVertical: 10,
-    fontSize: Fonts.sizes.md, color: Colors.gray[900], backgroundColor: Colors.white,
-  },
+  noPhoneNoteText: { flex: 1, fontSize: Fonts.sizes.xs, color: '#92400E' },
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: OWNER_PRIMARY, paddingVertical: 14, borderRadius: Radius.lg, marginTop: Spacing.xl,
+    backgroundColor: OWNER_PRIMARY, paddingVertical: 14, borderRadius: Radius.lg, marginTop: 4,
   },
   submitBtnText: { color: Colors.white, fontWeight: '700', fontSize: Fonts.sizes.md },
-  historyLink: { alignItems: 'center', marginTop: Spacing.lg },
+  historyLink: { alignItems: 'center', marginTop: Spacing.md },
   historyLinkText: { color: OWNER_PRIMARY, fontWeight: '600', fontSize: Fonts.sizes.sm },
 
   sentBanner: {

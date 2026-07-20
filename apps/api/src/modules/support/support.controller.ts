@@ -100,7 +100,7 @@ export class SupportController {
   @ApiOperation({ summary: 'Request a human advisor to sell/rent your property for you' })
   requestAdvisor(
     @CurrentUser() user: AuthUser,
-    @Body() body: { need: string; details?: string; contactName: string; contactPhone: string },
+    @Body() body: { need: string; details?: string },
   ) {
     return this.svc.createAdvisorRequest(user.id, body);
   }

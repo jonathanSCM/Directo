@@ -152,13 +152,8 @@ export default function Support() {
     return `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${name}, te contactamos desde DIRECTO.`)}`;
   };
 
-  // En advisor_request el usuario puede dejar un contacto distinto al de su cuenta.
-  const ticketContact = (t: Ticket) => {
-    if (t.type === 'advisor_request' && t.metadata?.contact_phone) {
-      return { name: t.metadata.contact_name || t.users.name, phone: t.metadata.contact_phone as string };
-    }
-    return { name: t.users.name, phone: t.users.phone ?? '' };
-  };
+  // El contacto siempre es el del perfil (no se le pide al usuario en el formulario).
+  const ticketContact = (t: Ticket) => ({ name: t.users.name, phone: t.users.phone ?? '' });
 
   return (
     <div>
@@ -411,9 +406,6 @@ export default function Support() {
                       {(selectedTicket.metadata as any).details && (
                         <div style={{ fontSize: 13, marginTop: 4 }}>{(selectedTicket.metadata as any).details}</div>
                       )}
-                      <div style={{ fontSize: 13, marginTop: 4 }}>
-                        Contacto: <strong>{(selectedTicket.metadata as any).contact_name}</strong> — {(selectedTicket.metadata as any).contact_phone}
-                      </div>
                     </div>
                   )}
 
