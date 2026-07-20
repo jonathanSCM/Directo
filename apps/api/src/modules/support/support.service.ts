@@ -371,10 +371,14 @@ function parseOwnerIntent(text: string): string {
 
 function buildAdvisorBotReply(intent: string, meta: Record<string, any>, needJustSet: boolean): string {
   if (intent === 'greeting' && !meta.need) return ADVISOR_GREETING;
+  if (intent === 'greeting' && meta.need) {
+    const label = (ADVISOR_NEED_LABELS[meta.need] ?? 'tu solicitud').toLowerCase();
+    return `¡Hola de nuevo! ¿En qué más puedo ayudarte? Ya avisé a un asesor sobre ${label} — si todavía no te contactó por WhatsApp, te va a escribir pronto.`;
+  }
   if (intent === 'thanks') return '¡De nada! Un asesor te va a contactar por WhatsApp pronto. Si quieres agregar algo más, aquí estoy.';
   if (needJustSet) {
     const label = ADVISOR_NEED_LABELS[intent] ?? 'tu solicitud';
     return `Perfecto, anoté: ${label}. Ya avisé a un asesor de DIRECTO, te va a contactar por WhatsApp pronto. Si quieres, cuéntame más detalles de tu propiedad mientras tanto.`;
   }
-  return 'Gracias, lo anoté. El asesor va a ver este detalle también.';
+  return 'Gracias, tomo nota de eso también. ¿Necesitas algo más mientras te contacta el asesor?';
 }
