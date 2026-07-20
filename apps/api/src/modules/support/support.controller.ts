@@ -50,7 +50,7 @@ export class SupportController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { content: string; nodeId?: string; options?: any[] },
   ) {
-    return this.svc.addMessage(id, 'user', body.content, body.nodeId, body.options);
+    return this.svc.addUserMessage(user.id, id, body.content, body.nodeId, body.options);
   }
 
   @Patch('conversations/:id/resolve')

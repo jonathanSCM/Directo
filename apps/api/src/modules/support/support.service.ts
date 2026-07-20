@@ -39,6 +39,21 @@ export class SupportService {
     });
   }
 
+  /** Como addMessage, pero valida que la conversación sea del usuario antes de escribir. */
+  async addUserMessage(
+    userId: string,
+    conversationId: string,
+    content: string,
+    nodeId?: string,
+    options?: any[],
+  ) {
+    const conv = await this.prisma.support_conversations.findFirst({
+      where: { id: conversationId, user_id: userId },
+    });
+    if (!conv) throw new NotFoundException('Conversación no encontrada');
+    return this.addMessage(conversationId, 'user', content, nodeId, options);
+  }
+
   async getConversations(userId: string) {
     return this.prisma.support_conversations.findMany({
       where: { user_id: userId },

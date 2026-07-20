@@ -8,10 +8,16 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { UPLOADS_DIR } from './modules/properties/multer.config';
 
+function resolveCorsOrigin(): boolean | string[] {
+  const raw = process.env.CORS_ORIGINS?.trim();
+  if (!raw || raw === '*') return true; // sin restricción (dev/no configurado)
+  return raw.split(',').map((o) => o.trim()).filter(Boolean);
+}
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: {
-      origin: true,
+      origin: resolveCorsOrigin(),
       credentials: true,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
