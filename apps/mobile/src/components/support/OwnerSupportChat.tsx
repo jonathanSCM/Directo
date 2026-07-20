@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -22,8 +24,19 @@ const isWeb = Platform.OS === 'web';
 const floatingWeb = isWeb && Dimensions.get('window').width >= 768;
 
 const OWNER_PRIMARY = '#7C3AED';
-const OWNER_LIGHT = '#EDE9FE';
-const OWNER_DARK = '#6D28D9';
+
+const notice = (title: string, msg: string) => {
+  if (Platform.OS === 'web') window.alert(`${title}\n\n${msg}`);
+  else Alert.alert(title, msg);
+};
+
+const NEED_OPTIONS: { id: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'sell', label: 'Vender mi propiedad', icon: 'cash-outline' },
+  { id: 'rent', label: 'Alquilar mi propiedad', icon: 'key-outline' },
+  { id: 'anticretico', label: 'Poner en anticrético', icon: 'swap-horizontal-outline' },
+  { id: 'full_service', label: 'No tengo tiempo, quiero ayuda con todo', icon: 'time-outline' },
+  { id: 'other', label: 'Otro', icon: 'ellipsis-horizontal-outline' },
+];
 
 interface Message {
   id: string;
@@ -38,6 +51,7 @@ interface Conversation {
   status: string;
   created_at: string;
   support_messages?: Message[];
+  metadata?: { contact_name?: string; contact_phone?: string; need?: string; details?: string };
 }
 
 export default function OwnerSupportFAB() {
@@ -62,12 +76,12 @@ export default function OwnerSupportFAB() {
           <Ionicons name="headset" size={24} color={Colors.white} />
         </TouchableOpacity>
       </Animated.View>
-      <OwnerChatScreen visible={visible} onClose={() => setVisible(false)} />
+      <AdvisorScreen visible={visible} onClose={() => setVisible(false)} />
     </>
   );
 }
 
-function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function AdvisorScreen({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { isAuthenticated, user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<Conversation | null>(null);
@@ -75,9 +89,16 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [view, setView] = useState<'list' | 'chat'>('list');
+  const [submitting, setSubmitting] = useState(false);
+  const [view, setView] = useState<'form' | 'chat' | 'list'>('form');
   const flatListRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Formulario
+  const [need, setNeed] = useState<string | null>(null);
+  const [details, setDetails] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
 
   const scrollDown = () => setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
@@ -85,7 +106,10 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
     try {
       const { data } = await api.get('/support/conversations');
       setConversations(data);
-    } catch {}
+      return data as Conversation[];
+    } catch {
+      return [];
+    }
   }, []);
 
   const fetchMessages = useCallback(async (convId: string) => {
@@ -99,13 +123,30 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
     } catch {}
   }, []);
 
+  // Al abrir: si ya hay una solicitud de asesor activa, va directo a ese chat.
+  // Si no, muestra el formulario para levantar una nueva.
   useEffect(() => {
-    if (visible) {
-      fetchConversations();
-      setView('list');
-      setActiveConv(null);
-    }
-  }, [visible, fetchConversations]);
+    if (!visible) return;
+    setContactName(user?.name ?? '');
+    setContactPhone(user?.phone ?? '');
+    setNeed(null);
+    setDetails('');
+    (async () => {
+      setLoading(true);
+      const convs = await fetchConversations();
+      const pending = convs.find((c) => c.type === 'advisor_request' && c.status === 'active');
+      if (pending) {
+        setActiveConv(pending);
+        setView('chat');
+        await fetchMessages(pending.id);
+      } else {
+        setActiveConv(null);
+        setMessages([]);
+        setView('form');
+      }
+      setLoading(false);
+    })();
+  }, [visible, fetchConversations, fetchMessages, user?.name, user?.phone]);
 
   // Polling: mensajes del chat activo, o lista de conversaciones
   useEffect(() => {
@@ -127,19 +168,35 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
     setLoading(false);
   };
 
-  const startNewConversation = async () => {
-    setLoading(true);
+  const submitForm = async () => {
+    if (!need) {
+      notice('Falta un dato', '¿Qué necesitas?');
+      return;
+    }
+    if (contactName.trim().length < 2) {
+      notice('Falta un dato', 'Escribe tu nombre');
+      return;
+    }
+    if (contactPhone.trim().length < 6) {
+      notice('Falta un dato', 'Escribe tu número de WhatsApp');
+      return;
+    }
+    setSubmitting(true);
     try {
-      const { data } = await api.post('/support/conversations', { type: 'info_request' });
+      const { data } = await api.post('/support/advisor-requests', {
+        need,
+        details: details.trim() || undefined,
+        contactName: contactName.trim(),
+        contactPhone: contactPhone.trim(),
+      });
       setActiveConv(data);
       setView('chat');
       setMessages([]);
-      await api.post(`/support/conversations/${data.id}/messages`, {
-        content: `Hola, soy ${user?.name}. Necesito ayuda.`,
-      });
       await fetchMessages(data.id);
-    } catch {}
-    setLoading(false);
+    } catch (e: any) {
+      notice('Error', e.response?.data?.message ?? 'No se pudo enviar la solicitud');
+    }
+    setSubmitting(false);
   };
 
   const sendMessage = async () => {
@@ -173,7 +230,7 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
           <View style={[styles.header, floatingWeb && styles.webHeader]}>
             <View style={styles.headerLeft}>
               <View style={styles.botAvatar}><Ionicons name="headset" size={18} color={Colors.white} /></View>
-              <Text style={styles.headerTitle}>Soporte</Text>
+              <Text style={styles.headerTitle}>Asesor DIRECTO</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
               <Ionicons name="close-circle" size={28} color="rgba(255,255,255,0.6)" />
@@ -182,7 +239,7 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
           <View style={styles.authPrompt}>
             <Ionicons name="headset-outline" size={64} color={Colors.gray[300]} />
             <Text style={styles.authTitle}>Inicia sesión</Text>
-            <Text style={styles.authText}>Necesitas una cuenta para contactar soporte</Text>
+            <Text style={styles.authText}>Necesitas una cuenta para solicitar un asesor</Text>
           </View>
         </View>
         </View>
@@ -201,13 +258,20 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
                 <Ionicons name="arrow-back" size={22} color={Colors.white} />
               </TouchableOpacity>
             )}
+            {view === 'list' && (
+              <TouchableOpacity onPress={() => setView('form')} hitSlop={8} style={{ marginRight: 8 }}>
+                <Ionicons name="arrow-back" size={22} color={Colors.white} />
+              </TouchableOpacity>
+            )}
             <View style={styles.botAvatar}><Ionicons name="headset" size={18} color={Colors.white} /></View>
             <View>
-              <Text style={styles.headerTitle}>{view === 'chat' ? 'Soporte DIRECTO' : 'Mis conversaciones'}</Text>
+              <Text style={styles.headerTitle}>
+                {view === 'form' ? 'Habla con un asesor' : view === 'list' ? 'Mis solicitudes' : 'Tu asesor'}
+              </Text>
               {view === 'chat' && (
                 <View style={styles.onlineRow}>
                   <View style={styles.onlineDot} />
-                  <Text style={styles.onlineText}>Soporte técnico</Text>
+                  <Text style={styles.onlineText}>Te contactará por WhatsApp</Text>
                 </View>
               )}
             </View>
@@ -217,18 +281,32 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
           </TouchableOpacity>
         </View>
 
-        {view === 'list' ? (
+        {view === 'form' ? (
+          <FormView
+            need={need}
+            setNeed={setNeed}
+            details={details}
+            setDetails={setDetails}
+            contactName={contactName}
+            setContactName={setContactName}
+            contactPhone={contactPhone}
+            setContactPhone={setContactPhone}
+            submitting={submitting}
+            onSubmit={submitForm}
+            onShowHistory={conversations.length > 0 ? () => setView('list') : undefined}
+          />
+        ) : view === 'list' ? (
           <View style={{ flex: 1 }}>
-            <TouchableOpacity style={styles.newConvBtn} onPress={startNewConversation}>
+            <TouchableOpacity style={styles.newConvBtn} onPress={() => setView('form')}>
               <Ionicons name="add-circle" size={22} color={Colors.white} />
-              <Text style={styles.newConvText}>Nueva conversación</Text>
+              <Text style={styles.newConvText}>Nueva solicitud</Text>
             </TouchableOpacity>
 
             {conversations.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="chatbubbles-outline" size={48} color={Colors.gray[300]} />
-                <Text style={styles.emptyTitle}>Sin conversaciones</Text>
-                <Text style={styles.emptyText}>Inicia una conversación con nuestro equipo de soporte</Text>
+                <Text style={styles.emptyTitle}>Sin solicitudes</Text>
+                <Text style={styles.emptyText}>Aún no pediste ayuda a un asesor</Text>
               </View>
             ) : (
               <FlatList
@@ -246,14 +324,14 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Text style={styles.convType}>
-                            {item.type === 'info_request' ? 'Consulta' : item.type === 'report' ? 'Reporte' : 'Soporte'}
+                            {item.type === 'advisor_request' ? 'Asesoría' : item.type === 'info_request' ? 'Consulta' : item.type === 'report' ? 'Reporte' : 'Soporte'}
                           </Text>
                           <Text style={styles.convDate}>
                             {new Date(item.created_at).toLocaleDateString('es-BO', { day: '2-digit', month: 'short' })}
                           </Text>
                         </View>
                         <Text style={styles.convPreview} numberOfLines={1}>
-                          {lastMsg ? (lastMsg.sender === 'admin' ? 'Soporte: ' : '') + lastMsg.content : 'Sin mensajes'}
+                          {lastMsg ? (lastMsg.sender === 'admin' ? 'Asesor: ' : '') + lastMsg.content : 'Sin mensajes'}
                         </Text>
                       </View>
                       {!isResolved && lastMsg?.sender === 'admin' && (
@@ -267,6 +345,15 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
           </View>
         ) : (
           <>
+            {activeConv?.type === 'advisor_request' && (
+              <View style={styles.sentBanner}>
+                <Ionicons name="checkmark-circle" size={18} color="#059669" />
+                <Text style={styles.sentBannerText}>
+                  ¡Solicitud enviada! Un asesor te va a contactar por WhatsApp al{' '}
+                  {activeConv.metadata?.contact_phone || contactPhone || 'número que dejaste'} muy pronto.
+                </Text>
+              </View>
+            )}
             {loading ? (
               <View style={styles.emptyState}>
                 <Text style={{ color: Colors.gray[400] }}>Cargando...</Text>
@@ -289,7 +376,7 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
                         </View>
                       )}
                       <View style={[styles.bubbleContent, isUser && styles.userBubbleContent]}>
-                        {isAdmin && <Text style={styles.adminLabel}>Soporte</Text>}
+                        {isAdmin && <Text style={styles.adminLabel}>Asesor</Text>}
                         <Text style={[styles.msgText, isUser && styles.userMsgText]}>{item.content}</Text>
                         <Text style={[styles.timeText, isUser && { color: 'rgba(255,255,255,0.6)' }]}>
                           {new Date(item.created_at).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}
@@ -305,7 +392,7 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
               <View style={styles.inputBar}>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Escribe tu mensaje..."
+                  placeholder="Agrega algo más si quieres..."
                   placeholderTextColor={Colors.gray[400]}
                   value={inputText}
                   onChangeText={setInputText}
@@ -325,7 +412,7 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
             ) : (
               <View style={styles.resolvedBar}>
                 <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-                <Text style={styles.resolvedText}>Conversación resuelta</Text>
+                <Text style={styles.resolvedText}>Solicitud resuelta</Text>
               </View>
             )}
           </>
@@ -333,6 +420,97 @@ function OwnerChatScreen({ visible, onClose }: { visible: boolean; onClose: () =
       </KeyboardAvoidingView>
       </View>
     </Modal>
+  );
+}
+
+function FormView({
+  need, setNeed, details, setDetails, contactName, setContactName, contactPhone, setContactPhone,
+  submitting, onSubmit, onShowHistory,
+}: {
+  need: string | null;
+  setNeed: (v: string) => void;
+  details: string;
+  setDetails: (v: string) => void;
+  contactName: string;
+  setContactName: (v: string) => void;
+  contactPhone: string;
+  setContactPhone: (v: string) => void;
+  submitting: boolean;
+  onSubmit: () => void;
+  onShowHistory?: () => void;
+}) {
+  return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView
+      contentContainerStyle={styles.formScroll}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+          <Text style={styles.formIntro}>
+            ¿No tienes tiempo de vender o alquilar tu propiedad? Cuéntanos qué necesitas
+            y un asesor de DIRECTO te contacta por WhatsApp para ayudarte con todo.
+          </Text>
+
+          <Text style={styles.formLabel}>¿Qué necesitas? *</Text>
+          <View style={styles.needList}>
+            {NEED_OPTIONS.map((opt) => {
+              const active = need === opt.id;
+              return (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[styles.needChip, active && styles.needChipActive]}
+                  onPress={() => setNeed(opt.id)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name={opt.icon} size={18} color={active ? Colors.white : OWNER_PRIMARY} />
+                  <Text style={[styles.needChipText, active && styles.needChipTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.formLabel}>Cuéntanos más (opcional)</Text>
+          <TextInput
+            style={styles.formTextarea}
+            value={details}
+            onChangeText={setDetails}
+            placeholder="Ej: Tengo un depa en Equipetrol, quiero venderlo rápido"
+            placeholderTextColor={Colors.gray[400]}
+            multiline
+            maxLength={500}
+          />
+
+          <Text style={styles.formLabel}>Tu nombre *</Text>
+          <TextInput
+            style={styles.formInput}
+            value={contactName}
+            onChangeText={setContactName}
+            placeholder="Nombre completo"
+            placeholderTextColor={Colors.gray[400]}
+          />
+
+          <Text style={styles.formLabel}>Tu WhatsApp *</Text>
+          <TextInput
+            style={styles.formInput}
+            value={contactPhone}
+            onChangeText={setContactPhone}
+            placeholder="Ej: 70000000"
+            placeholderTextColor={Colors.gray[400]}
+            keyboardType="phone-pad"
+          />
+
+          <TouchableOpacity style={styles.submitBtn} onPress={onSubmit} disabled={submitting}>
+            <Ionicons name="paper-plane" size={18} color={Colors.white} />
+            <Text style={styles.submitBtnText}>{submitting ? 'Enviando...' : 'Solicitar asesor'}</Text>
+          </TouchableOpacity>
+
+          {onShowHistory && (
+            <TouchableOpacity style={styles.historyLink} onPress={onShowHistory}>
+              <Text style={styles.historyLinkText}>Ver mis solicitudes anteriores</Text>
+            </TouchableOpacity>
+          )}
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -372,6 +550,44 @@ const styles = StyleSheet.create({
   onlineRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4ADE80' },
   onlineText: { fontSize: Fonts.sizes.xs, color: 'rgba(255,255,255,0.8)' },
+
+  // Formulario
+  formScroll: { padding: Spacing.lg, paddingBottom: 40 },
+  formIntro: { fontSize: Fonts.sizes.sm, color: Colors.gray[600], lineHeight: 20, marginBottom: Spacing.lg },
+  formLabel: { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.gray[700], marginTop: Spacing.md, marginBottom: 8 },
+  needList: { gap: 8 },
+  needChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: Spacing.md, paddingVertical: 12,
+    borderRadius: Radius.lg, borderWidth: 1.5, borderColor: Colors.gray[200],
+    backgroundColor: Colors.white,
+  },
+  needChipActive: { backgroundColor: OWNER_PRIMARY, borderColor: OWNER_PRIMARY },
+  needChipText: { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.gray[700], flexShrink: 1 },
+  needChipTextActive: { color: Colors.white },
+  formTextarea: {
+    borderWidth: 1, borderColor: Colors.gray[200], borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md, paddingVertical: 10, minHeight: 70,
+    fontSize: Fonts.sizes.md, color: Colors.gray[900], backgroundColor: Colors.white, textAlignVertical: 'top',
+  },
+  formInput: {
+    borderWidth: 1, borderColor: Colors.gray[200], borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md, paddingVertical: 10,
+    fontSize: Fonts.sizes.md, color: Colors.gray[900], backgroundColor: Colors.white,
+  },
+  submitBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: OWNER_PRIMARY, paddingVertical: 14, borderRadius: Radius.lg, marginTop: Spacing.xl,
+  },
+  submitBtnText: { color: Colors.white, fontWeight: '700', fontSize: Fonts.sizes.md },
+  historyLink: { alignItems: 'center', marginTop: Spacing.lg },
+  historyLinkText: { color: OWNER_PRIMARY, fontWeight: '600', fontSize: Fonts.sizes.sm },
+
+  sentBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#D1FAE5', padding: Spacing.md, margin: Spacing.md, borderRadius: Radius.md,
+  },
+  sentBannerText: { flex: 1, fontSize: Fonts.sizes.xs, color: '#065F46', fontWeight: '600', lineHeight: 16 },
 
   newConvBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

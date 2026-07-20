@@ -7,7 +7,7 @@ export class SupportService {
 
   async startConversation(
     userId: string,
-    type: 'visit' | 'info_request' | 'report' | 'faq',
+    type: 'visit' | 'info_request' | 'report' | 'faq' | 'advisor_request',
     propertyId?: string,
   ) {
     const conv = await this.prisma.support_conversations.create({
@@ -243,4 +243,59 @@ export class SupportService {
 
     return conv;
   }
+
+  async createAdvisorRequest(
+    userId: string,
+    data: { need: string; details?: string; contactName: string; contactPhone: string },
+  ) {
+    const needLabel = ADVISOR_NEED_LABELS[data.need] ?? data.need;
+    const created = await this.startConversation(userId, 'advisor_request');
+
+    const conv = await this.prisma.support_conversations.update({
+      where: { id: created.id },
+      data: {
+        metadata: {
+          need: data.need,
+          details: data.details ?? null,
+          contact_name: data.contactName,
+          contact_phone: data.contactPhone,
+        },
+      },
+    });
+
+    const summary = [
+      `Solicita ayuda de un asesor: ${needLabel}`,
+      data.details ? `Detalle: ${data.details}` : null,
+      `Contacto: ${data.contactName} — ${data.contactPhone}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+    await this.addMessage(conv.id, 'user', summary, 'advisor_request_submitted');
+
+    const admins = await this.prisma.user_roles.findMany({
+      where: { roles: { name: 'admin' } },
+      select: { user_id: true },
+    });
+    for (const admin of admins) {
+      await this.prisma.notifications.create({
+        data: {
+          user_id: admin.user_id,
+          type: 'system',
+          title: 'Nueva solicitud de asesor',
+          message: `${data.contactName} necesita ayuda: ${needLabel}`,
+          data: { conversation_id: conv.id },
+        },
+      });
+    }
+
+    return conv;
+  }
 }
+
+const ADVISOR_NEED_LABELS: Record<string, string> = {
+  sell: 'Vender su propiedad',
+  rent: 'Alquilar su propiedad',
+  anticretico: 'Poner en anticrético',
+  full_service: 'No tiene tiempo, quiere que le gestionen todo',
+  other: 'Otro',
+};

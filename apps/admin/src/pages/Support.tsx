@@ -37,6 +37,15 @@ const TYPE_LABELS: Record<string, string> = {
   info_request: 'Info',
   report: 'Reporte',
   faq: 'FAQ',
+  advisor_request: 'Asesoría',
+};
+
+const ADVISOR_NEED_LABELS: Record<string, string> = {
+  sell: 'Vender su propiedad',
+  rent: 'Alquilar su propiedad',
+  anticretico: 'Poner en anticrético',
+  full_service: 'No tiene tiempo, quiere que le gestionen todo',
+  other: 'Otro',
 };
 
 const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
@@ -143,6 +152,14 @@ export default function Support() {
     return `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${name}, te contactamos desde DIRECTO.`)}`;
   };
 
+  // En advisor_request el usuario puede dejar un contacto distinto al de su cuenta.
+  const ticketContact = (t: Ticket) => {
+    if (t.type === 'advisor_request' && t.metadata?.contact_phone) {
+      return { name: t.metadata.contact_name || t.users.name, phone: t.metadata.contact_phone as string };
+    }
+    return { name: t.users.name, phone: t.users.phone ?? '' };
+  };
+
   return (
     <div>
       <div className="page-header">
@@ -239,6 +256,7 @@ export default function Support() {
                 ) : (
                   tickets.map((t) => {
                     const st = STATUS_BADGE[t.status] ?? STATUS_BADGE.active;
+                    const contact = ticketContact(t);
                     return (
                       <tr key={t.id}>
                         <td>
@@ -247,9 +265,9 @@ export default function Support() {
                         <td>
                           <div style={{ fontWeight: 600 }}>{t.users.name}</div>
                           <div style={{ fontSize: 12, color: '#64748b' }}>{t.users.email}</div>
-                          {t.users.phone && (
+                          {contact.phone && (
                             <a
-                              href={whatsappUrl(t.users.phone, t.users.name)}
+                              href={whatsappUrl(contact.phone, contact.name)}
                               target="_blank"
                               rel="noopener noreferrer"
                               style={{ fontSize: 12, color: '#25D366', fontWeight: 600 }}
@@ -292,9 +310,9 @@ export default function Support() {
                       <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Usuario</div>
                       <div style={{ fontWeight: 600 }}>{selectedTicket.users.name}</div>
                       <div style={{ fontSize: 13, color: '#64748b' }}>{selectedTicket.users.email}</div>
-                      {selectedTicket.users.phone && (
+                      {ticketContact(selectedTicket).phone && (
                         <a
-                          href={whatsappUrl(selectedTicket.users.phone, selectedTicket.users.name)}
+                          href={whatsappUrl(ticketContact(selectedTicket).phone, ticketContact(selectedTicket).name)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="btn btn-sm"
@@ -378,6 +396,24 @@ export default function Support() {
                       >
                         {sending ? 'Enviando...' : 'Enviar'}
                       </button>
+                    </div>
+                  )}
+
+                  {/* Metadata for advisor requests */}
+                  {selectedTicket.type === 'advisor_request' && selectedTicket.metadata && typeof selectedTicket.metadata === 'object' && (
+                    <div style={{ marginTop: 16, background: '#f5f3ff', padding: 12, borderRadius: 8, border: '1px solid #ddd6fe' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#5b21b6', marginBottom: 4 }}>Solicitud de asesoría</div>
+                      {(selectedTicket.metadata as any).need && (
+                        <div style={{ fontSize: 13 }}>
+                          Necesita: <strong>{ADVISOR_NEED_LABELS[(selectedTicket.metadata as any).need] ?? (selectedTicket.metadata as any).need}</strong>
+                        </div>
+                      )}
+                      {(selectedTicket.metadata as any).details && (
+                        <div style={{ fontSize: 13, marginTop: 4 }}>{(selectedTicket.metadata as any).details}</div>
+                      )}
+                      <div style={{ fontSize: 13, marginTop: 4 }}>
+                        Contacto: <strong>{(selectedTicket.metadata as any).contact_name}</strong> — {(selectedTicket.metadata as any).contact_phone}
+                      </div>
                     </div>
                   )}
 

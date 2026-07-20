@@ -519,6 +519,7 @@ enum support_conversation_type {
   info_request
   report
   faq
+  advisor_request
 }
 
 enum support_message_sender {

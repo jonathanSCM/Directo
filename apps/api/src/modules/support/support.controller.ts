@@ -96,6 +96,15 @@ export class SupportController {
     return this.svc.getActiveRequests(user.id, propertyId);
   }
 
+  @Post('advisor-requests')
+  @ApiOperation({ summary: 'Request a human advisor to sell/rent your property for you' })
+  requestAdvisor(
+    @CurrentUser() user: AuthUser,
+    @Body() body: { need: string; details?: string; contactName: string; contactPhone: string },
+  ) {
+    return this.svc.createAdvisorRequest(user.id, body);
+  }
+
   @Post('reports')
   @ApiOperation({ summary: 'Report a property issue' })
   report(
