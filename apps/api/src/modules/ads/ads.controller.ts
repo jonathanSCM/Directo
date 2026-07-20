@@ -3,12 +3,9 @@ import {
   Controller,
   Get,
   Param,
-  ParseFloatPipe,
-  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
-  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -31,14 +28,13 @@ export class AdsController {
   @Public()
   @Get('ads/serve')
   @ApiOperation({
-    summary: 'Anuncios elegibles (descuenta una vista c/u); prioriza por zona si se envía lat/lng',
+    summary: 'Desactivado: la publicidad de empresas está deshabilitada',
   })
-  serve(
-    @Query('count', new ParseIntPipe({ optional: true })) count?: number,
-    @Query('lat', new ParseFloatPipe({ optional: true })) lat?: number,
-    @Query('lng', new ParseFloatPipe({ optional: true })) lng?: number,
-  ) {
-    return this.adsService.serve(count ?? 1, lat, lng);
+  serve() {
+    // Feature de publicidad/empresas desactivada. Se deja el endpoint (en vez
+    // de borrarlo) para que clientes viejos en caché no rompan; simplemente
+    // ya no entrega anuncios.
+    return [];
   }
 
   // ── Empresa (dueño) ─────────────────────────────────────────────────────────

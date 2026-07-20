@@ -225,16 +225,6 @@ export default function SubscriptionScreen() {
               </TouchableOpacity>
             )}
 
-            {isActive && subscription.subscription_plans?.is_business && (
-              <TouchableOpacity
-                style={[styles.renewBtn, { backgroundColor: '#0EA5E9', marginTop: Spacing.md }]}
-                onPress={() => router.push('/company')}
-              >
-                <Ionicons name="megaphone" size={18} color={Colors.white} />
-                <Text style={styles.renewBtnText}>Gestionar mi empresa y publicidad</Text>
-              </TouchableOpacity>
-            )}
-
             {currentIsFree && subscription.status === 'expired' && (
               <View style={styles.freeEndedNote}>
                 <Ionicons name="information-circle" size={18} color="#B45309" />
@@ -261,7 +251,7 @@ export default function SubscriptionScreen() {
         {/* Plans */}
         <Text style={styles.sectionTitle}>Planes disponibles</Text>
         <View style={IS_DESKTOP ? styles.plansGrid : undefined}>
-        {plans.map((plan) => {
+        {plans.filter((plan) => !plan.is_business).map((plan) => {
           const isFree = Number(plan.price) === 0;
           const isCurrent = subscription?.subscription_plans?.id === plan.id && isActive;
           const freeBlocked = isFree && freeTrialUsed;
@@ -288,28 +278,6 @@ export default function SubscriptionScreen() {
               </View>
 
               <View style={styles.planFeatures}>
-                {plan.is_business ? (
-                  <>
-                    <View style={styles.featureRow}>
-                      <Ionicons name="megaphone" size={16} color="#0EA5E9" />
-                      <Text style={styles.featureText}>
-                        {plan.ad_views.toLocaleString()} vistas de publicidad
-                      </Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                      <Text style={styles.featureText}>Popup de entrada en app y web</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                      <Text style={styles.featureText}>Anuncios en detalles de propiedades</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                      <Text style={styles.featureText}>Links externos a tu sitio</Text>
-                    </View>
-                  </>
-                ) : (
                 <View style={styles.featureRow}>
                   <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
                   <Text style={styles.featureText}>
@@ -318,7 +286,6 @@ export default function SubscriptionScreen() {
                       : `${plan.included_properties} propiedad(es) incluidas`}
                   </Text>
                 </View>
-                )}
                 {!isFree && Number(plan.extra_property_price) > 0 && (
                   <View style={styles.featureRow}>
                     <Ionicons name="add-circle-outline" size={16} color={Colors.gray[500]} />
@@ -345,18 +312,14 @@ export default function SubscriptionScreen() {
                     <Text style={styles.featureText}>Estadísticas de visitas</Text>
                   </View>
                 )}
-                {!plan.is_business && (
-                  <>
-                    <View style={styles.featureRow}>
-                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                      <Text style={styles.featureText}>Hasta 10 fotos por propiedad</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                      <Text style={styles.featureText}>Contacto directo por WhatsApp</Text>
-                    </View>
-                  </>
-                )}
+                <View style={styles.featureRow}>
+                  <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                  <Text style={styles.featureText}>Hasta 10 fotos por propiedad</Text>
+                </View>
+                <View style={styles.featureRow}>
+                  <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                  <Text style={styles.featureText}>Contacto directo por WhatsApp</Text>
+                </View>
               </View>
 
               {/* Selector de cantidad de propiedades (solo planes de pago) */}

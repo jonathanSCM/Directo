@@ -21,7 +21,6 @@ import { getImageUrl } from '../../src/constants/api';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import OwnerSupportFAB from '../../src/components/support/OwnerSupportChat';
-import AdSlot from '../../src/components/ads/AdSlot';
 
 const { width } = Dimensions.get('window');
 
@@ -424,9 +423,6 @@ export default function PropertyDetailScreen() {
             </View>
           )}
           </>)}
-
-          {/* Publicidad de empresas */}
-          <AdSlot />
         </View>
       </ScrollView>
 

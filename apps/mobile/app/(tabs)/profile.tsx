@@ -204,7 +204,7 @@ export default function ProfileScreen() {
             Propietario
           </Text>
           <Text style={styles.menuSectionHint}>
-            Administra tus propiedades, tu plan y tu publicidad
+            Administra tus propiedades y tu plan
           </Text>
           <MenuItem
             icon="add-circle-outline"
@@ -220,11 +220,6 @@ export default function ProfileScreen() {
             icon="card-outline"
             label="Mi suscripción"
             onPress={() => router.push('/subscription')}
-          />
-          <MenuItem
-            icon="megaphone-outline"
-            label="Mi empresa y publicidad"
-            onPress={() => router.push('/company')}
           />
         </>
       )}

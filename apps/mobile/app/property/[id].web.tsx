@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useFavorites } from '../../src/context/FavoritesContext';
-import AdSlot from '../../src/components/ads/AdSlot';
 import { getImageUrl } from '../../src/constants/api';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
@@ -440,9 +439,6 @@ export default function PropertyDetailWeb() {
               </View>
             )}
             </>)}
-
-            {/* Publicidad de empresas */}
-            <AdSlot />
           </View>
 
           {/* Sidebar */}
