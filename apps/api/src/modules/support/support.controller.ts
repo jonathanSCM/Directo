@@ -96,13 +96,19 @@ export class SupportController {
     return this.svc.getActiveRequests(user.id, propertyId);
   }
 
-  @Post('advisor-requests')
-  @ApiOperation({ summary: 'Request a human advisor to sell/rent your property for you' })
-  requestAdvisor(
+  @Get('advisor-thread')
+  @ApiOperation({ summary: 'Get (or create) the owner single assistant thread' })
+  getAdvisorThread(@CurrentUser() user: AuthUser) {
+    return this.svc.getOrCreateAdvisorThread(user.id);
+  }
+
+  @Post('advisor-thread/messages')
+  @ApiOperation({ summary: 'Send a message to the owner assistant (rule-based, no LLM)' })
+  sendAdvisorMessage(
     @CurrentUser() user: AuthUser,
-    @Body() body: { need: string; details?: string },
+    @Body() body: { content: string },
   ) {
-    return this.svc.createAdvisorRequest(user.id, body);
+    return this.svc.sendAdvisorMessage(user.id, body.content);
   }
 
   @Post('reports')
