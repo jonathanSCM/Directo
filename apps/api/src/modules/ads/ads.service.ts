@@ -14,15 +14,16 @@ export class AdsService {
     private readonly subscriptions: SubscriptionsService,
   ) {}
 
-  /** Suscripción de empresa activa, o 403. */
-  private async requireBusinessSubscription(userId: string) {
-    const sub = await this.subscriptions.getActiveSubscription(userId);
-    if (!sub || !sub.subscription_plans.is_business) {
-      throw new ForbiddenException(
-        'Necesitas el plan Empresas activo para gestionar publicidad',
-      );
-    }
-    return sub;
+  /**
+   * Feature de publicidad/empresas desactivada por completo: se bloquea acá
+   * (además de que /ads/serve ya no entrega nada), para que alguien con una
+   * suscripción de empresa vieja tampoco pueda crear/editar empresas o
+   * anuncios llamando a la API directamente.
+   */
+  private async requireBusinessSubscription(
+    _userId: string,
+  ): Promise<NonNullable<Awaited<ReturnType<SubscriptionsService['getActiveSubscription']>>>> {
+    throw new ForbiddenException('La publicidad de empresas está desactivada');
   }
 
   // ── Empresa ─────────────────────────────────────────────────────────────────

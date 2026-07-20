@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -269,9 +270,24 @@ export class SupportService {
       orderBy: { created_at: 'asc' },
     });
     if (!conv) {
-      conv = await this.startConversation(userId, 'advisor_request');
-      await this.addMessage(conv.id, 'bot', ADVISOR_GREETING, 'greeting');
+      try {
+        conv = await this.startConversation(userId, 'advisor_request');
+        await this.addMessage(conv.id, 'bot', ADVISOR_GREETING, 'greeting');
+      } catch (e) {
+        // Dos mensajes casi simultáneos pueden intentar crear el hilo a la
+        // vez; el índice único (user_id) WHERE type='advisor_request' lo
+        // impide a nivel de BD — en ese caso, usamos el hilo que ganó la carrera.
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+          conv = await this.prisma.support_conversations.findFirst({
+            where: { user_id: userId, type: 'advisor_request' },
+            orderBy: { created_at: 'asc' },
+          });
+        } else {
+          throw e;
+        }
+      }
     }
+    if (!conv) throw new NotFoundException('No se pudo crear el hilo del asistente');
     const messages = await this.prisma.support_messages.findMany({
       where: { conversation_id: conv.id },
       orderBy: { created_at: 'asc' },

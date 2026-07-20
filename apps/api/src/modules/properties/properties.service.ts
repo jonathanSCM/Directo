@@ -174,7 +174,10 @@ export class PropertiesService {
   }
 
   async unpublish(user: AuthUser, id: string) {
-    await this.getOwnedOrThrow(user, id);
+    const prop = await this.getOwnedOrThrow(user, id);
+    if (prop.status !== 'published') {
+      throw new BadRequestException('Solo se puede ocultar una propiedad publicada');
+    }
     return this.prisma.properties.update({
       where: { id },
       data: { status: 'paused' },
@@ -192,7 +195,12 @@ export class PropertiesService {
   }
 
   async markSold(user: AuthUser, id: string) {
-    await this.getOwnedOrThrow(user, id);
+    const prop = await this.getOwnedOrThrow(user, id);
+    if (prop.status !== 'published' && prop.status !== 'paused') {
+      throw new BadRequestException(
+        'Solo se puede marcar como vendida/alquilada una propiedad publicada o pausada',
+      );
+    }
     // §6.1: estado "Vendida / alquilada".
     return this.prisma.properties.update({
       where: { id },
@@ -202,9 +210,13 @@ export class PropertiesService {
 
   async reactivate(user: AuthUser, id: string) {
     const prop = await this.getOwnedOrThrow(user, id);
-    if (prop.status !== 'sold_rented' && prop.status !== 'paused') {
+    if (
+      prop.status !== 'sold_rented' &&
+      prop.status !== 'paused' &&
+      prop.status !== 'taken_down'
+    ) {
       throw new BadRequestException(
-        'Solo se pueden republicar propiedades vendidas/alquiladas o pausadas',
+        'Solo se pueden republicar propiedades vendidas/alquiladas, pausadas o dadas de baja',
       );
     }
     await this.subscriptions.assertHasActiveSubscription(user.id);
@@ -222,7 +234,12 @@ export class PropertiesService {
     return this.prisma.properties.update({
       where: { id },
       data: withinLimit
-        ? { status: 'published', approval_status: 'approved', rejection_reason: null }
+        ? {
+            status: 'published',
+            approval_status: 'approved',
+            rejection_reason: null,
+            published_at: prop.published_at ?? new Date(),
+          }
         : { status: 'paused', approval_status: 'approved', rejection_reason: null },
     });
   }
@@ -287,6 +304,9 @@ export class PropertiesService {
 
   async adminApprove(id: string) {
     const prop = await this.findOrThrow(id);
+    if (prop.status !== 'pending_approval') {
+      throw new BadRequestException('La propiedad no está pendiente de aprobación');
+    }
     const withinLimit = await this.subscriptions.isWithinPropertyLimit(
       prop.owner_id,
       id,
@@ -384,7 +404,7 @@ export class PropertiesService {
     const updated = await this.prisma.properties.update({
       where: { id },
       data: withinLimit
-        ? { status: 'published', approval_status: 'approved' }
+        ? { status: 'published', approval_status: 'approved', published_at: prop.published_at ?? new Date() }
         : { status: 'paused', approval_status: 'approved' },
     });
 

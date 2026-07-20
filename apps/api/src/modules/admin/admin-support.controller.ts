@@ -109,11 +109,18 @@ export class AdminSupportController {
   }
 
   @Get('tickets/:id/messages')
-  @ApiOperation({ summary: 'Get all messages for a ticket' })
+  @ApiOperation({ summary: 'Get current status + all messages for a ticket' })
   async getTicketMessages(@Param('id', ParseUUIDPipe) id: string) {
-    return this.prisma.support_messages.findMany({
-      where: { conversation_id: id },
-      orderBy: { created_at: 'asc' },
-    });
+    const [conversation, messages] = await Promise.all([
+      this.prisma.support_conversations.findUnique({
+        where: { id },
+        select: { status: true },
+      }),
+      this.prisma.support_messages.findMany({
+        where: { conversation_id: id },
+        orderBy: { created_at: 'asc' },
+      }),
+    ]);
+    return { status: conversation?.status, messages };
   }
 }

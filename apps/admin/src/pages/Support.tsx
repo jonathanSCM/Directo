@@ -107,7 +107,13 @@ export default function Support() {
     try {
       const { data } = await api.get(`/admin/support/tickets/${ticketId}/messages`);
       setSelectedTicket((prev) =>
-        prev && prev.id === ticketId ? { ...prev, support_messages: data } : prev
+        prev && prev.id === ticketId
+          ? { ...prev, support_messages: data.messages, status: data.status ?? prev.status }
+          : prev
+      );
+      // El status también puede haber cambiado en la tabla (ej. se reabrió solo).
+      setTickets((prev) =>
+        prev.map((t) => (t.id === ticketId ? { ...t, status: data.status ?? t.status } : t))
       );
     } catch {}
   }, []);
