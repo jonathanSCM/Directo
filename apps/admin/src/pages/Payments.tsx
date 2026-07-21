@@ -1,5 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
+import type { CSSProperties } from 'react';
 import api, { getImageUrl } from '../services/api';
+
+const inputStyle: CSSProperties = {
+  padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: 8,
+  fontSize: 14, fontFamily: 'inherit', background: '#fff',
+};
 
 interface Payment {
   id: string;
@@ -94,10 +100,9 @@ export default function Payments() {
       <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
         <label style={{ fontSize: 14, color: '#64748b' }}>Filtrar:</label>
         <select
-          className="form-input"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ width: 220 }}
+          style={{ ...inputStyle, width: 220 }}
         >
           <option value="in_review">En revisión (con comprobante)</option>
           <option value="pending">Pendientes (sin comprobante)</option>
@@ -110,8 +115,8 @@ export default function Payments() {
       {loading ? (
         <div className="loading"><div className="spinner" /><p>Cargando...</p></div>
       ) : (
-        <div className="table-container">
-          <table className="table">
+        <div className="card">
+          <table>
             <thead>
               <tr>
                 <th>Usuario</th>
@@ -141,7 +146,7 @@ export default function Payments() {
                       <td><span className={`badge ${st.cls}`}>{st.label}</span></td>
                       <td style={{ fontSize: 13 }}>{fmt(p.created_at)}</td>
                       <td>
-                        <button className="btn btn-sm btn-secondary" onClick={() => setSelected(p)}>
+                        <button className="btn btn-sm btn-outline" onClick={() => setSelected(p)}>
                           Ver
                         </button>
                       </td>
@@ -228,7 +233,7 @@ export default function Payments() {
                   </button>
                 </>
               )}
-              <button className="btn btn-secondary" onClick={() => setSelected(null)}>Cerrar</button>
+              <button className="btn btn-outline" onClick={() => setSelected(null)}>Cerrar</button>
             </div>
           </div>
         </div>

@@ -1,5 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
+import type { CSSProperties } from 'react';
 import api from '../services/api';
+
+const inputStyle: CSSProperties = {
+  padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: 8,
+  fontSize: 14, fontFamily: 'inherit', background: '#fff',
+};
 
 interface Ticket {
   id: string;
@@ -192,13 +198,13 @@ export default function Support() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <button
-          className={`btn ${tab === 'tickets' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`btn ${tab === 'tickets' ? 'btn-primary' : 'btn-outline'}`}
           onClick={() => { setTab('tickets'); setFilterStatus(''); }}
         >
           Tickets de soporte
         </button>
         <button
-          className={`btn ${tab === 'visits' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`btn ${tab === 'visits' ? 'btn-primary' : 'btn-outline'}`}
           onClick={() => { setTab('visits'); setFilterStatus(''); }}
         >
           Solicitudes de visita
@@ -210,10 +216,9 @@ export default function Support() {
         <label style={{ fontSize: 14, color: '#64748b' }}>Filtrar:</label>
         {tab === 'tickets' ? (
           <select
-            className="form-input"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            style={{ width: 160 }}
+            style={{ ...inputStyle, width: 160 }}
           >
             <option value="">Todos</option>
             <option value="active">Activos</option>
@@ -221,10 +226,9 @@ export default function Support() {
           </select>
         ) : (
           <select
-            className="form-input"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            style={{ width: 160 }}
+            style={{ ...inputStyle, width: 160 }}
           >
             <option value="">Todos</option>
             <option value="pending">Pendientes</option>
@@ -239,8 +243,8 @@ export default function Support() {
       ) : tab === 'tickets' ? (
         <>
           {/* Tickets Table */}
-          <div className="table-container">
-            <table className="table">
+          <div className="card">
+            <table>
               <thead>
                 <tr>
                   <th>Tipo</th>
@@ -282,7 +286,7 @@ export default function Support() {
                         <td style={{ fontSize: 13 }}>{fmtDate(t.created_at)}</td>
                         <td>
                           <div style={{ display: 'flex', gap: 6 }}>
-                            <button className="btn btn-sm btn-secondary" onClick={() => { setSelectedTicket(t); setReplyText(''); }}>
+                            <button className="btn btn-sm btn-outline" onClick={() => { setSelectedTicket(t); setReplyText(''); }}>
                               Ver
                             </button>
                             {t.status === 'active' && (
@@ -381,8 +385,7 @@ export default function Support() {
                   {selectedTicket.status === 'active' && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                       <input
-                        className="form-input"
-                        style={{ flex: 1 }}
+                        style={{ ...inputStyle, flex: 1 }}
                         placeholder="Escribe una respuesta..."
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
@@ -435,7 +438,7 @@ export default function Support() {
                         Marcar como resuelto
                       </button>
                     )}
-                    <button className="btn btn-secondary" onClick={() => setSelectedTicket(null)}>Cerrar</button>
+                    <button className="btn btn-outline" onClick={() => setSelectedTicket(null)}>Cerrar</button>
                   </div>
                 </div>
               </div>
@@ -444,8 +447,8 @@ export default function Support() {
         </>
       ) : (
         /* Visits Table */
-        <div className="table-container">
-          <table className="table">
+        <div className="card">
+          <table>
             <thead>
               <tr>
                 <th>Propiedad</th>

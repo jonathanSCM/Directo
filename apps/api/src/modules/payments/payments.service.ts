@@ -255,7 +255,10 @@ export class PaymentsService {
         const prop = await this.prisma.properties.findUnique({
           where: { id: payment.property_id },
         });
-        if (prop) {
+        // Solo publica si sigue pausada: si el dueño la dio de baja, la
+        // vendió, o ya la publicó por otra vía mientras el pago estaba
+        // pendiente, no hay que pisar ese estado más reciente.
+        if (prop && prop.status === 'paused') {
           await this.prisma.properties.update({
             where: { id: prop.id },
             data: { status: 'published', published_at: prop.published_at ?? new Date() },
