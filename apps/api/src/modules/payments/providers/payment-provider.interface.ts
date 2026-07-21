@@ -17,8 +17,14 @@ export interface ChargeResult {
   provider: string;
   /** Pasarelas con redirección (tarjeta / PayPal). */
   checkoutUrl?: string;
-  /** Métodos QR. */
+  /** Payload para generar un QR en el cliente (placeholder mientras no hay QR bancario real configurado). */
   qrPayload?: string;
+  /** URL de una imagen de QR real, generada en la app bancaria y subida por el admin. */
+  qrImageUrl?: string;
+  /** Datos de la cuenta bancaria destino, para mostrar junto al QR. */
+  bankName?: string;
+  accountHolder?: string;
+  accountNumber?: string;
   /** Texto para mostrar al usuario. */
   instructions?: string;
   /** Identificador del pago en el proveedor. */

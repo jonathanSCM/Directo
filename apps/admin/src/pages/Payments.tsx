@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { CSSProperties } from 'react';
+import type { ChangeEvent, CSSProperties } from 'react';
 import api, { getImageUrl } from '../services/api';
 
 const inputStyle: CSSProperties = {
@@ -31,12 +31,72 @@ const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
   refunded: { cls: 'badge-blue', label: 'Reembolsado' },
 };
 
+interface QrSettings {
+  qrImageUrl?: string;
+  bankName?: string;
+  accountHolder?: string;
+  accountNumber?: string;
+  instructions?: string;
+}
+
 export default function Payments() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('in_review');
   const [selected, setSelected] = useState<Payment | null>(null);
   const [acting, setActing] = useState(false);
+
+  const [qrSettings, setQrSettings] = useState<QrSettings>({});
+  const [qrForm, setQrForm] = useState({ bank_name: '', account_holder: '', account_number: '', instructions: '' });
+  const [qrFile, setQrFile] = useState<File | null>(null);
+  const [qrPreview, setQrPreview] = useState<string | null>(null);
+  const [savingQr, setSavingQr] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+
+  const fetchQrSettings = useCallback(async () => {
+    try {
+      const { data } = await api.get('/admin/payments/qr-settings');
+      setQrSettings(data);
+      setQrForm({
+        bank_name: data.bankName ?? '',
+        account_holder: data.accountHolder ?? '',
+        account_number: data.accountNumber ?? '',
+        instructions: data.instructions ?? '',
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => { fetchQrSettings(); }, [fetchQrSettings]);
+
+  const onQrFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    setQrFile(f);
+    setQrPreview(f ? URL.createObjectURL(f) : null);
+  };
+
+  const saveQrSettings = async () => {
+    setSavingQr(true);
+    try {
+      const formData = new FormData();
+      formData.append('bank_name', qrForm.bank_name);
+      formData.append('account_holder', qrForm.account_holder);
+      formData.append('account_number', qrForm.account_number);
+      formData.append('instructions', qrForm.instructions);
+      if (qrFile) formData.append('qr_image', qrFile);
+      const { data } = await api.put('/admin/payments/qr-settings', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setQrSettings(data);
+      setQrFile(null);
+      setQrPreview(null);
+      alert('Configuración de QR guardada');
+    } catch (e: any) {
+      alert(e.response?.data?.message ?? 'No se pudo guardar la configuración');
+    }
+    setSavingQr(false);
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -95,6 +155,94 @@ export default function Payments() {
     <div>
       <div className="page-header">
         <h1>Pagos</h1>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20, padding: 20 }}>
+        <div
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+          onClick={() => setQrOpen((v) => !v)}
+        >
+          <div>
+            <h3 style={{ margin: 0 }}>Configuración del QR bancario</h3>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+              {qrSettings.qrImageUrl
+                ? 'QR configurado — se muestra a los usuarios al pagar.'
+                : 'Sin configurar — los usuarios ven un QR de ejemplo hasta que subas uno real.'}
+            </p>
+          </div>
+          <button className="btn btn-outline" onClick={(e) => { e.stopPropagation(); setQrOpen((v) => !v); }}>
+            {qrOpen ? 'Ocultar' : 'Editar'}
+          </button>
+        </div>
+
+        {qrOpen && (
+          <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24 }}>
+            <div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>Imagen del QR</div>
+              <div style={{
+                width: 200, height: 200, border: '1px dashed #CBD5E1', borderRadius: 8,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: '#f8fafc',
+              }}>
+                {qrPreview || qrSettings.qrImageUrl ? (
+                  <img
+                    src={qrPreview ?? getImageUrl(qrSettings.qrImageUrl)}
+                    alt="QR bancario"
+                    style={{ maxWidth: '100%', maxHeight: '100%' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 12, color: '#94a3b8' }}>Sin imagen</span>
+                )}
+              </div>
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onQrFileChange} style={{ marginTop: 10, fontSize: 13 }} />
+              <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
+                Genera el QR desde tu app bancaria (monto libre o fijo) y sube la captura aquí.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Banco</div>
+                <input
+                  value={qrForm.bank_name}
+                  onChange={(e) => setQrForm({ ...qrForm, bank_name: e.target.value })}
+                  placeholder="Ej. Banco Unión"
+                  style={{ ...inputStyle, width: '100%' }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Titular de la cuenta</div>
+                <input
+                  value={qrForm.account_holder}
+                  onChange={(e) => setQrForm({ ...qrForm, account_holder: e.target.value })}
+                  placeholder="Nombre del titular"
+                  style={{ ...inputStyle, width: '100%' }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Número de cuenta</div>
+                <input
+                  value={qrForm.account_number}
+                  onChange={(e) => setQrForm({ ...qrForm, account_number: e.target.value })}
+                  placeholder="Nro. de cuenta (opcional)"
+                  style={{ ...inputStyle, width: '100%' }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Instrucciones para el usuario</div>
+                <textarea
+                  value={qrForm.instructions}
+                  onChange={(e) => setQrForm({ ...qrForm, instructions: e.target.value })}
+                  placeholder="Ej. Escanea el QR con tu app bancaria y sube el comprobante. El pago se confirma en menos de 24h."
+                  rows={3}
+                  style={{ ...inputStyle, width: '100%', resize: 'vertical', fontFamily: 'inherit' }}
+                />
+              </div>
+              <button className="btn btn-primary" onClick={saveQrSettings} disabled={savingQr} style={{ alignSelf: 'flex-start' }}>
+                {savingQr ? 'Guardando...' : 'Guardar configuración'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>

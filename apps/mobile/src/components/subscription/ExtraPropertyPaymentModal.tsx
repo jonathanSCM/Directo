@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Platform,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { getImageUrl } from '../../constants/api';
 import { Colors, Fonts, Radius, Spacing } from '../../constants/theme';
 import api from '../../services/api';
 
@@ -24,7 +26,7 @@ interface Props {
   onPaid: () => void;
 }
 
-type Phase = 'loading' | 'ready' | 'uploading' | 'in_review' | 'confirmed' | 'rejected' | 'error';
+type Phase = 'confirm' | 'loading' | 'ready' | 'uploading' | 'in_review' | 'confirmed' | 'rejected' | 'error';
 
 const fmtMoney = (n?: number, c?: string) =>
   n == null ? '' : `${c === 'USD' ? '$' : 'Bs.'} ${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -38,7 +40,7 @@ const fmtMoney = (n?: number, c?: string) =>
 export default function ExtraPropertyPaymentModal({
   visible, propertyId, propertyTitle, amount, currency, onClose, onPaid,
 }: Props) {
-  const [phase, setPhase] = useState<Phase>('loading');
+  const [phase, setPhase] = useState<Phase>('confirm');
   const [payment, setPayment] = useState<{ id: string; metadata: any } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -59,12 +61,11 @@ export default function ExtraPropertyPaymentModal({
   }, [propertyId]);
 
   useEffect(() => {
-    if (visible && propertyId) createCharge();
     if (!visible) {
       setPayment(null);
-      setPhase('loading');
+      setPhase('confirm');
     }
-  }, [visible, propertyId, createCharge]);
+  }, [visible]);
 
   // Sondeo del estado del pago mientras el modal está abierto.
   useEffect(() => {
@@ -118,7 +119,12 @@ export default function ExtraPropertyPaymentModal({
   };
 
   const qrPayload: string | undefined = payment?.metadata?.qrPayload;
+  const qrImageUrl: string | undefined = payment?.metadata?.qrImageUrl;
   const instructions: string | undefined = payment?.metadata?.instructions;
+  const bankName: string | undefined = payment?.metadata?.bankName;
+  const accountHolder: string | undefined = payment?.metadata?.accountHolder;
+  const accountNumber: string | undefined = payment?.metadata?.accountNumber;
+  const bankLine = [bankName, accountHolder, accountNumber].filter(Boolean).join(' · ');
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -138,6 +144,23 @@ export default function ExtraPropertyPaymentModal({
             <Text style={styles.amount}>{fmtMoney(amount, currency)}</Text>
           )}
 
+          {phase === 'confirm' && (
+            <View style={styles.center}>
+              <Ionicons name="alert-circle-outline" size={40} color="#D97706" />
+              <Text style={styles.statusTitle}>Esta propiedad es extra a tu plan</Text>
+              <Text style={styles.statusText}>
+                Ya usaste el cupo de propiedades incluido en tu plan. Publicar esta se te cobrará por separado.
+                {amount != null ? ` ¿Confirmas el pago de ${fmtMoney(amount, currency)}?` : ' ¿Confirmas?'}
+              </Text>
+              <TouchableOpacity style={styles.uploadBtn} onPress={createCharge}>
+                <Text style={styles.uploadBtnText}>Sí, confirmar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.retryBtn} onPress={onClose}>
+                <Text style={styles.retryBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {phase === 'loading' && (
             <View style={styles.center}>
               <ActivityIndicator size="large" color={Colors.primary} />
@@ -154,14 +177,23 @@ export default function ExtraPropertyPaymentModal({
             </View>
           )}
 
-          {(phase === 'ready' || phase === 'uploading') && qrPayload && (
+          {(phase === 'ready' || phase === 'uploading') && (qrImageUrl || qrPayload) && (
             <>
               <Text style={styles.hint}>
                 Escanea el QR con tu app bancaria o transfiere el monto indicado, y sube el comprobante.
               </Text>
               <View style={styles.qrWrap}>
-                <QRCode value={qrPayload} size={200} />
+                {qrImageUrl ? (
+                  <Image
+                    source={{ uri: getImageUrl(qrImageUrl) ?? undefined }}
+                    style={styles.qrImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <QRCode value={qrPayload!} size={200} />
+                )}
               </View>
+              {!!bankLine && <Text style={styles.bankLine}>{bankLine}</Text>}
               {!!instructions && <Text style={styles.instructions}>{instructions}</Text>}
               {!!errorMsg && <Text style={styles.errorTextSmall}>{errorMsg}</Text>}
               <TouchableOpacity
@@ -227,6 +259,8 @@ const styles = StyleSheet.create({
   amount: { fontSize: Fonts.sizes.xxl, fontWeight: '800', color: Colors.primary, marginBottom: Spacing.md },
   hint: { fontSize: Fonts.sizes.sm, color: Colors.gray[600], textAlign: 'center', marginBottom: Spacing.lg, lineHeight: 20 },
   qrWrap: { alignItems: 'center', padding: Spacing.lg, backgroundColor: Colors.gray[50], borderRadius: Radius.lg, marginBottom: Spacing.md },
+  qrImage: { width: 220, height: 220 },
+  bankLine: { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.gray[700], textAlign: 'center', marginBottom: 4 },
   instructions: { fontSize: Fonts.sizes.xs, color: Colors.gray[500], textAlign: 'center', marginBottom: Spacing.lg },
   uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.primary, paddingVertical: 14, borderRadius: Radius.lg },
   uploadBtnDisabled: { opacity: 0.6 },

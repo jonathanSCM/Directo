@@ -27,6 +27,25 @@ interface Subscription {
   subscription_plans: Plan;
 }
 
+interface PaymentRecord {
+  id: string;
+  amount: string;
+  currency: string;
+  status: string;
+  property_id: string | null;
+  subscription_id: string | null;
+  created_at: string;
+}
+
+const PAYMENT_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  pending: { label: 'Pendiente', color: Colors.gray[400] },
+  in_review: { label: 'En revisión', color: '#F59E0B' },
+  confirmed: { label: 'Confirmado', color: '#22C55E' },
+  rejected: { label: 'Rechazado', color: '#EF4444' },
+  cancelled: { label: 'Cancelado', color: Colors.gray[400] },
+  refunded: { label: 'Reembolsado', color: '#6366F1' },
+};
+
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   active: { label: 'Activa', color: '#22C55E' },
   expired: { label: 'Vencida', color: '#EF4444' },
@@ -57,20 +76,23 @@ export default function SubscriptionScreen() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [freeTrialUsed, setFreeTrialUsed] = useState(true);
   const [activating, setActivating] = useState<string | null>(null);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   // Cantidad de propiedades elegida por plan (plan.id -> count)
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [subRes, plansRes, trialRes] = await Promise.all([
+      const [subRes, plansRes, trialRes, paymentsRes] = await Promise.all([
         api.get('/subscriptions/me').catch(() => ({ data: null })),
         api.get('/subscription-plans'),
         api.get('/subscriptions/free-trial/status').catch(() => ({ data: { used: true } })),
+        api.get('/payments/me').catch(() => ({ data: [] })),
       ]);
       setSubscription(subRes.data);
       setPlans(plansRes.data);
       setFreeTrialUsed(trialRes.data.used);
+      setPayments(paymentsRes.data);
       setCounts((prev) => {
         const next = { ...prev };
         for (const p of plansRes.data as Plan[]) {
@@ -246,6 +268,51 @@ export default function SubscriptionScreen() {
     </>
   );
 
+  const extraCharges = payments.filter((p) => p.property_id);
+  const billingBlock = payments.length > 0 ? (
+    <View style={styles.billingCard}>
+      <Text style={styles.billingTitle}>Facturación</Text>
+      {extraCharges.length > 0 && (
+        <>
+          <Text style={styles.billingSubtitle}>Cobros por propiedades extra</Text>
+          {extraCharges.map((p) => {
+            const st = PAYMENT_STATUS_LABELS[p.status] ?? PAYMENT_STATUS_LABELS.pending;
+            return (
+              <View key={p.id} style={styles.paymentRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.paymentAmount}>{fmtMoney(Number(p.amount), p.currency)}</Text>
+                  <Text style={styles.paymentDate}>{formatDate(p.created_at)}</Text>
+                </View>
+                <View style={[styles.statusBadge, { backgroundColor: st.color }]}>
+                  <Text style={styles.statusText}>{st.label}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </>
+      )}
+      <Text style={[styles.billingSubtitle, { marginTop: extraCharges.length > 0 ? Spacing.lg : 0 }]}>
+        Historial de pagos
+      </Text>
+      {payments.map((p) => {
+        const st = PAYMENT_STATUS_LABELS[p.status] ?? PAYMENT_STATUS_LABELS.pending;
+        return (
+          <View key={`hist-${p.id}`} style={styles.paymentRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.paymentAmount}>
+                {p.property_id ? 'Propiedad extra' : 'Suscripción'} · {fmtMoney(Number(p.amount), p.currency)}
+              </Text>
+              <Text style={styles.paymentDate}>{formatDate(p.created_at)}</Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: st.color }]}>
+              <Text style={styles.statusText}>{st.label}</Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  ) : null;
+
   const plansBlock = (
     <>
         {/* Plans */}
@@ -391,12 +458,13 @@ export default function SubscriptionScreen() {
       <ScrollView contentContainerStyle={[styles.content, IS_DESKTOP && styles.contentDesktop]} showsVerticalScrollIndicator={false}>
         {IS_DESKTOP ? (
           <View style={styles.desktopRow}>
-            <View style={styles.desktopSidebar}>{currentBlock}</View>
+            <View style={styles.desktopSidebar}>{currentBlock}{billingBlock}</View>
             <View style={styles.desktopMain}>{plansBlock}</View>
           </View>
         ) : (
           <>
             {currentBlock}
+            {billingBlock}
             {plansBlock}
           </>
         )}
@@ -509,6 +577,29 @@ const styles = StyleSheet.create({
   noSubTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.gray[700], marginTop: Spacing.lg },
   noSubDesc: { fontSize: Fonts.sizes.sm, color: Colors.gray[400], textAlign: 'center', marginTop: Spacing.sm },
 
+  billingCard: {
+    backgroundColor: Colors.white,
+    borderRadius: Radius.lg,
+    padding: Spacing.xl,
+    marginTop: Spacing.lg,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+  },
+  billingTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.gray[900], marginBottom: Spacing.md },
+  billingSubtitle: { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.gray[500], marginBottom: Spacing.sm },
+  paymentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray[100],
+  },
+  paymentAmount: { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.gray[800] },
+  paymentDate: { fontSize: Fonts.sizes.xs, color: Colors.gray[400], marginTop: 2 },
   sectionTitle: {
     fontSize: Fonts.sizes.lg,
     fontWeight: '700',

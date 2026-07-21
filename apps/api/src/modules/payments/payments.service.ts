@@ -11,9 +11,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentsQueryDto } from './dto/payments-query.dto';
+import { UpdateQrSettingsDto } from './dto/update-qr-settings.dto';
 import { GatewayStubProvider } from './providers/gateway-stub.provider';
 import { ManualPaymentProvider } from './providers/manual.provider';
 import type { PaymentProvider } from './providers/payment-provider.interface';
+import { QR_SETTINGS_KEY, QrSettings } from './qr-settings.interface';
 
 @Injectable()
 export class PaymentsService {
@@ -223,6 +225,48 @@ export class PaymentsService {
 
   reject(paymentId: string) {
     return this.rejectPayment(paymentId);
+  }
+
+  /**
+   * Configuración del QR bancario mostrado a los usuarios (§ManualPaymentProvider).
+   * Se guarda en la tabla genérica `settings`, no hace falta una tabla propia.
+   */
+  async getQrSettings(): Promise<QrSettings> {
+    const row = await this.prisma.settings.findUnique({
+      where: { key: QR_SETTINGS_KEY },
+    });
+    return (row?.value as QrSettings) ?? {};
+  }
+
+  async updateQrSettings(
+    dto: UpdateQrSettingsDto,
+    file?: Express.Multer.File,
+  ): Promise<QrSettings> {
+    const current = await this.getQrSettings();
+    const next: QrSettings = {
+      ...current,
+      ...(dto.bank_name !== undefined ? { bankName: dto.bank_name } : {}),
+      ...(dto.account_holder !== undefined
+        ? { accountHolder: dto.account_holder }
+        : {}),
+      ...(dto.account_number !== undefined
+        ? { accountNumber: dto.account_number }
+        : {}),
+      ...(dto.instructions !== undefined
+        ? { instructions: dto.instructions }
+        : {}),
+      ...(file ? { qrImageUrl: `/uploads/${file.filename}` } : {}),
+    };
+    await this.prisma.settings.upsert({
+      where: { key: QR_SETTINGS_KEY },
+      create: {
+        key: QR_SETTINGS_KEY,
+        value: next as unknown as Prisma.InputJsonValue,
+        description: 'QR bancario y datos de cuenta para pagos manuales',
+      },
+      update: { value: next as unknown as Prisma.InputJsonValue },
+    });
+    return next;
   }
 
   // ── Lógica compartida ───────────────────────────────────────────────────────
