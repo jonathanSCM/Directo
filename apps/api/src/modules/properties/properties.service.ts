@@ -103,7 +103,7 @@ export class PropertiesService {
   }
 
   async update(user: AuthUser, id: string, dto: UpdatePropertyDto) {
-    await this.getOwnedOrThrow(user, id);
+    const prop = await this.getOwnedOrThrow(user, id);
     if (dto.property_type_id || dto.zone_id) {
       await this.assertTypeAndZone(dto.property_type_id, dto.zone_id);
     }
@@ -117,6 +117,11 @@ export class PropertiesService {
         });
       }
     }
+
+    // Una propiedad ya verificada que se edita vuelve a necesitar revisión
+    // (se oculta hasta que un admin la vea de nuevo). Ocultar/mostrar sin
+    // editar nada NO pasa por acá — ver publish()/reactivate().
+    const needsReReview = prop.approval_status === 'approved';
 
     return this.prisma.properties.update({
       where: { id },
@@ -136,6 +141,9 @@ export class PropertiesService {
         area_m2: dto.area_m2,
         contact_phone: dto.contact_phone,
         whatsapp: dto.whatsapp,
+        ...(needsReReview
+          ? { status: 'pending_approval', approval_status: 'pending', rejection_reason: null }
+          : {}),
       },
       include: listInclude,
     });
@@ -148,8 +156,11 @@ export class PropertiesService {
     }
     // Regla §18: exige suscripción activa (el tope de propiedades ya no bloquea).
     await this.subscriptions.assertHasActiveSubscription(user.id);
+    // Si ya está verificada (aprobada) y no se editó desde entonces, mostrarla
+    // de nuevo (ej. la había ocultado) no debe pasar otra vez por moderación.
+    const alreadyVerified = prop.approval_status === 'approved';
     // Regla §18: si se requiere aprobación, queda pendiente para el admin.
-    if (await this.requireApproval()) {
+    if (!alreadyVerified && (await this.requireApproval())) {
       return this.prisma.properties.update({
         where: { id },
         data: {
@@ -220,7 +231,8 @@ export class PropertiesService {
       );
     }
     await this.subscriptions.assertHasActiveSubscription(user.id);
-    if (await this.requireApproval()) {
+    const alreadyVerified = prop.approval_status === 'approved';
+    if (!alreadyVerified && (await this.requireApproval())) {
       return this.prisma.properties.update({
         where: { id },
         data: {

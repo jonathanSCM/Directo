@@ -91,11 +91,23 @@ const CATEGORY_LABELS: Record<string, string> = {
   edificio: 'Edificio', politicas: 'Políticas', general: 'General',
 };
 
+// Wizard de 5 pasos: en escritorio se ve como una lista lateral con el
+// contenido a la derecha (patrón común de onboarding/checkout en web).
+const STEPS = [
+  { key: 'type', title: '¿Qué vas a publicar?', subtitle: 'Elige el tipo de operación y de inmueble', icon: 'pricetag-outline' },
+  { key: 'details', title: 'Cuéntanos de tu propiedad', subtitle: 'Título, precio y una buena descripción venden más rápido', icon: 'document-text-outline' },
+  { key: 'location', title: '¿Dónde está ubicada?', subtitle: 'Ayuda a los interesados a encontrarla en el mapa', icon: 'location-outline' },
+  { key: 'photos', title: 'Fotos y amenidades', subtitle: 'Las propiedades con fotos reciben muchas más consultas', icon: 'images-outline' },
+  { key: 'contact', title: 'Contacto', subtitle: 'Por dónde te van a escribir los interesados', icon: 'call-outline' },
+] as const;
+
 // ── Main screen ──────────────────────────────────────────────────────────────
 export default function CreatePropertyWeb() {
   const router = useRouter();
   const { user } = useAuth();
   useLeafletCSS();
+
+  const [step, setStep] = useState(0);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -148,7 +160,6 @@ export default function CreatePropertyWeb() {
 
   const selectedType = propertyTypes.find((t) => t.id === propertyTypeId);
   const selectedZone = zones.find((z) => z.id === zoneId);
-  const canSubmit = title.trim().length >= 5 && propertyTypeId && price;
 
   // ── Image picker ──
   const pickImages = async () => {
@@ -160,6 +171,35 @@ export default function CreatePropertyWeb() {
       quality: 0.8,
     });
     if (!result.canceled) setSelectedImages((prev) => [...prev, ...result.assets].slice(0, 10));
+  };
+
+  // Validación por paso: solo lo esencial bloquea avanzar.
+  const stepValid = [
+    !!propertyTypeId,
+    title.trim().length >= 5 && !!price,
+    true,
+    true,
+    true,
+  ];
+  const canSubmit = stepValid[0] && stepValid[1];
+
+  const goToStep = (target: number) => {
+    // Solo se puede saltar a un paso ya visitado/válido, o al siguiente inmediato.
+    if (target <= step || (target === step + 1 && stepValid[step])) setStep(target);
+  };
+
+  const goNext = () => {
+    if (!stepValid[step]) {
+      setError(step === 0 ? 'Elige el tipo de inmueble' : 'Escribe un título de al menos 5 letras y un precio');
+      return;
+    }
+    setError('');
+    if (step < STEPS.length - 1) setStep(step + 1);
+  };
+
+  const goBack = () => {
+    if (step > 0) { setStep(step - 1); return; }
+    router.canGoBack() ? router.back() : router.replace('/(tabs)/saved');
   };
 
   // ── Submit ──
@@ -214,7 +254,7 @@ export default function CreatePropertyWeb() {
     } finally {
       setSaving(false);
     }
-  }, [canSubmit, title, description, operation, price, currency, propertyTypeId, zoneId, address, bedrooms, bathrooms, areaSqm, useCustomPhone, whatsapp, user?.phone, latitude, longitude, selectedImages]);
+  }, [canSubmit, title, description, operation, price, currency, propertyTypeId, zoneId, address, bedrooms, bathrooms, areaSqm, useCustomPhone, whatsapp, user?.phone, latitude, longitude, selectedAmenities, selectedImages, router]);
 
   // ── Address search (Nominatim) ──
   const searchAddress = useCallback(async (query: string) => {
@@ -270,185 +310,264 @@ export default function CreatePropertyWeb() {
     } catch { setError('No se pudo obtener tu ubicación'); }
   };
 
+  const current = STEPS[step];
+  const isLastStep = step === STEPS.length - 1;
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/saved'))}
-          style={styles.backBtn}
-        >
+        <TouchableOpacity onPress={goBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.gray[900]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Publicar propiedad</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {/* Inline feedback */}
-        {!!error && (
-          <View style={styles.errorBox}>
-            <Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={() => setError('')}><Ionicons name="close" size={16} color="#DC2626" /></TouchableOpacity>
-          </View>
-        )}
-        {!!success && (
-          <View style={styles.successBox}>
-            <Ionicons name="checkmark-circle-outline" size={16} color="#16A34A" />
-            <Text style={styles.successText}>{success}</Text>
-          </View>
-        )}
-
-        {/* Operation */}
-        <Text style={styles.sectionTitle}>Tipo de operación</Text>
-        <View style={styles.opRow}>
-          {OPERATIONS.map((op) => (
-            <TouchableOpacity
-              key={op.key}
-              style={[styles.opChip, operation === op.key && { backgroundColor: op.color, borderColor: op.color }]}
-              onPress={() => setOperation(op.key)}
-            >
-              <Ionicons name={op.icon as any} size={16} color={operation === op.key ? Colors.white : Colors.gray[500]} />
-              <Text style={[styles.opChipText, operation === op.key && { color: Colors.white }]}>{op.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Title */}
-        <Text style={styles.label}>Título *</Text>
-        <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Ej: Casa amplia en Equipetrol" placeholderTextColor={Colors.gray[400]} maxLength={200} />
-
-        {/* Type */}
-        <Text style={styles.label}>Tipo de inmueble *</Text>
-        <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowTypePicker(true)}>
-          <Text style={selectedType ? styles.pickerText : styles.pickerPlaceholder}>{selectedType?.name ?? 'Seleccionar tipo'}</Text>
-          <Ionicons name="chevron-down" size={18} color={Colors.gray[400]} />
-        </TouchableOpacity>
-
-        {/* Price */}
-        <Text style={styles.label}>Precio *</Text>
-        <View style={styles.priceRow}>
-          <TextInput style={[styles.input, { flex: 1 }]} value={price} onChangeText={setPrice} placeholder="120000" placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
-          <View style={styles.currencyToggle}>
-            {CURRENCIES.map((c) => (
-              <TouchableOpacity key={c} style={[styles.currBtn, currency === c && styles.currBtnActive]} onPress={() => setCurrency(c)}>
-                <Text style={[styles.currText, currency === c && styles.currTextActive]}>{c}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Description */}
-        <Text style={styles.label}>Descripción</Text>
-        <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} placeholder="Describe tu propiedad..." placeholderTextColor={Colors.gray[400]} multiline numberOfLines={4} />
-
-        {/* Address */}
-        <Text style={styles.label}>Dirección</Text>
-        <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Av. San Martín #123" placeholderTextColor={Colors.gray[400]} />
-
-        {/* Map picker trigger */}
-        <Text style={styles.label}>Ubicación en el mapa</Text>
-        <TouchableOpacity style={styles.mapPickerBtn} onPress={() => { setShowMapPicker(true); setFlyTarget(null); }}>
-          <Ionicons name="location" size={20} color={latitude ? Colors.primary : Colors.gray[400]} />
-          <Text style={latitude ? styles.pickerText : styles.pickerPlaceholder}>
-            {latitude ? `${latitude.toFixed(5)}, ${longitude!.toFixed(5)}` : 'Seleccionar en mapa'}
-          </Text>
-          <Ionicons name="chevron-forward" size={18} color={Colors.gray[400]} />
-        </TouchableOpacity>
-
-        {/* Zone */}
-        <Text style={styles.label}>Zona</Text>
-        <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowZonePicker(true)}>
-          <Text style={selectedZone ? styles.pickerText : styles.pickerPlaceholder}>{selectedZone ? `${selectedZone.name}, ${selectedZone.city}` : 'Seleccionar zona'}</Text>
-          <Ionicons name="chevron-down" size={18} color={Colors.gray[400]} />
-        </TouchableOpacity>
-
-        {/* Specs */}
-        <Text style={styles.sectionTitle}>Características</Text>
-        <View style={styles.specsRow}>
-          {([['Dormitorios', bedrooms, setBedrooms, '3'], ['Baños', bathrooms, setBathrooms, '2'], ['Área m²', areaSqm, setAreaSqm, '180']] as const).map(([lbl, val, setter, ph]) => (
-            <View key={lbl} style={styles.specField}>
-              <Text style={styles.specLabel}>{lbl}</Text>
-              <TextInput style={styles.specInput} value={val} onChangeText={setter as any} placeholder={ph} placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
-            </View>
-          ))}
-        </View>
-
-        {/* Amenities */}
-        {amenities.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Amenidades</Text>
-            <Text style={styles.sectionHint}>Selecciona las que apliquen</Text>
-            {Object.entries(
-              amenities.reduce<Record<string, Amenity[]>>((acc, a) => { (acc[a.category] ??= []).push(a); return acc; }, {}),
-            ).map(([cat, items]) => (
-              <View key={cat} style={styles.amenityCatBlock}>
-                <Text style={styles.amenityCatLabel}>{CATEGORY_LABELS[cat] ?? cat}</Text>
-                <View style={styles.amenityGrid}>
-                  {items.map((a) => {
-                    const selected = selectedAmenities.has(a.id);
-                    return (
-                      <TouchableOpacity key={a.id} style={[styles.amenityChip, selected && styles.amenityChipSelected]} onPress={() => toggleAmenity(a.id)} activeOpacity={0.7}>
-                        <Ionicons name={(AMENITY_ICONS[a.icon] ?? 'star-outline') as any} size={16} color={selected ? Colors.primary : Colors.gray[400]} />
-                        <Text style={[styles.amenityChipText, selected && styles.amenityChipTextSelected]}>{a.name}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+      <View style={styles.body}>
+        {/* Lista de pasos (sidebar) */}
+        <View style={styles.stepsSidebar}>
+          {STEPS.map((s, i) => {
+            const done = i < step;
+            const active = i === step;
+            return (
+              <TouchableOpacity
+                key={s.key}
+                style={styles.stepItem}
+                onPress={() => goToStep(i)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.stepDot, done && styles.stepDotDone, active && styles.stepDotActive]}>
+                  {done ? (
+                    <Ionicons name="checkmark" size={14} color={Colors.white} />
+                  ) : (
+                    <Text style={[styles.stepDotText, active && styles.stepDotTextActive]}>{i + 1}</Text>
+                  )}
                 </View>
-              </View>
-            ))}
-          </>
-        )}
-
-        {/* WhatsApp */}
-        <Text style={styles.label}>WhatsApp de contacto</Text>
-        {user?.phone ? (
-          <>
-            <View style={styles.phoneToggle}>
-              {[false, true].map((custom) => (
-                <TouchableOpacity key={String(custom)} style={[styles.phoneOption, useCustomPhone === custom && styles.phoneOptionActive]} onPress={() => setUseCustomPhone(custom)}>
-                  <Ionicons name={useCustomPhone === custom ? 'radio-button-on' : 'radio-button-off'} size={18} color={useCustomPhone === custom ? Colors.primary : Colors.gray[400]} />
-                  <Text style={[styles.phoneOptionText, useCustomPhone === custom && styles.phoneOptionTextActive]}>{custom ? 'Usar otro número' : `Mi teléfono: ${user.phone}`}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {useCustomPhone && <TextInput style={[styles.input, { marginTop: Spacing.sm }]} value={whatsapp} onChangeText={setWhatsapp} placeholder="+591 70000000" placeholderTextColor={Colors.gray[400]} keyboardType="phone-pad" />}
-          </>
-        ) : (
-          <TextInput style={styles.input} value={whatsapp} onChangeText={setWhatsapp} placeholder="+591 70000000" placeholderTextColor={Colors.gray[400]} keyboardType="phone-pad" />
-        )}
-
-        {/* Images */}
-        <Text style={styles.sectionTitle}>Fotos ({selectedImages.length}/10)</Text>
-        <View style={styles.imagesRow}>
-          {selectedImages.map((img, idx) => (
-            <View key={idx} style={styles.imageThumb}>
-              <Image source={{ uri: img.uri }} style={styles.thumbImg} />
-              <TouchableOpacity style={styles.removeImgBtn} onPress={() => setSelectedImages((p) => p.filter((_, i) => i !== idx))}>
-                <Ionicons name="close-circle" size={22} color="#EF4444" />
+                <Text style={[styles.stepItemText, active && styles.stepItemTextActive]}>{s.title}</Text>
               </TouchableOpacity>
-            </View>
-          ))}
-          {selectedImages.length < 10 && (
-            <TouchableOpacity style={styles.addImageBtn} onPress={pickImages}>
-              <Ionicons name="camera-outline" size={28} color={Colors.gray[400]} />
-              <Text style={styles.addImageText}>Añadir</Text>
-            </TouchableOpacity>
-          )}
+            );
+          })}
         </View>
 
-        {/* Submit */}
-        <TouchableOpacity style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]} onPress={handleSubmit} disabled={saving || !canSubmit}>
-          {saving ? <ActivityIndicator color={Colors.white} /> : (
+        {/* Contenido del paso actual */}
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {!!error && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity onPress={() => setError('')}><Ionicons name="close" size={16} color="#DC2626" /></TouchableOpacity>
+            </View>
+          )}
+          {!!success && (
+            <View style={styles.successBox}>
+              <Ionicons name="checkmark-circle-outline" size={16} color="#16A34A" />
+              <Text style={styles.successText}>{success}</Text>
+            </View>
+          )}
+
+          <Text style={styles.stepTitle}>{current.title}</Text>
+          <Text style={styles.stepSubtitle}>{current.subtitle}</Text>
+
+          {step === 0 && (
             <>
-              <Ionicons name="cloud-upload" size={20} color={Colors.white} />
-              <Text style={styles.submitBtnText}>Publicar propiedad</Text>
+              <Text style={styles.label}>Tipo de operación</Text>
+              <View style={styles.opRow}>
+                {OPERATIONS.map((op) => (
+                  <TouchableOpacity
+                    key={op.key}
+                    style={[styles.opChip, operation === op.key && { backgroundColor: op.color, borderColor: op.color }]}
+                    onPress={() => setOperation(op.key)}
+                  >
+                    <Ionicons name={op.icon as any} size={16} color={operation === op.key ? Colors.white : Colors.gray[500]} />
+                    <Text style={[styles.opChipText, operation === op.key && { color: Colors.white }]}>{op.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.label}>Tipo de inmueble *</Text>
+              <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowTypePicker(true)}>
+                <Text style={selectedType ? styles.pickerText : styles.pickerPlaceholder}>{selectedType?.name ?? 'Seleccionar tipo'}</Text>
+                <Ionicons name="chevron-down" size={18} color={Colors.gray[400]} />
+              </TouchableOpacity>
             </>
           )}
-        </TouchableOpacity>
-        <Text style={styles.hint}>Tu propiedad será revisada antes de publicarse. Necesitas una suscripción activa.</Text>
-      </ScrollView>
+
+          {step === 1 && (
+            <>
+              <Text style={styles.label}>Título *</Text>
+              <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Ej: Casa amplia en Equipetrol" placeholderTextColor={Colors.gray[400]} maxLength={200} />
+
+              <Text style={styles.label}>Precio *</Text>
+              <View style={styles.priceRow}>
+                <TextInput style={[styles.input, { flex: 1 }]} value={price} onChangeText={setPrice} placeholder="120000" placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
+                <View style={styles.currencyToggle}>
+                  {CURRENCIES.map((c) => (
+                    <TouchableOpacity key={c} style={[styles.currBtn, currency === c && styles.currBtnActive]} onPress={() => setCurrency(c)}>
+                      <Text style={[styles.currText, currency === c && styles.currTextActive]}>{c}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <Text style={styles.label}>Descripción</Text>
+              <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} placeholder="Describe tu propiedad: qué la hace especial, el barrio, cercanías..." placeholderTextColor={Colors.gray[400]} multiline numberOfLines={4} />
+
+              <Text style={styles.label}>Características</Text>
+              <View style={styles.specsRow}>
+                {([['Dormitorios', bedrooms, setBedrooms, '3'], ['Baños', bathrooms, setBathrooms, '2'], ['Área m²', areaSqm, setAreaSqm, '180']] as const).map(([lbl, val, setter, ph]) => (
+                  <View key={lbl} style={styles.specField}>
+                    <Text style={styles.specLabel}>{lbl}</Text>
+                    <TextInput style={styles.specInput} value={val} onChangeText={setter as any} placeholder={ph} placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <Text style={styles.label}>Dirección</Text>
+              <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Av. San Martín #123" placeholderTextColor={Colors.gray[400]} />
+
+              <Text style={styles.label}>Ubicación en el mapa</Text>
+              <TouchableOpacity style={styles.mapPickerBtn} onPress={() => { setShowMapPicker(true); setFlyTarget(null); }}>
+                <Ionicons name="location" size={20} color={latitude ? Colors.primary : Colors.gray[400]} />
+                <Text style={[latitude ? styles.pickerText : styles.pickerPlaceholder, { flex: 1 }]}>
+                  {latitude ? `${latitude.toFixed(5)}, ${longitude!.toFixed(5)}` : 'Haz clic para elegir en el mapa'}
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color={Colors.gray[400]} />
+              </TouchableOpacity>
+
+              <Text style={styles.label}>Zona</Text>
+              <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowZonePicker(true)}>
+                <Text style={selectedZone ? styles.pickerText : styles.pickerPlaceholder}>{selectedZone ? `${selectedZone.name}, ${selectedZone.city}` : 'Seleccionar zona'}</Text>
+                <Ionicons name="chevron-down" size={18} color={Colors.gray[400]} />
+              </TouchableOpacity>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <Text style={styles.label}>Fotos ({selectedImages.length}/10)</Text>
+              <View style={styles.imagesRow}>
+                {selectedImages.map((img, idx) => (
+                  <View key={idx} style={styles.imageThumb}>
+                    <Image source={{ uri: img.uri }} style={styles.thumbImg} />
+                    <TouchableOpacity style={styles.removeImgBtn} onPress={() => setSelectedImages((p) => p.filter((_, i) => i !== idx))}>
+                      <Ionicons name="close-circle" size={22} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {selectedImages.length < 10 && (
+                  <TouchableOpacity style={styles.addImageBtn} onPress={pickImages}>
+                    <Ionicons name="camera-outline" size={28} color={Colors.gray[400]} />
+                    <Text style={styles.addImageText}>Añadir</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {amenities.length > 0 && (
+                <>
+                  <Text style={[styles.label, { marginTop: Spacing.xl }]}>Amenidades</Text>
+                  <Text style={styles.sectionHint}>Selecciona las que apliquen (opcional)</Text>
+                  {Object.entries(
+                    amenities.reduce<Record<string, Amenity[]>>((acc, a) => { (acc[a.category] ??= []).push(a); return acc; }, {}),
+                  ).map(([cat, items]) => (
+                    <View key={cat} style={styles.amenityCatBlock}>
+                      <Text style={styles.amenityCatLabel}>{CATEGORY_LABELS[cat] ?? cat}</Text>
+                      <View style={styles.amenityGrid}>
+                        {items.map((a) => {
+                          const selected = selectedAmenities.has(a.id);
+                          return (
+                            <TouchableOpacity key={a.id} style={[styles.amenityChip, selected && styles.amenityChipSelected]} onPress={() => toggleAmenity(a.id)} activeOpacity={0.7}>
+                              <Ionicons name={(AMENITY_ICONS[a.icon] ?? 'star-outline') as any} size={16} color={selected ? Colors.primary : Colors.gray[400]} />
+                              <Text style={[styles.amenityChipText, selected && styles.amenityChipTextSelected]}>{a.name}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              <Text style={styles.label}>WhatsApp de contacto</Text>
+              {user?.phone ? (
+                <>
+                  <View style={styles.phoneToggle}>
+                    {[false, true].map((custom) => (
+                      <TouchableOpacity key={String(custom)} style={[styles.phoneOption, useCustomPhone === custom && styles.phoneOptionActive]} onPress={() => setUseCustomPhone(custom)}>
+                        <Ionicons name={useCustomPhone === custom ? 'radio-button-on' : 'radio-button-off'} size={18} color={useCustomPhone === custom ? Colors.primary : Colors.gray[400]} />
+                        <Text style={[styles.phoneOptionText, useCustomPhone === custom && styles.phoneOptionTextActive]}>{custom ? 'Usar otro número' : `Mi teléfono: ${user.phone}`}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {useCustomPhone && <TextInput style={[styles.input, { marginTop: Spacing.sm }]} value={whatsapp} onChangeText={setWhatsapp} placeholder="+591 70000000" placeholderTextColor={Colors.gray[400]} keyboardType="phone-pad" />}
+                </>
+              ) : (
+                <TextInput style={styles.input} value={whatsapp} onChangeText={setWhatsapp} placeholder="+591 70000000" placeholderTextColor={Colors.gray[400]} keyboardType="phone-pad" />
+              )}
+
+              {/* Resumen rápido */}
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryTitle} numberOfLines={1}>{title || 'Sin título'}</Text>
+                <Text style={styles.summaryPrice}>
+                  {price ? `${currency === 'USD' ? '$' : 'Bs.'} ${Number(price).toLocaleString()}` : 'Sin precio'}
+                </Text>
+                <View style={styles.summaryRow}>
+                  <Ionicons name="pricetag-outline" size={14} color={Colors.gray[500]} />
+                  <Text style={styles.summaryText}>
+                    {OPERATIONS.find((o) => o.key === operation)?.label} · {selectedType?.name ?? 'Sin tipo'}
+                  </Text>
+                </View>
+                {selectedZone && (
+                  <View style={styles.summaryRow}>
+                    <Ionicons name="location-outline" size={14} color={Colors.gray[500]} />
+                    <Text style={styles.summaryText}>{selectedZone.name}, {selectedZone.city}</Text>
+                  </View>
+                )}
+                <View style={styles.summaryRow}>
+                  <Ionicons name="image-outline" size={14} color={Colors.gray[500]} />
+                  <Text style={styles.summaryText}>{selectedImages.length} foto(s)</Text>
+                </View>
+              </View>
+
+              <Text style={styles.hint}>Tu propiedad será revisada antes de publicarse. Necesitas una suscripción activa.</Text>
+            </>
+          )}
+
+          {/* Navegación */}
+          <View style={styles.stepNavRow}>
+            {step > 0 && (
+              <TouchableOpacity style={styles.backStepBtn} onPress={() => setStep(step - 1)}>
+                <Ionicons name="arrow-back" size={16} color={Colors.gray[700]} />
+                <Text style={styles.backStepBtnText}>Atrás</Text>
+              </TouchableOpacity>
+            )}
+            <View style={{ flex: 1 }} />
+            {isLastStep ? (
+              <TouchableOpacity style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]} onPress={handleSubmit} disabled={saving || !canSubmit}>
+                {saving ? <ActivityIndicator color={Colors.white} /> : (
+                  <>
+                    <Ionicons name="cloud-upload" size={20} color={Colors.white} />
+                    <Text style={styles.submitBtnText}>Publicar propiedad</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.nextBtn} onPress={goNext}>
+                <Text style={styles.submitBtnText}>Siguiente</Text>
+                <Ionicons name="arrow-forward" size={18} color={Colors.white} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </ScrollView>
+      </View>
 
       {/* ── Map picker (full-screen overlay) ── */}
       {showMapPicker && (
@@ -520,7 +639,7 @@ export default function CreatePropertyWeb() {
           {!latitude && (
             <View style={styles.mapHintBar}>
               <Ionicons name="finger-print-outline" size={16} color={Colors.gray[500]} />
-              <Text style={styles.mapHintText}>Toca el mapa para marcar la ubicación</Text>
+              <Text style={styles.mapHintText}>Haz clic en el mapa para marcar la ubicación</Text>
             </View>
           )}
 
@@ -607,7 +726,22 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.gray[900] },
-  content: { padding: Spacing.xxl, paddingBottom: 60, maxWidth: 680, alignSelf: 'center', width: '100%' },
+
+  body: { flex: 1, flexDirection: 'row', maxWidth: 980, alignSelf: 'center', width: '100%' },
+  stepsSidebar: { width: 240, paddingVertical: Spacing.xxl, paddingRight: Spacing.xl, gap: 4 },
+  stepItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: 10, cursor: 'pointer' as any },
+  stepDot: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: Colors.gray[100], justifyContent: 'center', alignItems: 'center',
+  },
+  stepDotDone: { backgroundColor: Colors.success },
+  stepDotActive: { backgroundColor: Colors.primary },
+  stepDotText: { fontSize: 12, fontWeight: '700', color: Colors.gray[500] },
+  stepDotTextActive: { color: Colors.white },
+  stepItemText: { fontSize: Fonts.sizes.sm, color: Colors.gray[500], fontWeight: '500', flex: 1 },
+  stepItemTextActive: { color: Colors.gray[900], fontWeight: '700' },
+
+  content: { padding: Spacing.xxl, paddingLeft: Spacing.xl, paddingBottom: 60, maxWidth: 680, width: '100%' },
 
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -621,6 +755,9 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#86EFAC',
   },
   successText: { color: '#16A34A', fontSize: 13.5, flex: 1 },
+
+  stepTitle: { fontSize: Fonts.sizes.xl, fontWeight: '800', color: Colors.gray[900], marginBottom: 4 },
+  stepSubtitle: { fontSize: Fonts.sizes.sm, color: Colors.gray[500], marginBottom: Spacing.xl, lineHeight: 20 },
 
   sectionTitle: { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.gray[800], marginTop: Spacing.xl, marginBottom: Spacing.md },
   opRow: { flexDirection: 'row', gap: Spacing.sm },
@@ -653,11 +790,28 @@ const styles = StyleSheet.create({
   removeImgBtn: { position: 'absolute', top: 2, right: 2, backgroundColor: Colors.white, borderRadius: 11 },
   addImageBtn: { width: 90, height: 90, borderRadius: Radius.md, borderWidth: 1.5, borderColor: Colors.gray[200], borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', gap: 4, cursor: 'pointer' as any },
   addImageText: { fontSize: Fonts.sizes.xs, color: Colors.gray[400] },
-  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: Colors.primary, paddingVertical: 16, borderRadius: Radius.lg, marginTop: Spacing.xxl, cursor: 'pointer' as any },
+
+  stepNavRow: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.xxl, gap: Spacing.md },
+  backStepBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: Spacing.lg, borderRadius: Radius.lg, borderWidth: 1, borderColor: Colors.gray[200], cursor: 'pointer' as any },
+  backStepBtnText: { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.gray[700] },
+  nextBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: Colors.primary, paddingVertical: 16, paddingHorizontal: Spacing.xxl, borderRadius: Radius.lg, cursor: 'pointer' as any },
+  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: Colors.primary, paddingVertical: 16, paddingHorizontal: Spacing.xxl, borderRadius: Radius.lg, cursor: 'pointer' as any },
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { color: Colors.white, fontSize: Fonts.sizes.md, fontWeight: '700' },
   hint: { fontSize: Fonts.sizes.xs, color: Colors.gray[400], textAlign: 'center', marginTop: Spacing.md },
   mapPickerBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, borderWidth: 1, borderColor: Colors.gray[200], borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: 14, cursor: 'pointer' as any },
+
+  summaryCard: {
+    backgroundColor: Colors.gray[50],
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginTop: Spacing.xl,
+    gap: 6,
+  },
+  summaryTitle: { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.gray[900] },
+  summaryPrice: { fontSize: Fonts.sizes.lg, fontWeight: '800', color: Colors.primary, marginBottom: 4 },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  summaryText: { fontSize: Fonts.sizes.sm, color: Colors.gray[600] },
 
   // Full-screen map overlay
   mapOverlay: {

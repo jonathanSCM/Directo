@@ -26,6 +26,8 @@ import api from '../src/services/api';
 interface CatalogItem { id: string; name: string; slug: string }
 interface Zone { id: string; name: string; city: string }
 
+const MAX_IMAGES = 10;
+
 const OPERATIONS = [
   { key: 'sale', label: 'Venta', icon: 'pricetag', color: '#F59E0B' },
   { key: 'rent', label: 'Alquiler', icon: 'time', color: '#EF4444' },
@@ -40,12 +42,25 @@ const SCZ_REGION: Region = {
   longitudeDelta: 0.08,
 };
 
+function SectionCard({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Ionicons name={icon as any} size={18} color={Colors.primary} />
+        <Text style={styles.cardTitle}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
 export default function EditPropertyScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
+  const [approvalStatus, setApprovalStatus] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [operation, setOperation] = useState('sale');
@@ -84,6 +99,7 @@ export default function EditPropertyScreen() {
       api.get('/zones').then((r) => setZones(r.data)),
       api.get(`/properties/by-id/${id}`).then((r) => {
         const p = r.data;
+        setApprovalStatus(p.approval_status ?? '');
         setTitle(p.title ?? '');
         setDescription(p.description ?? '');
         setOperation(p.operation ?? 'sale');
@@ -119,20 +135,21 @@ export default function EditPropertyScreen() {
   const selectedZone = zones.find((z) => z.id === zoneId);
   const totalImages = existingImages.length + newImages.length;
   const canSubmit = title.trim().length >= 5 && propertyTypeId && price;
+  const isVerified = approvalStatus === 'approved';
 
   const pickImages = async () => {
-    if (totalImages >= 10) {
-      Alert.alert('Límite', 'Máximo 10 fotos por propiedad');
+    if (totalImages >= MAX_IMAGES) {
+      Alert.alert('Límite', `Máximo ${MAX_IMAGES} fotos por propiedad`);
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      selectionLimit: 10 - totalImages,
+      selectionLimit: MAX_IMAGES - totalImages,
       quality: 0.8,
     });
     if (!result.canceled) {
-      setNewImages((prev) => [...prev, ...result.assets].slice(0, 10 - existingImages.length));
+      setNewImages((prev) => [...prev, ...result.assets].slice(0, MAX_IMAGES - existingImages.length));
     }
   };
 
@@ -176,7 +193,7 @@ export default function EditPropertyScreen() {
         body.longitude = longitude;
       }
 
-      await api.patch(`/properties/${id}`, body);
+      const { data: updated } = await api.patch(`/properties/${id}`, body);
 
       if (newImages.length > 0) {
         const formData = new FormData();
@@ -193,7 +210,12 @@ export default function EditPropertyScreen() {
         });
       }
 
-      Alert.alert('Guardado', 'La propiedad fue actualizada correctamente.', [
+      const message =
+        isVerified && updated.approval_status === 'pending'
+          ? 'La propiedad fue actualizada. Como hiciste cambios, vuelve a estar en revisión antes de mostrarse de nuevo.'
+          : 'La propiedad fue actualizada correctamente.';
+
+      Alert.alert('Guardado', message, [
         { text: 'OK', onPress: () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/saved')) },
       ]);
     } catch (e: any) {
@@ -202,7 +224,7 @@ export default function EditPropertyScreen() {
     } finally {
       setSaving(false);
     }
-  }, [canSubmit, title, description, operation, price, currency, propertyTypeId, zoneId, address, bedrooms, bathrooms, areaSqm, whatsapp, latitude, longitude, id, newImages, useCustomPhone, user?.phone]);
+  }, [canSubmit, title, description, operation, price, currency, propertyTypeId, zoneId, address, bedrooms, bathrooms, areaSqm, whatsapp, latitude, longitude, id, newImages, useCustomPhone, user?.phone, isVerified]);
 
   const searchAddress = useCallback(async (query: string) => {
     if (query.length < 3) { setSearchResults([]); return; }
@@ -271,162 +293,176 @@ export default function EditPropertyScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {/* Operation */}
-        <Text style={styles.sectionTitle}>Tipo de operación</Text>
-        <View style={styles.opRow}>
-          {OPERATIONS.map((op) => (
-            <TouchableOpacity
-              key={op.key}
-              style={[styles.opChip, operation === op.key && { backgroundColor: op.color, borderColor: op.color }]}
-              onPress={() => setOperation(op.key)}
-            >
-              <Ionicons name={op.icon as any} size={16} color={operation === op.key ? Colors.white : Colors.gray[500]} />
-              <Text style={[styles.opChipText, operation === op.key && { color: Colors.white }]}>{op.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {isVerified && (
+          <View style={styles.verifiedNotice}>
+            <Ionicons name="information-circle" size={18} color="#B45309" />
+            <Text style={styles.verifiedNoticeText}>
+              Tu propiedad ya está verificada. Si guardas cambios, vuelve a revisión antes de mostrarse de nuevo.
+              Ocultarla y volver a mostrarla sin editar nada no necesita nueva revisión.
+            </Text>
+          </View>
+        )}
 
-        <Text style={styles.label}>Título *</Text>
-        <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Ej: Casa amplia en Equipetrol" placeholderTextColor={Colors.gray[400]} maxLength={200} />
-
-        <Text style={styles.label}>Tipo de inmueble *</Text>
-        <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowTypePicker(true)}>
-          <Text style={selectedType ? styles.pickerText : styles.pickerPlaceholder}>{selectedType?.name ?? 'Seleccionar tipo'}</Text>
-          <Ionicons name="chevron-down" size={18} color={Colors.gray[400]} />
-        </TouchableOpacity>
-
-        <Text style={styles.label}>Precio *</Text>
-        <View style={styles.priceRow}>
-          <TextInput style={[styles.input, { flex: 1 }]} value={price} onChangeText={setPrice} placeholder="120000" placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
-          <View style={styles.currencyToggle}>
-            {CURRENCIES.map((c) => (
-              <TouchableOpacity key={c} style={[styles.currBtn, currency === c && styles.currBtnActive]} onPress={() => setCurrency(c)}>
-                <Text style={[styles.currText, currency === c && styles.currTextActive]}>{c}</Text>
+        <SectionCard icon="pricetag-outline" title="Operación y tipo">
+          <View style={styles.opRow}>
+            {OPERATIONS.map((op) => (
+              <TouchableOpacity
+                key={op.key}
+                style={[styles.opChip, operation === op.key && { backgroundColor: op.color, borderColor: op.color }]}
+                onPress={() => setOperation(op.key)}
+              >
+                <Ionicons name={op.icon as any} size={16} color={operation === op.key ? Colors.white : Colors.gray[500]} />
+                <Text style={[styles.opChipText, operation === op.key && { color: Colors.white }]}>{op.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
-        </View>
 
-        <Text style={styles.label}>Descripción</Text>
-        <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} placeholder="Describe tu propiedad..." placeholderTextColor={Colors.gray[400]} multiline numberOfLines={4} textAlignVertical="top" />
+          <Text style={styles.label}>Tipo de inmueble *</Text>
+          <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowTypePicker(true)}>
+            <Text style={selectedType ? styles.pickerText : styles.pickerPlaceholder}>{selectedType?.name ?? 'Seleccionar tipo'}</Text>
+            <Ionicons name="chevron-down" size={18} color={Colors.gray[400]} />
+          </TouchableOpacity>
+        </SectionCard>
 
-        <Text style={styles.label}>Dirección</Text>
-        <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Av. San Martín #123" placeholderTextColor={Colors.gray[400]} />
+        <SectionCard icon="document-text-outline" title="Detalles">
+          <Text style={styles.label}>Título *</Text>
+          <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Ej: Casa amplia en Equipetrol" placeholderTextColor={Colors.gray[400]} maxLength={200} />
 
-        {/* Location map picker */}
-        <Text style={styles.label}>Ubicación en el mapa</Text>
-        <TouchableOpacity style={styles.mapPickerBtn} onPress={() => setShowMapPicker(true)}>
-          <Ionicons name="location" size={20} color={latitude ? Colors.primary : Colors.gray[400]} />
-          <Text style={latitude ? styles.pickerText : styles.pickerPlaceholder}>
-            {latitude ? `${latitude.toFixed(5)}, ${longitude!.toFixed(5)}` : 'Seleccionar en mapa'}
-          </Text>
-          <Ionicons name="chevron-forward" size={18} color={Colors.gray[400]} />
-        </TouchableOpacity>
-
-        <Text style={styles.label}>Zona</Text>
-        <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowZonePicker(true)}>
-          <Text style={selectedZone ? styles.pickerText : styles.pickerPlaceholder}>
-            {selectedZone ? `${selectedZone.name}, ${selectedZone.city}` : 'Seleccionar zona'}
-          </Text>
-          <Ionicons name="chevron-down" size={18} color={Colors.gray[400]} />
-        </TouchableOpacity>
-
-        <Text style={styles.sectionTitle}>Características</Text>
-        <View style={styles.specsRow}>
-          <View style={styles.specField}>
-            <Text style={styles.specLabel}>Dormitorios</Text>
-            <TextInput style={styles.specInput} value={bedrooms} onChangeText={setBedrooms} placeholder="3" placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
-          </View>
-          <View style={styles.specField}>
-            <Text style={styles.specLabel}>Baños</Text>
-            <TextInput style={styles.specInput} value={bathrooms} onChangeText={setBathrooms} placeholder="2" placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
-          </View>
-          <View style={styles.specField}>
-            <Text style={styles.specLabel}>Área m²</Text>
-            <TextInput style={styles.specInput} value={areaSqm} onChangeText={setAreaSqm} placeholder="180" placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
-          </View>
-        </View>
-
-        <Text style={styles.label}>WhatsApp de contacto</Text>
-        {user?.phone ? (
-          <>
-            <View style={{ gap: Spacing.sm }}>
-              <TouchableOpacity
-                style={[styles.phoneOption, !useCustomPhone && styles.phoneOptionActive]}
-                onPress={() => setUseCustomPhone(false)}
-              >
-                <Ionicons
-                  name={!useCustomPhone ? 'radio-button-on' : 'radio-button-off'}
-                  size={18}
-                  color={!useCustomPhone ? Colors.primary : Colors.gray[400]}
-                />
-                <Text style={[styles.phoneOptionText, !useCustomPhone && styles.phoneOptionTextActive]}>
-                  Mi teléfono: {user.phone}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.phoneOption, useCustomPhone && styles.phoneOptionActive]}
-                onPress={() => setUseCustomPhone(true)}
-              >
-                <Ionicons
-                  name={useCustomPhone ? 'radio-button-on' : 'radio-button-off'}
-                  size={18}
-                  color={useCustomPhone ? Colors.primary : Colors.gray[400]}
-                />
-                <Text style={[styles.phoneOptionText, useCustomPhone && styles.phoneOptionTextActive]}>
-                  Usar otro número
-                </Text>
-              </TouchableOpacity>
+          <Text style={styles.label}>Precio *</Text>
+          <View style={styles.priceRow}>
+            <TextInput style={[styles.input, { flex: 1 }]} value={price} onChangeText={setPrice} placeholder="120000" placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
+            <View style={styles.currencyToggle}>
+              {CURRENCIES.map((c) => (
+                <TouchableOpacity key={c} style={[styles.currBtn, currency === c && styles.currBtnActive]} onPress={() => setCurrency(c)}>
+                  <Text style={[styles.currText, currency === c && styles.currTextActive]}>{c}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-            {useCustomPhone && (
-              <TextInput
-                style={[styles.input, { marginTop: Spacing.sm }]}
-                value={whatsapp}
-                onChangeText={setWhatsapp}
-                placeholder="+591 70000000"
-                placeholderTextColor={Colors.gray[400]}
-                keyboardType="phone-pad"
-              />
+          </View>
+
+          <Text style={styles.label}>Descripción</Text>
+          <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} placeholder="Describe tu propiedad..." placeholderTextColor={Colors.gray[400]} multiline numberOfLines={4} textAlignVertical="top" />
+
+          <Text style={styles.label}>Características</Text>
+          <View style={styles.specsRow}>
+            <View style={styles.specField}>
+              <Text style={styles.specLabel}>Dormitorios</Text>
+              <TextInput style={styles.specInput} value={bedrooms} onChangeText={setBedrooms} placeholder="3" placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
+            </View>
+            <View style={styles.specField}>
+              <Text style={styles.specLabel}>Baños</Text>
+              <TextInput style={styles.specInput} value={bathrooms} onChangeText={setBathrooms} placeholder="2" placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
+            </View>
+            <View style={styles.specField}>
+              <Text style={styles.specLabel}>Área m²</Text>
+              <TextInput style={styles.specInput} value={areaSqm} onChangeText={setAreaSqm} placeholder="180" placeholderTextColor={Colors.gray[400]} keyboardType="numeric" />
+            </View>
+          </View>
+        </SectionCard>
+
+        <SectionCard icon="location-outline" title="Ubicación">
+          <Text style={styles.label}>Dirección</Text>
+          <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Av. San Martín #123" placeholderTextColor={Colors.gray[400]} />
+
+          <Text style={styles.label}>Ubicación en el mapa</Text>
+          <TouchableOpacity style={styles.mapPickerBtn} onPress={() => setShowMapPicker(true)}>
+            <Ionicons name="location" size={20} color={latitude ? Colors.primary : Colors.gray[400]} />
+            <Text style={[latitude ? styles.pickerText : styles.pickerPlaceholder, { flex: 1 }]}>
+              {latitude ? `${latitude.toFixed(5)}, ${longitude!.toFixed(5)}` : 'Seleccionar en mapa'}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.gray[400]} />
+          </TouchableOpacity>
+
+          <Text style={styles.label}>Zona</Text>
+          <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowZonePicker(true)}>
+            <Text style={selectedZone ? styles.pickerText : styles.pickerPlaceholder}>
+              {selectedZone ? `${selectedZone.name}, ${selectedZone.city}` : 'Seleccionar zona'}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={Colors.gray[400]} />
+          </TouchableOpacity>
+        </SectionCard>
+
+        <SectionCard icon="images-outline" title={`Fotos (${totalImages}/${MAX_IMAGES})`}>
+          <View style={styles.imagesRow}>
+            {existingImages.map((img) => (
+              <View key={img.id} style={styles.imageThumb}>
+                <Image source={{ uri: getImageUrl(img.url)! }} style={styles.thumbImg} />
+                <TouchableOpacity style={styles.removeImgBtn} onPress={() => removeExistingImage(img.id)}>
+                  <Ionicons name="close-circle" size={22} color="#EF4444" />
+                </TouchableOpacity>
+                {img.is_main && (
+                  <View style={styles.mainBadge}>
+                    <Text style={styles.mainBadgeText}>Principal</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+            {newImages.map((img, idx) => (
+              <View key={`new-${idx}`} style={styles.imageThumb}>
+                <Image source={{ uri: img.uri }} style={styles.thumbImg} />
+                <TouchableOpacity style={styles.removeImgBtn} onPress={() => removeNewImage(idx)}>
+                  <Ionicons name="close-circle" size={22} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {totalImages < MAX_IMAGES && (
+              <TouchableOpacity style={styles.addImageBtn} onPress={pickImages}>
+                <Ionicons name="camera-outline" size={28} color={Colors.gray[400]} />
+                <Text style={styles.addImageText}>Añadir</Text>
+              </TouchableOpacity>
             )}
-          </>
-        ) : (
-          <TextInput style={styles.input} value={whatsapp} onChangeText={setWhatsapp} placeholder="+591 70000000" placeholderTextColor={Colors.gray[400]} keyboardType="phone-pad" />
-        )}
+          </View>
+        </SectionCard>
 
-        {/* Images */}
-        <Text style={styles.sectionTitle}>Fotos ({totalImages}/5)</Text>
-        <View style={styles.imagesRow}>
-          {existingImages.map((img) => (
-            <View key={img.id} style={styles.imageThumb}>
-              <Image source={{ uri: getImageUrl(img.url)! }} style={styles.thumbImg} />
-              <TouchableOpacity style={styles.removeImgBtn} onPress={() => removeExistingImage(img.id)}>
-                <Ionicons name="close-circle" size={22} color="#EF4444" />
-              </TouchableOpacity>
-              {img.is_main && (
-                <View style={styles.mainBadge}>
-                  <Text style={styles.mainBadgeText}>Principal</Text>
-                </View>
+        <SectionCard icon="call-outline" title="Contacto">
+          {user?.phone ? (
+            <>
+              <View style={{ gap: Spacing.sm }}>
+                <TouchableOpacity
+                  style={[styles.phoneOption, !useCustomPhone && styles.phoneOptionActive]}
+                  onPress={() => setUseCustomPhone(false)}
+                >
+                  <Ionicons
+                    name={!useCustomPhone ? 'radio-button-on' : 'radio-button-off'}
+                    size={18}
+                    color={!useCustomPhone ? Colors.primary : Colors.gray[400]}
+                  />
+                  <Text style={[styles.phoneOptionText, !useCustomPhone && styles.phoneOptionTextActive]}>
+                    Mi teléfono: {user.phone}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.phoneOption, useCustomPhone && styles.phoneOptionActive]}
+                  onPress={() => setUseCustomPhone(true)}
+                >
+                  <Ionicons
+                    name={useCustomPhone ? 'radio-button-on' : 'radio-button-off'}
+                    size={18}
+                    color={useCustomPhone ? Colors.primary : Colors.gray[400]}
+                  />
+                  <Text style={[styles.phoneOptionText, useCustomPhone && styles.phoneOptionTextActive]}>
+                    Usar otro número
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {useCustomPhone && (
+                <TextInput
+                  style={[styles.input, { marginTop: Spacing.sm }]}
+                  value={whatsapp}
+                  onChangeText={setWhatsapp}
+                  placeholder="+591 70000000"
+                  placeholderTextColor={Colors.gray[400]}
+                  keyboardType="phone-pad"
+                />
               )}
-            </View>
-          ))}
-          {newImages.map((img, idx) => (
-            <View key={`new-${idx}`} style={styles.imageThumb}>
-              <Image source={{ uri: img.uri }} style={styles.thumbImg} />
-              <TouchableOpacity style={styles.removeImgBtn} onPress={() => removeNewImage(idx)}>
-                <Ionicons name="close-circle" size={22} color="#EF4444" />
-              </TouchableOpacity>
-            </View>
-          ))}
-          {totalImages < 5 && (
-            <TouchableOpacity style={styles.addImageBtn} onPress={pickImages}>
-              <Ionicons name="camera-outline" size={28} color={Colors.gray[400]} />
-              <Text style={styles.addImageText}>Añadir</Text>
-            </TouchableOpacity>
+            </>
+          ) : (
+            <TextInput style={styles.input} value={whatsapp} onChangeText={setWhatsapp} placeholder="+591 70000000" placeholderTextColor={Colors.gray[400]} keyboardType="phone-pad" />
           )}
-        </View>
+        </SectionCard>
 
         <TouchableOpacity style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]} onPress={handleSubmit} disabled={saving || !canSubmit}>
-          <Ionicons name="save" size={20} color={Colors.white} />
+          {saving ? <ActivityIndicator size="small" color={Colors.white} /> : <Ionicons name="save" size={20} color={Colors.white} />}
           <Text style={styles.submitBtnText}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -543,12 +579,30 @@ function PickerModal({ visible, title, items, selectedId, onSelect, onClose }: {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.gray[100] },
+  container: { flex: 1, backgroundColor: Colors.gray[50] },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.gray[100], backgroundColor: Colors.white },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.gray[900] },
-  content: { padding: Spacing.xxl, paddingBottom: 60 },
-  sectionTitle: { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.gray[800], marginTop: Spacing.xl, marginBottom: Spacing.md },
+  content: { padding: Spacing.xl, paddingBottom: 60 },
+
+  verifiedNotice: {
+    flexDirection: 'row', gap: Spacing.sm,
+    backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A',
+    borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.lg,
+  },
+  verifiedNoticeText: { flex: 1, fontSize: Fonts.sizes.xs, color: '#92400E', lineHeight: 17 },
+
+  card: {
+    backgroundColor: Colors.white,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.gray[100],
+  },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.md },
+  cardTitle: { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.gray[800] },
+
   opRow: { flexDirection: 'row', gap: Spacing.sm },
   opChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: Radius.md, borderWidth: 1.5, borderColor: Colors.gray[200] },
   opChipText: { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.gray[600] },
@@ -576,7 +630,7 @@ const styles = StyleSheet.create({
   mainBadgeText: { color: Colors.white, fontSize: 9, fontWeight: '700', textAlign: 'center' },
   addImageBtn: { width: 90, height: 90, borderRadius: Radius.md, borderWidth: 1.5, borderColor: Colors.gray[200], borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', gap: 4 },
   addImageText: { fontSize: Fonts.sizes.xs, color: Colors.gray[400] },
-  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: Colors.primary, paddingVertical: 16, borderRadius: Radius.lg, marginTop: Spacing.xxl },
+  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: Colors.primary, paddingVertical: 16, borderRadius: Radius.lg, marginTop: Spacing.sm },
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { color: Colors.white, fontSize: Fonts.sizes.md, fontWeight: '700' },
   mapPickerBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, borderWidth: 1, borderColor: Colors.gray[200], borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: 14 },

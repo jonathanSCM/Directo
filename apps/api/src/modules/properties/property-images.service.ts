@@ -24,7 +24,8 @@ export class PropertyImagesService {
     if (!files || files.length === 0) {
       throw new BadRequestException('No se recibieron imágenes');
     }
-    await this.getOwnedProperty(user, propertyId);
+    const property = await this.getOwnedProperty(user, propertyId);
+    await this.markForReReviewIfVerified(property);
 
     const count = await this.prisma.property_images.count({
       where: { property_id: propertyId },
@@ -102,7 +103,8 @@ export class PropertyImagesService {
   }
 
   async remove(user: AuthUser, propertyId: string, imageId: string) {
-    await this.getOwnedProperty(user, propertyId);
+    const property = await this.getOwnedProperty(user, propertyId);
+    await this.markForReReviewIfVerified(property);
     const image = await this.prisma.property_images.findFirst({
       where: { id: imageId, property_id: propertyId },
     });
@@ -136,6 +138,15 @@ export class PropertyImagesService {
       }
     }
     return { message: 'Imagen eliminada' };
+  }
+
+  /** Cambiar las fotos de una propiedad ya verificada la manda de nuevo a revisión. */
+  private async markForReReviewIfVerified(property: { id: string; approval_status: string }) {
+    if (property.approval_status !== 'approved') return;
+    await this.prisma.properties.update({
+      where: { id: property.id },
+      data: { status: 'pending_approval', approval_status: 'pending', rejection_reason: null },
+    });
   }
 
   private async getOwnedProperty(user: AuthUser, propertyId: string) {
