@@ -12,7 +12,6 @@ import {
   Animated,
   Dimensions,
   Image,
-  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -328,12 +327,6 @@ export default function ExploreScreen() {
     setFlyTarget({ coord: [userLocation.latitude, userLocation.longitude], zoom: 15 });
   };
 
-  const openWhatsApp = (prop: Property) => {
-    const phone = prop.whatsapp ?? prop.users?.phone;
-    if (!phone) return;
-    Linking.openURL(`https://wa.me/${phone.replace(/\D/g, '')}?text=Hola, me interesa "${prop.title}" en DIRECTO`);
-  };
-
   return (
     <View style={styles.container}>
       {/* Full-screen Leaflet map */}
@@ -460,96 +453,93 @@ export default function ExploreScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Left side detail panel — width caps at 420 so on narrow (mobile web)
-          viewports it naturally becomes a full-width overlay instead.
+      {/* Left side detail panel — tarjeta flotante centrada verticalmente,
+          en vez de una barra que se estira toda la altura y deja espacio
+          vacío abajo cuando el contenido es corto. Ancho caps at 420 so on
+          narrow (mobile web) viewports it naturally becomes a full-width
+          overlay instead.
           En escritorio NO bloquea el mapa: se puede seguir explorando y
           seleccionar otra propiedad reemplaza el contenido del panel. */}
-      <Animated.View
-        style={[
-          styles.detailPanel,
-          {
-            width: PANEL_WIDTH,
-            transform: [{
-              translateX: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [-PANEL_WIDTH, 0] }),
-            }],
-          },
-        ]}
-        pointerEvents={detailProp ? 'auto' : 'none'}
-      >
-        {detailProp && (() => {
-          const mainImg = getMainImage(detailProp.property_images);
-          const liked = isFavorite(detailProp.id);
-          return (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.detailImageWrap}>
-                {mainImg ? (
-                  <Image source={{ uri: mainImg }} style={styles.detailImage} />
-                ) : (
-                  <View style={[styles.detailImage, styles.noImage]}>
-                    <Ionicons name="image-outline" size={48} color={Colors.gray[300]} />
-                  </View>
-                )}
-                <TouchableOpacity style={styles.detailCloseBtn} onPress={() => setDetailProp(null)}>
-                  <Ionicons name="close" size={22} color={Colors.white} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.detailHeartBtn} onPress={() => toggleFavorite(detailProp.id)}>
-                  <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? '#EF4444' : Colors.white} />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.detailBody}>
-                <View style={styles.detailTopRow}>
-                  <View style={[styles.opTag, { backgroundColor: opColor(detailProp.operation) }]}>
+      <View style={styles.detailPanelWrap} pointerEvents={detailProp ? 'box-none' : 'none'}>
+        <Animated.View
+          style={[
+            styles.detailPanel,
+            {
+              width: PANEL_WIDTH,
+              transform: [{
+                translateX: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [-PANEL_WIDTH - Spacing.xl, 0] }),
+              }],
+            },
+          ]}
+        >
+          {detailProp && (() => {
+            const mainImg = getMainImage(detailProp.property_images);
+            const liked = isFavorite(detailProp.id);
+            return (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.detailImageWrap}>
+                  {mainImg ? (
+                    <Image source={{ uri: mainImg }} style={styles.detailImage} />
+                  ) : (
+                    <View style={[styles.detailImage, styles.noImage]}>
+                      <Ionicons name="image-outline" size={40} color={Colors.gray[300]} />
+                      <Text style={styles.noImageText}>Sin fotos todavía</Text>
+                    </View>
+                  )}
+                  <TouchableOpacity style={styles.detailCloseBtn} onPress={() => setDetailProp(null)}>
+                    <Ionicons name="close" size={22} color={Colors.white} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.detailHeartBtn} onPress={() => toggleFavorite(detailProp.id)}>
+                    <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? '#EF4444' : Colors.white} />
+                  </TouchableOpacity>
+                  <View style={[styles.opTag, styles.opTagFloating, { backgroundColor: opColor(detailProp.operation) }]}>
                     <Text style={styles.opTagText}>{opLabel(detailProp.operation)}</Text>
                   </View>
+                </View>
+                <View style={styles.detailBody}>
                   <Text style={styles.detailPrice}>{formatPrice(detailProp.price, detailProp.currency)}</Text>
-                </View>
-                <Text style={styles.detailTitle}>{detailProp.title}</Text>
-                <View style={styles.detailAddressRow}>
-                  <Ionicons name="location-outline" size={14} color={Colors.gray[400]} />
-                  <Text style={styles.detailAddress}>
-                    {detailProp.zones ? `${detailProp.zones.name}, ${detailProp.zones.city}` : detailProp.address}
-                  </Text>
-                </View>
-                <View style={styles.detailSpecsRow}>
-                  {detailProp.bedrooms != null && (
-                    <View style={styles.detailSpecItem}>
-                      <Ionicons name="bed-outline" size={16} color={Colors.gray[600]} />
-                      <Text style={styles.detailSpecText}>{detailProp.bedrooms} hab.</Text>
+                  <Text style={styles.detailTitle}>{detailProp.title}</Text>
+                  <View style={styles.detailAddressRow}>
+                    <Ionicons name="location-outline" size={14} color={Colors.gray[400]} />
+                    <Text style={styles.detailAddress}>
+                      {detailProp.zones ? `${detailProp.zones.name}, ${detailProp.zones.city}` : detailProp.address}
+                    </Text>
+                  </View>
+                  {(detailProp.bedrooms != null || detailProp.bathrooms != null || detailProp.area_m2 != null) && (
+                    <View style={styles.detailSpecsRow}>
+                      {detailProp.bedrooms != null && (
+                        <View style={styles.detailSpecItem}>
+                          <Ionicons name="bed-outline" size={16} color={Colors.gray[600]} />
+                          <Text style={styles.detailSpecText}>{detailProp.bedrooms} hab.</Text>
+                        </View>
+                      )}
+                      {detailProp.bathrooms != null && (
+                        <View style={styles.detailSpecItem}>
+                          <Ionicons name="water-outline" size={16} color={Colors.gray[600]} />
+                          <Text style={styles.detailSpecText}>{detailProp.bathrooms} baños</Text>
+                        </View>
+                      )}
+                      {detailProp.area_m2 != null && (
+                        <View style={styles.detailSpecItem}>
+                          <Ionicons name="resize-outline" size={16} color={Colors.gray[600]} />
+                          <Text style={styles.detailSpecText}>{detailProp.area_m2} m²</Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                  {detailProp.bathrooms != null && (
-                    <View style={styles.detailSpecItem}>
-                      <Ionicons name="water-outline" size={16} color={Colors.gray[600]} />
-                      <Text style={styles.detailSpecText}>{detailProp.bathrooms} baños</Text>
-                    </View>
-                  )}
-                  {detailProp.area_m2 != null && (
-                    <View style={styles.detailSpecItem}>
-                      <Ionicons name="resize-outline" size={16} color={Colors.gray[600]} />
-                      <Text style={styles.detailSpecText}>{detailProp.area_m2} m²</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.detailActions}>
-                  {(detailProp.whatsapp || detailProp.users?.phone) && (
-                    <TouchableOpacity style={styles.detailWaBtn} onPress={() => openWhatsApp(detailProp)}>
-                      <Ionicons name="logo-whatsapp" size={18} color={Colors.white} />
-                      <Text style={styles.detailWaText}>WhatsApp</Text>
-                    </TouchableOpacity>
                   )}
                   <TouchableOpacity
                     style={styles.detailViewBtn}
                     onPress={() => router.push(`/property/${detailProp.slug}`)}
                   >
                     <Text style={styles.detailViewText}>Ver detalle completo</Text>
-                    <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
+                    <Ionicons name="arrow-forward" size={16} color={Colors.white} />
                   </TouchableOpacity>
                 </View>
-              </View>
-            </ScrollView>
-          );
-        })()}
-      </Animated.View>
+              </ScrollView>
+            );
+          })()}
+        </Animated.View>
+      </View>
 
       <FilterModal
         visible={showFilters}
@@ -687,22 +677,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  noImage: { backgroundColor: Colors.gray[100], justifyContent: 'center', alignItems: 'center' },
+  noImage: { backgroundColor: Colors.gray[100], justifyContent: 'center', alignItems: 'center', gap: 6 },
+  noImageText: { fontSize: Fonts.sizes.xs, color: Colors.gray[400], fontWeight: '500' },
   opTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   opTagText: { color: Colors.white, fontSize: 10, fontWeight: '700' },
+  opTagFloating: { position: 'absolute', left: Spacing.lg, bottom: Spacing.lg, paddingHorizontal: 10, paddingVertical: 4 },
 
-  // Left side detail panel (caps at 420px; on narrow/mobile web viewports
-  // this equals the screen width, becoming a natural full-width overlay)
-  detailPanel: {
+  // Contenedor invisible que centra verticalmente la tarjeta flotante; el mapa
+  // sigue siendo interactuable a los costados (pointerEvents: box-none).
+  detailPanelWrap: {
     position: 'absolute',
     top: 0,
     left: 0,
     bottom: 0,
+    right: 0,
     zIndex: 2000,
-    backgroundColor: Colors.white,
-    boxShadow: '4px 0 24px rgba(0,0,0,0.18)' as any,
+    justifyContent: 'center',
+    paddingLeft: Spacing.xl,
   },
-  detailImageWrap: { width: '100%', height: 260 },
+  // Tarjeta flotante (caps at 420px; on narrow/mobile web viewports this
+  // equals the screen width, becoming a natural full-width overlay)
+  detailPanel: {
+    maxHeight: '82%',
+    backgroundColor: Colors.white,
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    boxShadow: '0 20px 56px rgba(0,0,0,0.28)' as any,
+  },
+  detailImageWrap: { width: '100%', height: 240 },
   detailImage: { width: '100%', height: '100%' as any },
   detailCloseBtn: {
     position: 'absolute',
@@ -729,39 +731,24 @@ const styles = StyleSheet.create({
     cursor: 'pointer' as any,
   },
   detailBody: { padding: Spacing.xl },
-  detailTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  detailPrice: { fontSize: Fonts.sizes.xl, fontWeight: '800', color: Colors.gray[900] },
+  detailPrice: { fontSize: Fonts.sizes.xxl, fontWeight: '800', color: Colors.gray[900], marginBottom: 4 },
   detailTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.gray[900], marginBottom: 6 },
   detailAddressRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.lg },
   detailAddress: { fontSize: Fonts.sizes.sm, color: Colors.gray[500] },
   detailSpecsRow: { flexDirection: 'row', gap: Spacing.lg, marginBottom: Spacing.xl },
   detailSpecItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   detailSpecText: { fontSize: Fonts.sizes.sm, color: Colors.gray[600], fontWeight: '500' },
-  detailActions: { flexDirection: 'row', gap: Spacing.sm },
-  detailWaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#25D366',
-    paddingVertical: 12,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.lg,
-    cursor: 'pointer' as any,
-  },
-  detailWaText: { color: Colors.white, fontSize: Fonts.sizes.sm, fontWeight: '700' },
   detailViewBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: Colors.primaryLight,
-    paddingVertical: 12,
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
     borderRadius: Radius.lg,
     cursor: 'pointer' as any,
   },
-  detailViewText: { color: Colors.primary, fontSize: Fonts.sizes.sm, fontWeight: '700' },
+  detailViewText: { color: Colors.white, fontSize: Fonts.sizes.sm, fontWeight: '700' },
 });
 
 // Hover preview card shown above a marker
