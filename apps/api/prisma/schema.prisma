@@ -61,6 +61,7 @@ model payments {
   id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id               String         @db.Uuid
   subscription_id       String?        @db.Uuid
+  property_id           String?        @db.Uuid
   amount                Decimal        @db.Decimal(12, 2)
   currency              String         @default("USD") @db.VarChar(3)
   method                payment_method
@@ -73,12 +74,14 @@ model payments {
   provider              String         @default("manual") @db.VarChar(40)
   metadata              Json           @default("{}")
   subscriptions         subscriptions? @relation(fields: [subscription_id], references: [id], onUpdate: NoAction)
+  properties            properties?    @relation(fields: [property_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   users                 users          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([method], map: "idx_payments_method")
   @@index([paid_at(sort: Desc)], map: "idx_payments_paid_at")
   @@index([status], map: "idx_payments_status")
   @@index([subscription_id], map: "idx_payments_subscription")
+  @@index([property_id], map: "idx_payments_property")
   @@index([user_id], map: "idx_payments_user")
   @@index([transaction_reference], map: "idx_payments_reference")
 }
@@ -121,6 +124,7 @@ model properties {
   property_images       property_images[]
   support_conversations support_conversations[]
   visit_requests        visit_requests[]
+  payments              payments[]
 
   @@index([approval_status], map: "idx_properties_approval")
   @@index([bedrooms], map: "idx_properties_bedrooms")

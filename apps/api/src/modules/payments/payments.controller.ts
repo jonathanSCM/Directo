@@ -36,6 +36,15 @@ export class PaymentsController {
     return this.paymentsService.create(userId, dto);
   }
 
+  @Post('property/:propertyId/extra-charge')
+  @ApiOperation({ summary: 'Generar cobro QR para publicar una propiedad que excede el cupo del plan' })
+  createPropertyExtraCharge(
+    @CurrentUser('id') userId: string,
+    @Param('propertyId', ParseUUIDPipe) propertyId: string,
+  ) {
+    return this.paymentsService.createPropertyExtraCharge(userId, propertyId);
+  }
+
   @Post(':id/upload-proof')
   @UseInterceptors(FileInterceptor('proof', proofMulterOptions))
   @ApiConsumes('multipart/form-data')
@@ -58,5 +67,15 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Historial de mis pagos' })
   mine(@CurrentUser('id') userId: string) {
     return this.paymentsService.listMine(userId);
+  }
+
+  // Debe ir después de rutas literales como 'me' — si no, ':id' las captura primero.
+  @Get(':id')
+  @ApiOperation({ summary: 'Ver un pago propio (para seguir su estado)' })
+  getOne(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.paymentsService.getOwn(userId, id);
   }
 }

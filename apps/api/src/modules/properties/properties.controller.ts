@@ -105,6 +105,13 @@ export class PropertiesController {
   }
 
   @ApiBearerAuth()
+  @Get(':id/extra-charge-eligibility')
+  @ApiOperation({ summary: '¿Se puede desbloquear esta propiedad pausada pagando un extra?' })
+  extraChargeEligibility(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.propertiesService.getExtraChargeEligibility(user, id);
+  }
+
+  @ApiBearerAuth()
   @Delete(':id')
   @ApiOperation({ summary: 'Dar de baja una publicación' })
   remove(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {

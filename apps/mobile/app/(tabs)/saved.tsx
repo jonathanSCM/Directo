@@ -22,6 +22,7 @@ import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import SubscriptionBanner from '../../src/components/subscription/SubscriptionBanner';
 import SubscriptionGate from '../../src/components/subscription/SubscriptionGate';
+import ExtraPropertyPaymentModal from '../../src/components/subscription/ExtraPropertyPaymentModal';
 import RoleBadge from '../../src/components/RoleBadge';
 
 interface Property {
@@ -239,6 +240,7 @@ function OwnerView() {
   const [refreshing, setRefreshing] = useState(false);
   const [showSubGate, setShowSubGate] = useState(false);
   const [subGateReason, setSubGateReason] = useState<'no_subscription' | 'limit_reached'>('no_subscription');
+  const [extraCharge, setExtraCharge] = useState<{ id: string; title: string; amount: number; currency: string } | null>(null);
 
   const fetchMine = useCallback(async () => {
     try {
@@ -286,7 +288,16 @@ function OwnerView() {
       isPublished,
       async () => {
         try {
-          await api.patch(`/properties/${prop.id}/${action}`);
+          const { data } = await api.patch(`/properties/${prop.id}/${action}`);
+          // Si intentábamos mostrarla y quedó pausada, puede ser el límite del plan.
+          if (!isPublished && data.status === 'paused') {
+            try {
+              const { data: elig } = await api.get(`/properties/${prop.id}/extra-charge-eligibility`);
+              if (elig.eligible) {
+                setExtraCharge({ id: prop.id, title: prop.title, amount: elig.amount, currency: elig.currency });
+              }
+            } catch {}
+          }
           fetchMine();
         } catch (e: any) {
           const msg = e.response?.data?.message;
@@ -494,6 +505,15 @@ function OwnerView() {
         visible={showSubGate}
         onClose={() => setShowSubGate(false)}
         reason={subGateReason}
+      />
+      <ExtraPropertyPaymentModal
+        visible={!!extraCharge}
+        propertyId={extraCharge?.id ?? null}
+        propertyTitle={extraCharge?.title}
+        amount={extraCharge?.amount}
+        currency={extraCharge?.currency}
+        onClose={() => setExtraCharge(null)}
+        onPaid={fetchMine}
       />
     </View>
   );

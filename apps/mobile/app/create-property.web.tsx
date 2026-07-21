@@ -19,6 +19,7 @@ import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-lea
 import { useAuth } from '../src/context/AuthContext';
 import { Colors, Fonts, Radius, Spacing } from '../src/constants/theme';
 import api from '../src/services/api';
+import ExtraPropertyPaymentModal from '../src/components/subscription/ExtraPropertyPaymentModal';
 
 // ── Leaflet CSS ──────────────────────────────────────────────────────────────
 function useLeafletCSS() {
@@ -135,6 +136,7 @@ export default function CreatePropertyWeb() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [extraCharge, setExtraCharge] = useState<{ id: string; title: string; amount: number; currency: string } | null>(null);
 
   const [selectedImages, setSelectedImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
 
@@ -239,6 +241,18 @@ export default function CreatePropertyWeb() {
       // Envía la propiedad a revisión/publicación (puede quedar en pausa si supera el límite del plan).
       const { data: published } = await api.patch(`/properties/${created.id}/publish`);
       const finalStatus = published.status;
+
+      if (finalStatus === 'paused') {
+        try {
+          const { data: elig } = await api.get(`/properties/${created.id}/extra-charge-eligibility`);
+          if (elig.eligible) {
+            setExtraCharge({ id: created.id, title: title.trim(), amount: elig.amount, currency: elig.currency });
+            setSaving(false);
+            return;
+          }
+        } catch {}
+      }
+
       const message =
         finalStatus === 'paused'
           ? 'Tu propiedad fue aprobada, pero quedó en pausa porque supera el límite de tu plan. Amplía tu plan para publicarla.'
@@ -677,6 +691,18 @@ export default function CreatePropertyWeb() {
         selectedId={zoneId}
         onSelect={(id) => { setZoneId(id); setShowZonePicker(false); }}
         onClose={() => setShowZonePicker(false)}
+      />
+      <ExtraPropertyPaymentModal
+        visible={!!extraCharge}
+        propertyId={extraCharge?.id ?? null}
+        propertyTitle={extraCharge?.title}
+        amount={extraCharge?.amount}
+        currency={extraCharge?.currency}
+        onClose={() => {
+          setExtraCharge(null);
+          router.canGoBack() ? router.back() : router.replace('/(tabs)/saved');
+        }}
+        onPaid={() => {}}
       />
     </View>
   );

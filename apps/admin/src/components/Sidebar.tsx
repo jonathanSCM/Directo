@@ -25,6 +25,9 @@ export default function Sidebar() {
         <NavLink to="/subscriptions" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <IconCard /> Suscripciones
         </NavLink>
+        <NavLink to="/payments" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <IconCard /> Pagos
+        </NavLink>
         <NavLink to="/support" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <IconSupport /> Soporte
         </NavLink>

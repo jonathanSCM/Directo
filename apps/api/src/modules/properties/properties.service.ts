@@ -184,6 +184,29 @@ export class PropertiesService {
     });
   }
 
+  /**
+   * ¿Esta propiedad pausada se puede desbloquear pagando un extra? Solo si
+   * está pausada, ya verificada, y realmente es el límite del plan lo que
+   * la bloquea (no una pausa manual del dueño).
+   */
+  async getExtraChargeEligibility(user: AuthUser, id: string) {
+    const prop = await this.getOwnedOrThrow(user, id);
+    if (prop.status !== 'paused' || prop.approval_status !== 'approved') {
+      return { eligible: false };
+    }
+    const withinLimit = await this.subscriptions.isWithinPropertyLimit(user.id, id);
+    if (withinLimit) return { eligible: false };
+
+    const sub = await this.subscriptions.getActiveSubscription(user.id);
+    if (!sub) return { eligible: false };
+
+    return {
+      eligible: true,
+      amount: Number(sub.subscription_plans.extra_property_price),
+      currency: sub.subscription_plans.currency,
+    };
+  }
+
   async unpublish(user: AuthUser, id: string) {
     const prop = await this.getOwnedOrThrow(user, id);
     if (prop.status !== 'published') {

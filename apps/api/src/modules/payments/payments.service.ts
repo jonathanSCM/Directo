@@ -98,6 +98,85 @@ export class PaymentsService {
     return { payment: updated, checkout: charge };
   }
 
+  /**
+   * Cobro puntual por publicar una propiedad que excede el cupo del plan.
+   * Reutiliza el mismo flujo QR + comprobante + aprobación admin que las
+   * suscripciones, pero apuntando a la propiedad en vez de a la suscripción.
+   */
+  async createPropertyExtraCharge(userId: string, propertyId: string) {
+    const property = await this.prisma.properties.findUnique({
+      where: { id: propertyId },
+    });
+    if (!property || property.owner_id !== userId) {
+      throw new NotFoundException('Propiedad no encontrada');
+    }
+    if (property.status !== 'paused' || property.approval_status !== 'approved') {
+      throw new BadRequestException(
+        'Esta propiedad no está en condición de pagarse como extra',
+      );
+    }
+    const sub = await this.subscriptions.getActiveSubscription(userId);
+    if (!sub) {
+      throw new BadRequestException('Necesitas una suscripción activa');
+    }
+    const withinLimit = await this.subscriptions.isWithinPropertyLimit(
+      userId,
+      propertyId,
+    );
+    if (withinLimit) {
+      throw new BadRequestException(
+        'Esta propiedad no está bloqueada por el límite de tu plan',
+      );
+    }
+
+    // Evita generar cobros duplicados si ya hay uno pendiente para la misma propiedad.
+    const existing = await this.prisma.payments.findFirst({
+      where: { property_id: propertyId, status: { in: ['pending', 'in_review'] } },
+    });
+    if (existing) {
+      return { payment: existing, checkout: existing.metadata };
+    }
+
+    const amount = Number(sub.subscription_plans.extra_property_price);
+    const currency = sub.subscription_plans.currency;
+    const method = 'qr';
+    const provider = this.resolveProvider(method);
+    const reference = this.newReference();
+
+    const payment = await this.prisma.payments.create({
+      data: {
+        user_id: userId,
+        property_id: propertyId,
+        amount,
+        currency,
+        method: method as never,
+        provider: provider.name,
+        transaction_reference: reference,
+        status: 'pending',
+      },
+    });
+
+    const charge = await provider.createCharge({
+      paymentId: payment.id,
+      amount,
+      currency,
+      method,
+      reference,
+      description: `Propiedad extra: ${property.title}`,
+    });
+
+    const updated = await this.prisma.payments.update({
+      where: { id: payment.id },
+      data: { metadata: charge as unknown as Prisma.InputJsonValue },
+    });
+
+    return { payment: updated, checkout: charge };
+  }
+
+  async getOwn(userId: string, paymentId: string) {
+    return this.getOwnPayment(userId, paymentId);
+  }
+
   async uploadProof(
     userId: string,
     paymentId: string,
@@ -132,6 +211,7 @@ export class PaymentsService {
       include: {
         users: { select: { id: true, name: true, email: true } },
         subscriptions: { include: { subscription_plans: true } },
+        properties: { select: { id: true, title: true, slug: true } },
       },
       orderBy: { created_at: 'desc' },
     });
@@ -169,12 +249,34 @@ export class PaymentsService {
       }
     }
 
+    let propertyPublished = false;
+    if (payment.property_id) {
+      try {
+        const prop = await this.prisma.properties.findUnique({
+          where: { id: payment.property_id },
+        });
+        if (prop) {
+          await this.prisma.properties.update({
+            where: { id: prop.id },
+            data: { status: 'published', published_at: prop.published_at ?? new Date() },
+          });
+          propertyPublished = true;
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Pago ${paymentId} confirmado pero no se pudo publicar la propiedad: ${String(err)}`,
+        );
+      }
+    }
+
     await this.notify(
       payment.user_id,
       'payment_confirmed',
       'Pago confirmado',
-      `Tu pago de ${payment.amount} ${payment.currency} fue confirmado.`,
-      { payment_id: payment.id, subscription_id: payment.subscription_id },
+      propertyPublished
+        ? `Tu pago de ${payment.amount} ${payment.currency} fue confirmado. Tu propiedad ya está publicada.`
+        : `Tu pago de ${payment.amount} ${payment.currency} fue confirmado.`,
+      { payment_id: payment.id, subscription_id: payment.subscription_id, property_id: payment.property_id },
     );
     return updated;
   }
@@ -194,7 +296,9 @@ export class PaymentsService {
       payment.user_id,
       'payment_rejected',
       'Pago rechazado',
-      `Tu pago de ${payment.amount} ${payment.currency} fue rechazado.`,
+      payment.property_id
+        ? `Tu comprobante para publicar la propiedad extra fue rechazado. Vuelve a intentar el pago.`
+        : `Tu pago de ${payment.amount} ${payment.currency} fue rechazado.`,
       { payment_id: payment.id },
     );
     return updated;

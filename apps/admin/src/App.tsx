@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Properties from './pages/Properties';
 import Users from './pages/Users';
 import Subscriptions from './pages/Subscriptions';
+import Payments from './pages/Payments';
 import Support from './pages/Support';
 
 function ProtectedLayout() {
@@ -26,6 +27,7 @@ function ProtectedLayout() {
           <Route path="properties" element={<Properties />} />
           <Route path="users" element={<Users />} />
           <Route path="subscriptions" element={<Subscriptions />} />
+          <Route path="payments" element={<Payments />} />
           <Route path="support" element={<Support />} />
         </Routes>
       </main>

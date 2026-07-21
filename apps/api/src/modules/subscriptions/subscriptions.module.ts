@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AdminSubscriptionsController } from './admin-subscriptions.controller';
 import { PlansController } from './plans.controller';
 import { PlansService } from './plans.service';
+import { SubscriptionExpiryCron } from './subscription-expiry.cron';
 import { SubscriptionsController } from './subscriptions.controller';
 import { SubscriptionsService } from './subscriptions.service';
 
@@ -11,7 +12,7 @@ import { SubscriptionsService } from './subscriptions.service';
     SubscriptionsController,
     AdminSubscriptionsController,
   ],
-  providers: [PlansService, SubscriptionsService],
+  providers: [PlansService, SubscriptionsService, SubscriptionExpiryCron],
   exports: [SubscriptionsService],
 })
 export class SubscriptionsModule {}
