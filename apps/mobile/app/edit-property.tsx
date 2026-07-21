@@ -194,7 +194,7 @@ export default function EditPropertyScreen() {
       }
 
       Alert.alert('Guardado', 'La propiedad fue actualizada correctamente.', [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/saved')) },
       ]);
     } catch (e: any) {
       const msg = e.response?.data?.message;
@@ -263,7 +263,7 @@ export default function EditPropertyScreen() {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/saved'))} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.gray[900]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Editar propiedad</Text>

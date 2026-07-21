@@ -210,7 +210,9 @@ export default function CreatePropertyScreen() {
           ? 'Tu propiedad ya está publicada.'
           : 'Tu propiedad fue enviada para revisión. Aparecerá publicada una vez aprobada.';
 
-      Alert.alert('Propiedad creada', message, [{ text: 'OK', onPress: () => router.back() }]);
+      Alert.alert('Propiedad creada', message, [
+        { text: 'OK', onPress: () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/saved')) },
+      ]);
     } catch (e: any) {
       const msg = e.response?.data?.message;
       const msgStr = typeof msg === 'string' ? msg : Array.isArray(msg) ? msg[0] : '';
@@ -277,7 +279,10 @@ export default function CreatePropertyScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/saved'))}
+          style={styles.backBtn}
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.gray[900]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Publicar propiedad</Text>

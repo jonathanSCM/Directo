@@ -44,7 +44,7 @@ export default function EditProfileScreen() {
       });
       if (refreshUser) await refreshUser();
       Alert.alert('Listo', 'Tu perfil ha sido actualizado', [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/profile')) },
       ]);
     } catch {
       Alert.alert('Error', 'No se pudo actualizar el perfil');
@@ -61,7 +61,7 @@ export default function EditProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/profile'))} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.gray[900]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Editar perfil</Text>

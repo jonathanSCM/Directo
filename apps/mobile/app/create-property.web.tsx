@@ -196,8 +196,18 @@ export default function CreatePropertyWeb() {
         });
       }
 
-      setSuccess('Tu propiedad fue enviada para revisión. Aparecerá publicada una vez aprobada.');
-      setTimeout(() => router.back(), 2500);
+      // Envía la propiedad a revisión/publicación (puede quedar en pausa si supera el límite del plan).
+      const { data: published } = await api.patch(`/properties/${created.id}/publish`);
+      const finalStatus = published.status;
+      const message =
+        finalStatus === 'paused'
+          ? 'Tu propiedad fue aprobada, pero quedó en pausa porque supera el límite de tu plan. Amplía tu plan para publicarla.'
+          : finalStatus === 'published'
+          ? 'Tu propiedad ya está publicada.'
+          : 'Tu propiedad fue enviada para revisión. Aparecerá publicada una vez aprobada.';
+
+      setSuccess(message);
+      setTimeout(() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/saved')), 2500);
     } catch (e: any) {
       const msg = e.response?.data?.message;
       setError(typeof msg === 'string' ? msg : Array.isArray(msg) ? msg[0] : 'No se pudo crear la propiedad');
@@ -264,7 +274,10 @@ export default function CreatePropertyWeb() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/saved'))}
+          style={styles.backBtn}
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.gray[900]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Publicar propiedad</Text>

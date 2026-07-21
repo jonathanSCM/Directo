@@ -185,7 +185,7 @@ export default function EditPropertyWeb() {
       }
 
       setSuccess('La propiedad fue actualizada correctamente.');
-      setTimeout(() => router.back(), 2000);
+      setTimeout(() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/saved')), 2000);
     } catch (e: any) {
       const msg = e.response?.data?.message;
       setError(typeof msg === 'string' ? msg : Array.isArray(msg) ? msg[0] : 'No se pudo actualizar');
@@ -241,7 +241,7 @@ export default function EditPropertyWeb() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/saved'))} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.gray[900]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Editar propiedad</Text>
