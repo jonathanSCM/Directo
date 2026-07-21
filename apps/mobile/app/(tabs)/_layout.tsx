@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/context/AuthContext';
 import { Colors, Radius } from '../../src/constants/theme';
 import OwnerSupportFAB from '../../src/components/support/OwnerSupportChat';
@@ -38,6 +39,7 @@ export default function TabsLayout() {
   const { user } = useAuth();
   const isOwner = user?.active_role === 'owner';
   const { accent, accentLight } = useRoleColors();
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={{ flex: 1 }}>
@@ -56,9 +58,9 @@ export default function TabsLayout() {
             backgroundColor: Colors.white,
           },
           default: {
-            height: 85,
+            height: 57 + Math.max(insets.bottom, 10),
             paddingTop: 10,
-            paddingBottom: 28,
+            paddingBottom: Math.max(insets.bottom, 10),
             borderTopWidth: 1,
             borderTopColor: Colors.gray[100],
             backgroundColor: Colors.white,

@@ -88,6 +88,8 @@ export default function Subscriptions() {
 
   // Subscription filter
   const [statusFilter, setStatusFilter] = useState('');
+  const [editingCountId, setEditingCountId] = useState<string | null>(null);
+  const [countDraft, setCountDraft] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -208,6 +210,15 @@ export default function Subscriptions() {
       loadData();
     } catch (e: any) {
       alert(e.response?.data?.message || 'Error al cancelar');
+    }
+  };
+
+  const updatePropertyCount = async (id: string, count: number) => {
+    try {
+      await api.patch(`/admin/subscriptions/${id}/property-count`, { property_count: count });
+      loadData();
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Error al actualizar el cupo');
     }
   };
 
@@ -382,7 +393,47 @@ export default function Subscriptions() {
                         <><br /><span className="text-muted" style={{ fontSize: 12 }}>↻ renueva la actual</span></>
                       )}
                     </td>
-                    <td>{s.property_count ?? '—'}</td>
+                    <td>
+                      {editingCountId === s.id ? (
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={countDraft}
+                            onChange={(e) => setCountDraft(e.target.value)}
+                            style={{ width: 56, padding: '2px 6px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 13 }}
+                            autoFocus
+                          />
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => {
+                              const n = Number(countDraft);
+                              if (Number.isInteger(n) && n >= 1 && n <= 100) {
+                                updatePropertyCount(s.id, n);
+                                setEditingCountId(null);
+                              } else {
+                                alert('Cantidad inválida (1-100)');
+                              }
+                            }}
+                          >
+                            ✓
+                          </button>
+                          <button className="btn btn-sm btn-outline" onClick={() => setEditingCountId(null)}>✕</button>
+                        </div>
+                      ) : (
+                        <span
+                          style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
+                          title="Clic para corregir el cupo de esta suscripción"
+                          onClick={() => {
+                            setEditingCountId(s.id);
+                            setCountDraft(String(s.property_count ?? 1));
+                          }}
+                        >
+                          {s.property_count ?? '—'}
+                        </span>
+                      )}
+                    </td>
                     <td><span className={`badge ${badge.cls}`}>{badge.label}</span></td>
                     <td>{fmt(s.start_date)}</td>
                     <td>{fmt(s.end_date)}</td>

@@ -285,6 +285,25 @@ export class SubscriptionsService {
     return sub;
   }
 
+  /**
+   * Corrige el cupo de propiedades de una suscripción ya existente. `property_count`
+   * se fija al activar/renovar y NO cambia solo porque se edite `included_properties`
+   * del plan después — esto es lo único que lo actualiza para una suscripción puntual.
+   */
+  async adminUpdatePropertyCount(id: string, count: number) {
+    this.assertValidCount(count);
+    const sub = await this.prisma.subscriptions.findUnique({ where: { id } });
+    if (!sub) throw new NotFoundException('Suscripción no encontrada');
+    return this.prisma.subscriptions.update({
+      where: { id },
+      data: { property_count: count },
+      include: {
+        subscription_plans: true,
+        users: { select: { id: true, name: true, email: true } },
+      },
+    });
+  }
+
   adminList(status?: string, userId?: string) {
     return this.prisma.subscriptions.findMany({
       where: {

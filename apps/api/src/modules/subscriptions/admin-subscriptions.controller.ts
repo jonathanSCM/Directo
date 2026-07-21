@@ -11,6 +11,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminAssignSubscriptionDto } from './dto/admin-assign-subscription.dto';
+import { UpdatePropertyCountDto } from './dto/update-property-count.dto';
 import { SubscriptionsService } from './subscriptions.service';
 
 @ApiTags('subscriptions')
@@ -44,5 +45,20 @@ export class AdminSubscriptionsController {
   @ApiOperation({ summary: 'Cancelar suscripción' })
   cancel(@Param('id', ParseUUIDPipe) id: string) {
     return this.subscriptionsService.cancel(id);
+  }
+
+  @Patch(':id/property-count')
+  @ApiOperation({
+    summary:
+      'Corregir el cupo de propiedades de una suscripción existente (no cambia solo por editar el plan)',
+  })
+  updatePropertyCount(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePropertyCountDto,
+  ) {
+    return this.subscriptionsService.adminUpdatePropertyCount(
+      id,
+      dto.property_count,
+    );
   }
 }
