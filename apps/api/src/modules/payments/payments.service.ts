@@ -299,15 +299,35 @@ export class PaymentsService {
         const prop = await this.prisma.properties.findUnique({
           where: { id: payment.property_id },
         });
-        // Solo publica si sigue pausada: si el dueño la dio de baja, la
-        // vendió, o ya la publicó por otra vía mientras el pago estaba
-        // pendiente, no hay que pisar ese estado más reciente.
-        if (prop && prop.status === 'paused') {
-          await this.prisma.properties.update({
-            where: { id: prop.id },
-            data: { status: 'published', published_at: prop.published_at ?? new Date() },
+        if (prop) {
+          // El cobro compra un cupo PERMANENTE (para el resto del período de
+          // la suscripción), no solo desbloquea esta propiedad puntual una
+          // vez — así el dueño puede ocultarla/mostrarla, o usar el cupo en
+          // cualquier otra propiedad, sin pagar de nuevo.
+          const sub = await this.prisma.subscriptions.findFirst({
+            where: { user_id: prop.owner_id, status: 'active' },
           });
-          propertyPublished = true;
+          if (sub) {
+            await this.prisma.subscriptions.update({
+              where: { id: sub.id },
+              data: { property_count: { increment: 1 } },
+            });
+          } else {
+            this.logger.warn(
+              `Pago ${paymentId} confirmado pero el dueño ya no tiene suscripción activa: no se aumentó el cupo`,
+            );
+          }
+
+          // Solo publica si sigue pausada: si el dueño la dio de baja, la
+          // vendió, o ya la publicó por otra vía mientras el pago estaba
+          // pendiente, no hay que pisar ese estado más reciente.
+          if (prop.status === 'paused') {
+            await this.prisma.properties.update({
+              where: { id: prop.id },
+              data: { status: 'published', published_at: prop.published_at ?? new Date() },
+            });
+            propertyPublished = true;
+          }
         }
       } catch (err) {
         this.logger.warn(
