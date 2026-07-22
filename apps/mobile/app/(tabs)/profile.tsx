@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   Alert,
   Dimensions,
@@ -18,6 +18,7 @@ import { useNotifications } from '../../src/context/NotificationContext';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import { useRoleColors } from '../../src/hooks/useRoleColors';
 import RoleBadge from '../../src/components/RoleBadge';
+import api from '../../src/services/api';
 
 const IS_DESKTOP = Dimensions.get('window').width >= 768;
 
@@ -27,6 +28,17 @@ export default function ProfileScreen() {
   const { count: savedCount } = useFavorites();
   const { unreadCount } = useNotifications();
   const { accent, accentLight } = useRoleColors();
+  const isOwner = user?.active_role === 'owner';
+  const [ownerSavesCount, setOwnerSavesCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isOwner) return;
+      api.get('/properties/mine/saves-count')
+        .then(({ data }) => setOwnerSavesCount(data.count ?? 0))
+        .catch(() => {});
+    }, [isOwner]),
+  );
 
   if (!isAuthenticated || !user) {
     return (
@@ -55,7 +67,6 @@ export default function ProfileScreen() {
     );
   }
 
-  const isOwner = user.active_role === 'owner';
   const initial = user.name?.charAt(0).toUpperCase() ?? '?';
 
   const handleLogout = () => {
@@ -148,8 +159,10 @@ export default function ProfileScreen() {
           onPress={() => router.push('/(tabs)/saved')}
         >
           <Ionicons name="heart" size={22} color="#EF4444" />
-          <Text style={styles.quickStatNum}>{savedCount}</Text>
-          <Text style={styles.quickStatLabel}>Guardados</Text>
+          <Text style={styles.quickStatNum}>{isOwner ? ownerSavesCount : savedCount}</Text>
+          <Text style={styles.quickStatLabel}>
+            {isOwner ? 'Guardaron tus props.' : 'Guardados'}
+          </Text>
         </TouchableOpacity>
         {isOwner && (
           <TouchableOpacity

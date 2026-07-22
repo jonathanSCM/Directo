@@ -323,6 +323,13 @@ export class PropertiesService {
     return result;
   }
 
+  async getSavesCountForOwner(userId: string) {
+    const count = await this.prisma.favorites.count({
+      where: { properties: { owner_id: userId } },
+    });
+    return { count };
+  }
+
   // ── Público: listado y detalle ──────────────────────────────────────────────
 
   async findPublic(query: QueryPropertiesDto) {

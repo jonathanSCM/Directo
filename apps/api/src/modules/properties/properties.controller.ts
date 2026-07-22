@@ -38,6 +38,13 @@ export class PropertiesController {
   }
 
   @ApiBearerAuth()
+  @Get('mine/saves-count')
+  @ApiOperation({ summary: 'Cuántas personas guardaron alguna de mis propiedades' })
+  mineSavesCount(@CurrentUser() user: AuthUser) {
+    return this.propertiesService.getSavesCountForOwner(user.id);
+  }
+
+  @ApiBearerAuth()
   @Post()
   @ApiOperation({ summary: 'Crear una propiedad (modo propietario)' })
   create(@CurrentUser() user: AuthUser, @Body() dto: CreatePropertyDto) {
