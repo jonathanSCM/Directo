@@ -26,6 +26,7 @@ export interface Subscription {
   status: string;
   start_date: string | null;
   end_date: string | null;
+  property_count: number | null;
   subscription_plans: Plan;
 }
 

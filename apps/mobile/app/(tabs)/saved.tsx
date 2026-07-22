@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useFavorites } from '../../src/context/FavoritesContext';
+import { useSubscription } from '../../src/context/SubscriptionContext';
 import { getImageUrl } from '../../src/constants/api';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
@@ -236,6 +237,7 @@ function BuyerView() {
 /* ─── OWNER: Mis Propiedades ─── */
 function OwnerView() {
   const router = useRouter();
+  const { subscription } = useSubscription();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -370,6 +372,10 @@ function OwnerView() {
 
   const published = properties.filter((p) => p.status === 'published').length;
   const totalViews = properties.reduce((s, p) => s + p.views_count, 0);
+  const planLimit =
+    subscription?.status === 'active'
+      ? (subscription.property_count ?? subscription.subscription_plans.included_properties)
+      : null;
 
   return (
     <View style={styles.container}>
@@ -398,7 +404,9 @@ function OwnerView() {
           <Text style={styles.statLabel}>Total</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statNum, { color: '#059669' }]}>{published}</Text>
+          <Text style={[styles.statNum, { color: '#059669' }]}>
+            {published}{planLimit != null ? <Text style={styles.statNumLimit}> / {planLimit}</Text> : null}
+          </Text>
           <Text style={styles.statLabel}>Publicadas</Text>
         </View>
         <View style={styles.statCard}>
@@ -707,6 +715,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   statNum: { fontSize: Fonts.sizes.xxl, fontWeight: '800', color: Colors.gray[900] },
+  statNumLimit: { fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.gray[400] },
   statLabel: { fontSize: Fonts.sizes.xs, color: Colors.gray[500], marginTop: 2 },
   actionRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
   actionBtn: {
