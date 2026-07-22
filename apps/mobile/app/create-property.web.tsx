@@ -136,7 +136,7 @@ export default function CreatePropertyWeb() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [extraCharge, setExtraCharge] = useState<{ id: string; title: string; amount: number; currency: string } | null>(null);
+  const [extraCharge, setExtraCharge] = useState<{ id: string; title: string; amount: number; currency: string; paymentId?: string } | null>(null);
 
   const [selectedImages, setSelectedImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
 
@@ -246,7 +246,13 @@ export default function CreatePropertyWeb() {
         try {
           const { data: elig } = await api.get(`/properties/${created.id}/extra-charge-eligibility`);
           if (elig.eligible) {
-            setExtraCharge({ id: created.id, title: title.trim(), amount: elig.amount, currency: elig.currency });
+            setExtraCharge({
+              id: created.id,
+              title: title.trim(),
+              amount: elig.amount,
+              currency: elig.currency,
+              paymentId: elig.pending ? elig.paymentId : undefined,
+            });
             setSaving(false);
             return;
           }
@@ -698,6 +704,7 @@ export default function CreatePropertyWeb() {
         propertyTitle={extraCharge?.title}
         amount={extraCharge?.amount}
         currency={extraCharge?.currency}
+        resumePaymentId={extraCharge?.paymentId ?? null}
         onClose={() => {
           setExtraCharge(null);
           router.canGoBack() ? router.back() : router.replace('/(tabs)/saved');

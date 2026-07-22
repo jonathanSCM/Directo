@@ -44,6 +44,7 @@ interface Property {
   area_m2?: number;
   whatsapp?: string;
   users?: { phone?: string };
+  pending_payment?: { id: string; status: string } | null;
 }
 
 const opLabel = (op: string) => {
@@ -240,7 +241,12 @@ function OwnerView() {
   const [refreshing, setRefreshing] = useState(false);
   const [showSubGate, setShowSubGate] = useState(false);
   const [subGateReason, setSubGateReason] = useState<'no_subscription' | 'limit_reached'>('no_subscription');
-  const [extraCharge, setExtraCharge] = useState<{ id: string; title: string; amount: number; currency: string } | null>(null);
+  const [extraCharge, setExtraCharge] = useState<{ id: string; title: string; amount?: number; currency?: string; paymentId?: string } | null>(null);
+
+  const openPendingPayment = useCallback((prop: Property) => {
+    if (!prop.pending_payment) return;
+    setExtraCharge({ id: prop.id, title: prop.title, paymentId: prop.pending_payment.id });
+  }, []);
 
   const fetchMine = useCallback(async () => {
     try {
@@ -294,7 +300,13 @@ function OwnerView() {
             try {
               const { data: elig } = await api.get(`/properties/${prop.id}/extra-charge-eligibility`);
               if (elig.eligible) {
-                setExtraCharge({ id: prop.id, title: prop.title, amount: elig.amount, currency: elig.currency });
+                setExtraCharge({
+                  id: prop.id,
+                  title: prop.title,
+                  amount: elig.amount,
+                  currency: elig.currency,
+                  paymentId: elig.pending ? elig.paymentId : undefined,
+                });
               }
             } catch {}
           }
@@ -424,7 +436,12 @@ function OwnerView() {
           }
           renderItem={({ item }) => {
             const img = getImage(item.property_images);
-            const st = STATUS_MAP[item.status] ?? STATUS_MAP.draft;
+            const hasPendingPayment = item.status === 'paused' && !!item.pending_payment;
+            const st = hasPendingPayment
+              ? (item.pending_payment!.status === 'in_review'
+                  ? { label: 'Pago en revisión', color: '#6366F1', bg: '#EEF2FF' }
+                  : { label: 'Pago pendiente', color: '#D97706', bg: '#FEF3C7' })
+              : (STATUS_MAP[item.status] ?? STATUS_MAP.draft);
             return (
               <TouchableOpacity
                 style={styles.ownerCard}
@@ -478,7 +495,16 @@ function OwnerView() {
                         <Text style={[styles.actionBtnText, { color: '#059669' }]}>Reenviar</Text>
                       </TouchableOpacity>
                     )}
-                    {(item.status === 'published' || item.status === 'paused' || item.status === 'draft') && (
+                    {hasPendingPayment ? (
+                      <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: '#EEF2FF' }]}
+                        onPress={() => openPendingPayment(item)}
+                        hitSlop={4}
+                      >
+                        <Ionicons name="time-outline" size={16} color="#6366F1" />
+                        <Text style={[styles.actionBtnText, { color: '#6366F1' }]}>Ver pago</Text>
+                      </TouchableOpacity>
+                    ) : (item.status === 'published' || item.status === 'paused' || item.status === 'draft') && (
                       <TouchableOpacity
                         style={[styles.actionBtn, item.status === 'published' && styles.actionBtnDanger]}
                         onPress={() => toggleVisibility(item)}
@@ -512,6 +538,7 @@ function OwnerView() {
         propertyTitle={extraCharge?.title}
         amount={extraCharge?.amount}
         currency={extraCharge?.currency}
+        resumePaymentId={extraCharge?.paymentId ?? null}
         onClose={() => setExtraCharge(null)}
         onPaid={fetchMine}
       />

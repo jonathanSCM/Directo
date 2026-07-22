@@ -22,6 +22,8 @@ interface Props {
   propertyTitle?: string;
   amount?: number;
   currency?: string;
+  /** Si ya existe un cobro pendiente/en revisión para esta propiedad, se reanuda en vez de pedir confirmar uno nuevo. */
+  resumePaymentId?: string | null;
   onClose: () => void;
   onPaid: () => void;
 }
@@ -37,8 +39,15 @@ const fmtMoney = (n?: number, c?: string) =>
  * consultando el estado hasta que un admin lo confirma (la propiedad se
  * publica sola) o lo rechaza.
  */
+const phaseForStatus = (status: string): Phase => {
+  if (status === 'confirmed') return 'confirmed';
+  if (status === 'rejected') return 'rejected';
+  if (status === 'in_review') return 'in_review';
+  return 'ready';
+};
+
 export default function ExtraPropertyPaymentModal({
-  visible, propertyId, propertyTitle, amount, currency, onClose, onPaid,
+  visible, propertyId, propertyTitle, amount, currency, resumePaymentId, onClose, onPaid,
 }: Props) {
   const [phase, setPhase] = useState<Phase>('confirm');
   const [payment, setPayment] = useState<{ id: string; metadata: any } | null>(null);
@@ -52,7 +61,7 @@ export default function ExtraPropertyPaymentModal({
     try {
       const { data } = await api.post(`/payments/property/${propertyId}/extra-charge`);
       setPayment(data.payment);
-      setPhase(data.payment.status === 'in_review' ? 'in_review' : 'ready');
+      setPhase(phaseForStatus(data.payment.status));
     } catch (e: any) {
       const msg = e.response?.data?.message;
       setErrorMsg(typeof msg === 'string' ? msg : Array.isArray(msg) ? msg[0] : 'No se pudo generar el cobro');
@@ -60,12 +69,29 @@ export default function ExtraPropertyPaymentModal({
     }
   }, [propertyId]);
 
+  const loadExisting = useCallback(async (id: string) => {
+    setPhase('loading');
+    setErrorMsg('');
+    try {
+      const { data } = await api.get(`/payments/${id}`);
+      setPayment(data);
+      setPhase(phaseForStatus(data.status));
+    } catch {
+      setErrorMsg('No se pudo cargar el estado del pago');
+      setPhase('error');
+    }
+  }, []);
+
   useEffect(() => {
     if (!visible) {
       setPayment(null);
       setPhase('confirm');
+      return;
     }
-  }, [visible]);
+    // Ya hay un cobro para esta propiedad: reanudarlo en vez de ofrecer
+    // "confirmar" uno nuevo (evita que parezca que se puede pagar de nuevo).
+    if (resumePaymentId) loadExisting(resumePaymentId);
+  }, [visible, resumePaymentId, loadExisting]);
 
   // Sondeo del estado del pago mientras el modal está abierto.
   useEffect(() => {

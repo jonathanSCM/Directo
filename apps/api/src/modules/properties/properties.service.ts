@@ -191,6 +191,25 @@ export class PropertiesService {
    */
   async getExtraChargeEligibility(user: AuthUser, id: string) {
     const prop = await this.getOwnedOrThrow(user, id);
+
+    // Si ya hay un cobro pendiente/en revisión para esta propiedad, hay que
+    // reanudarlo, no ofrecer "confirmar" un cobro nuevo (eso es lo que
+    // hacía parecer que se podía pagar la misma propiedad varias veces).
+    const pendingPayment = await this.prisma.payments.findFirst({
+      where: { property_id: id, status: { in: ['pending', 'in_review'] } },
+      orderBy: { created_at: 'desc' },
+    });
+    if (pendingPayment) {
+      return {
+        eligible: true,
+        pending: true,
+        paymentId: pendingPayment.id,
+        paymentStatus: pendingPayment.status,
+        amount: Number(pendingPayment.amount),
+        currency: pendingPayment.currency,
+      };
+    }
+
     if (prop.status !== 'paused' || prop.approval_status !== 'approved') {
       return { eligible: false };
     }
@@ -202,6 +221,7 @@ export class PropertiesService {
 
     return {
       eligible: true,
+      pending: false,
       amount: Number(sub.subscription_plans.extra_property_price),
       currency: sub.subscription_plans.currency,
     };
@@ -281,7 +301,26 @@ export class PropertiesService {
 
   async findMine(user: AuthUser, page = 1, limit = 20) {
     const where: Prisma.propertiesWhereInput = { owner_id: user.id };
-    return this.paginate(where, [{ created_at: 'desc' }], page, limit);
+    const result = await this.paginate(where, [{ created_at: 'desc' }], page, limit);
+
+    // Para que "Mis Propiedades" pueda mostrar "Pago en revisión" en vez de
+    // dejar que el dueño crea que no pasó nada y reintente el cobro extra.
+    const propertyIds = result.data.map((p) => p.id);
+    if (propertyIds.length > 0) {
+      const pending = await this.prisma.payments.findMany({
+        where: {
+          property_id: { in: propertyIds },
+          status: { in: ['pending', 'in_review'] },
+        },
+        select: { id: true, property_id: true, status: true },
+      });
+      const byProperty = new Map(pending.map((p) => [p.property_id, p]));
+      result.data = result.data.map((p) => ({
+        ...p,
+        pending_payment: byProperty.get(p.id) ?? null,
+      })) as typeof result.data;
+    }
+    return result;
   }
 
   // ── Público: listado y detalle ──────────────────────────────────────────────
