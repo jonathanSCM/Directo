@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/context/AuthContext';
 import { Colors, Fonts, Radius, Spacing } from '../src/constants/theme';
 import api from '../src/services/api';
@@ -86,6 +87,7 @@ const STEPS = [
 
 export default function CreatePropertyScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const [step, setStep] = useState(0);
@@ -675,7 +677,7 @@ export default function CreatePropertyScreen() {
       </ScrollView>
 
       {/* Footer de navegación */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Spacing.lg + insets.bottom }]}>
         {isLastStep ? (
           <TouchableOpacity
             style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
