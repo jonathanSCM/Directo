@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/context/AuthContext';
 import { Colors, Fonts, Radius, Spacing } from '../src/constants/theme';
 import api from '../src/services/api';
+import { guessImageMimeType } from '../src/utils/mime';
 import SubscriptionGate from '../src/components/subscription/SubscriptionGate';
 import ExtraPropertyPaymentModal from '../src/components/subscription/ExtraPropertyPaymentModal';
 
@@ -235,7 +236,7 @@ export default function CreatePropertyScreen() {
           const ext = img.uri.split('.').pop() ?? 'jpg';
           formData.append('files', {
             uri: img.uri,
-            type: img.mimeType ?? `image/${ext}`,
+            type: guessImageMimeType(img.uri, img.mimeType),
             name: img.fileName ?? `photo.${ext}`,
           } as any);
         });

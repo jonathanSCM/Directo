@@ -22,6 +22,7 @@ import { getImageUrl } from '../src/constants/api';
 import { useAuth } from '../src/context/AuthContext';
 import { Colors, Fonts, Radius, Spacing } from '../src/constants/theme';
 import api from '../src/services/api';
+import { guessImageMimeType } from '../src/utils/mime';
 
 interface CatalogItem { id: string; name: string; slug: string }
 interface Zone { id: string; name: string; city: string }
@@ -201,7 +202,7 @@ export default function EditPropertyScreen() {
           const ext = img.uri.split('.').pop() ?? 'jpg';
           formData.append('files', {
             uri: img.uri,
-            type: img.mimeType ?? `image/${ext}`,
+            type: guessImageMimeType(img.uri, img.mimeType),
             name: img.fileName ?? `photo.${ext}`,
           } as any);
         });

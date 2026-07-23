@@ -15,6 +15,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { getImageUrl } from '../../constants/api';
 import { Colors, Fonts, Radius, Spacing } from '../../constants/theme';
 import api from '../../services/api';
+import { guessImageMimeType } from '../../utils/mime';
 
 interface Props {
   visible: boolean;
@@ -128,10 +129,10 @@ export default function ExtraPropertyPaymentModal({
           headers: { 'Content-Type': undefined },
         });
       } else {
-        const ext = img.uri.split('.').pop() ?? 'jpg';
+        const ext = (img.uri.split('.').pop() ?? 'jpg').toLowerCase();
         formData.append('proof', {
           uri: img.uri,
-          type: img.mimeType ?? `image/${ext}`,
+          type: guessImageMimeType(img.uri, img.mimeType),
           name: img.fileName ?? `comprobante.${ext}`,
         } as any);
         await api.post(`/payments/${payment.id}/upload-proof`, formData);

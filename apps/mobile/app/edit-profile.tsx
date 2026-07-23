@@ -18,6 +18,7 @@ import { useAuth } from '../src/context/AuthContext';
 import Avatar from '../src/components/Avatar';
 import { Colors, Fonts, Radius, Spacing } from '../src/constants/theme';
 import api from '../src/services/api';
+import { guessImageMimeType } from '../src/utils/mime';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -55,17 +56,18 @@ export default function EditProfileScreen() {
           headers: { 'Content-Type': undefined },
         });
       } else {
-        const ext = img.uri.split('.').pop() ?? 'jpg';
+        const ext = (img.uri.split('.').pop() ?? 'jpg').toLowerCase();
         formData.append('avatar', {
           uri: img.uri,
-          type: img.mimeType ?? `image/${ext}`,
+          type: guessImageMimeType(img.uri, img.mimeType),
           name: img.fileName ?? `avatar.${ext}`,
         } as any);
         await api.post('/users/me/avatar', formData);
       }
       if (refreshUser) await refreshUser();
-    } catch {
-      Alert.alert('Error', 'No se pudo actualizar la foto de perfil');
+    } catch (e: any) {
+      const msg = e.response?.data?.message;
+      Alert.alert('Error', typeof msg === 'string' ? msg : Array.isArray(msg) ? msg[0] : 'No se pudo actualizar la foto de perfil');
     } finally {
       setUploadingAvatar(false);
     }
