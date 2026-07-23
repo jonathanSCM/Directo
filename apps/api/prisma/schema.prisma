@@ -323,6 +323,7 @@ model users {
   updated_at                                    DateTime                @default(now()) @db.Timestamptz(6)
   free_trial_used                               Boolean                 @default(false)
   google_id                                     String?                 @unique @db.VarChar(255)
+  is_verified                                   Boolean                 @default(false)
   admin_logs                                    admin_logs[]
   favorites                                     favorites[]
   notifications                                 notifications[]

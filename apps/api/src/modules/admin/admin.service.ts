@@ -145,6 +145,7 @@ export class AdminService {
           active_role: true,
           status: true,
           email_verified_at: true,
+          is_verified: true,
           last_login_at: true,
           created_at: true,
           _count: {
@@ -177,6 +178,7 @@ export class AdminService {
         active_role: true,
         status: true,
         email_verified_at: true,
+        is_verified: true,
         last_login_at: true,
         created_at: true,
         updated_at: true,
@@ -307,6 +309,39 @@ export class AdminService {
             'Tu cuenta ha sido reactivada. Ya puedes volver a utilizar la plataforma.',
         },
       }),
+    ]);
+
+    return updated;
+  }
+
+  async setUserVerified(userId: string, isVerified: boolean) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: { id: true, is_verified: true },
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (user.is_verified === isVerified) {
+      return user;
+    }
+
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.users.update({
+        where: { id: userId },
+        data: { is_verified: isVerified },
+        select: { id: true, name: true, email: true, is_verified: true },
+      }),
+      ...(isVerified
+        ? [
+            this.prisma.notifications.create({
+              data: {
+                user_id: userId,
+                type: 'system',
+                title: 'Cuenta verificada',
+                message: 'Tu cuenta ahora aparece como verificada.',
+              },
+            }),
+          ]
+        : []),
     ]);
 
     return updated;

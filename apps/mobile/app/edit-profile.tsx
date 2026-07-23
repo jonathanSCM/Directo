@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../src/context/AuthContext';
+import Avatar from '../src/components/Avatar';
 import { Colors, Fonts, Radius, Spacing } from '../src/constants/theme';
 import api from '../src/services/api';
 
@@ -24,6 +27,49 @@ export default function EditProfileScreen() {
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [city, setCity] = useState(user?.city ?? '');
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const pickAvatar = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permiso necesario', 'Necesitamos acceso a tus fotos para cambiar la imagen de perfil.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const img = result.assets[0];
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        const resp = await fetch(img.uri);
+        const blob = await resp.blob();
+        const ext = img.fileName?.split('.').pop() ?? 'jpg';
+        formData.append('avatar', blob, img.fileName ?? `avatar.${ext}`);
+        await api.post('/users/me/avatar', formData, {
+          headers: { 'Content-Type': undefined },
+        });
+      } else {
+        const ext = img.uri.split('.').pop() ?? 'jpg';
+        formData.append('avatar', {
+          uri: img.uri,
+          type: img.mimeType ?? `image/${ext}`,
+          name: img.fileName ?? `avatar.${ext}`,
+        } as any);
+        await api.post('/users/me/avatar', formData);
+      }
+      if (refreshUser) await refreshUser();
+    } catch {
+      Alert.alert('Error', 'No se pudo actualizar la foto de perfil');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const hasChanges =
     name !== (user?.name ?? '') ||
@@ -53,8 +99,6 @@ export default function EditProfileScreen() {
     }
   };
 
-  const initial = name?.charAt(0).toUpperCase() ?? '?';
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -73,9 +117,17 @@ export default function EditProfileScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.avatarSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initial}</Text>
-          </View>
+          <TouchableOpacity onPress={pickAvatar} disabled={uploadingAvatar} style={styles.avatarTouchable}>
+            <Avatar name={user?.name} avatarUrl={user?.avatar_url} verified={user?.is_verified} size={88} />
+            <View style={styles.avatarEditBadge}>
+              {uploadingAvatar ? (
+                <ActivityIndicator size="small" color={Colors.white} />
+              ) : (
+                <Ionicons name="camera" size={16} color={Colors.white} />
+              )}
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.avatarHint}>Toca para cambiar tu foto</Text>
         </View>
 
         <View style={styles.field}>
@@ -160,18 +212,24 @@ const styles = StyleSheet.create({
   },
   content: { padding: Spacing.xxl, paddingBottom: 60 },
   avatarSection: { alignItems: 'center', marginBottom: Spacing.xxl },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.primaryLight,
+  avatarTouchable: { position: 'relative' },
+  avatarEditBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.white,
   },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.primary,
+  avatarHint: {
+    marginTop: Spacing.sm,
+    fontSize: Fonts.sizes.xs,
+    color: Colors.gray[400],
   },
   field: { marginBottom: Spacing.xl },
   label: {

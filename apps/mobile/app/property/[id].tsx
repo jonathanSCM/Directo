@@ -21,6 +21,7 @@ import { getImageUrl } from '../../src/constants/api';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import OwnerSupportFAB from '../../src/components/support/OwnerSupportChat';
+import Avatar from '../../src/components/Avatar';
 
 const { width } = Dimensions.get('window');
 
@@ -49,7 +50,7 @@ interface PropertyDetail {
   property_images: PropertyImage[];
   property_types?: { name: string; slug: string };
   zones?: { name: string; city: string };
-  users?: { name: string; phone?: string; email?: string };
+  users?: { name: string; phone?: string; email?: string; avatar_url?: string; is_verified?: boolean };
   property_amenities?: { amenities: { id: string; name: string; slug: string; icon: string; category: string } }[];
 }
 
@@ -371,11 +372,7 @@ export default function PropertyDetailScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Propietario</Text>
               <View style={styles.ownerCard}>
-                <View style={styles.ownerAvatar}>
-                  <Text style={styles.ownerInitial}>
-                    {property.users.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                <Avatar name={property.users.name} avatarUrl={property.users.avatar_url} verified={property.users.is_verified} size={48} />
                 <View style={styles.ownerInfo}>
                   <Text style={styles.ownerName}>{property.users.name}</Text>
                   <Text style={styles.ownerHint}>Contactar por WhatsApp</Text>

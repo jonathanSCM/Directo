@@ -19,6 +19,7 @@ import { useFavorites } from '../../src/context/FavoritesContext';
 import { getImageUrl } from '../../src/constants/api';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
+import Avatar from '../../src/components/Avatar';
 
 interface PropertyImage { id: string; url: string; is_main: boolean; }
 interface PropertyDetail {
@@ -29,7 +30,7 @@ interface PropertyDetail {
   property_images: PropertyImage[];
   property_types?: { name: string; slug: string };
   zones?: { name: string; city: string };
-  users?: { name: string; phone?: string; email?: string };
+  users?: { name: string; phone?: string; email?: string; avatar_url?: string; is_verified?: boolean };
   property_amenities?: { amenities: { id: string; name: string; slug: string; icon: string; category: string } }[];
 }
 
@@ -455,9 +456,7 @@ export default function PropertyDetailWeb() {
               <View style={S.ownerCard}>
                 <Text style={S.ownerCardTitle}>Propietario</Text>
                 <View style={S.ownerRow}>
-                  <View style={S.ownerAvatar}>
-                    <Text style={S.ownerInitial}>{property.users.name.charAt(0).toUpperCase()}</Text>
-                  </View>
+                  <Avatar name={property.users.name} avatarUrl={property.users.avatar_url} verified={property.users.is_verified} size={48} />
                   <View style={{ flex: 1 }}>
                     <Text style={S.ownerName}>{property.users.name}</Text>
                     <Text style={S.ownerSub}>Vendedor directo</Text>

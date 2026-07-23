@@ -18,6 +18,7 @@ import { useNotifications } from '../../src/context/NotificationContext';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import { useRoleColors } from '../../src/hooks/useRoleColors';
 import RoleBadge from '../../src/components/RoleBadge';
+import Avatar from '../../src/components/Avatar';
 import api from '../../src/services/api';
 
 const IS_DESKTOP = Dimensions.get('window').width >= 768;
@@ -67,7 +68,6 @@ export default function ProfileScreen() {
     );
   }
 
-  const initial = user.name?.charAt(0).toUpperCase() ?? '?';
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
@@ -93,9 +93,7 @@ export default function ProfileScreen() {
     <>
       {/* User card */}
       <View style={[styles.userCard, IS_DESKTOP && styles.noHPad]}>
-        <View style={[styles.avatar, { backgroundColor: accentLight }]}>
-          <Text style={[styles.avatarText, { color: accent }]}>{initial}</Text>
-        </View>
+        <Avatar name={user.name} avatarUrl={user.avatar_url} verified={user.is_verified} size={64} />
         <View style={styles.userInfo}>
           <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>

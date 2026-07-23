@@ -16,6 +16,7 @@ interface User {
   phone?: string;
   city?: string;
   avatar_url?: string;
+  is_verified?: boolean;
   active_role: string;
   status: string;
 }

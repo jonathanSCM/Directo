@@ -9,6 +9,7 @@ interface User {
   city?: string;
   status: string;
   active_role?: string;
+  is_verified?: boolean;
   created_at: string;
   _count?: { properties: number; subscriptions: number; payments: number };
 }
@@ -23,6 +24,7 @@ interface UserDetail {
   active_role: string;
   status: string;
   email_verified_at: string | null;
+  is_verified: boolean;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
@@ -126,6 +128,12 @@ export default function Users() {
     if (detail?.id === id) openDetail(id);
   };
 
+  const toggleVerified = async (id: string, next: boolean) => {
+    await api.patch(`/admin/users/${id}/verify`, { is_verified: next });
+    load();
+    if (detail?.id === id) openDetail(id);
+  };
+
   const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('es-BO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
   // ── Detail View ─────────────────────────────────────────────────────────────
@@ -147,6 +155,11 @@ export default function Users() {
             <p className="subtitle">{detail.email}</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
+            {detail.is_verified ? (
+              <button className="btn btn-outline" onClick={() => toggleVerified(detail.id, false)}>Quitar verificación</button>
+            ) : (
+              <button className="btn btn-primary" onClick={() => toggleVerified(detail.id, true)}>Verificar usuario</button>
+            )}
             {detail.status === 'active' && (
               <button className="btn btn-danger" onClick={() => suspend(detail.id)}>Suspender</button>
             )}
@@ -159,6 +172,9 @@ export default function Users() {
         <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
           <span className={`badge ${badge.cls}`}>{badge.label}</span>
           <span className="badge badge-blue">{detail.active_role === 'owner' ? 'Propietario' : 'Comprador'}</span>
+          {detail.is_verified && (
+            <span className="badge badge-blue">✓ Verificado</span>
+          )}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
@@ -361,6 +377,9 @@ export default function Users() {
                       >
                         {u.name}
                       </strong>
+                      {u.is_verified && (
+                        <span title="Verificado" style={{ marginLeft: 6, color: '#2563EB' }}>✓</span>
+                      )}
                     </td>
                     <td>{u.email}</td>
                     <td>

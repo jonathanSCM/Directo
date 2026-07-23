@@ -30,7 +30,7 @@ const detailInclude = {
   property_types: { select: { id: true, name: true, slug: true } },
   zones: { select: { id: true, name: true, city: true } },
   property_images: { orderBy: { sort_order: 'asc' } },
-  users: { select: { id: true, name: true, avatar_url: true } },
+  users: { select: { id: true, name: true, avatar_url: true, is_verified: true } },
   property_amenities: { select: amenityInclude },
 } satisfies Prisma.propertiesInclude;
 

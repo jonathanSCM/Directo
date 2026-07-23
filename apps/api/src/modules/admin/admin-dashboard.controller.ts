@@ -57,4 +57,13 @@ export class AdminDashboardController {
   ) {
     return this.adminService.activateUser(adminId, id);
   }
+
+  @Patch('users/:id/verify')
+  @ApiOperation({ summary: 'Marcar/desmarcar usuario como verificado' })
+  setVerified(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('is_verified') isVerified: boolean,
+  ) {
+    return this.adminService.setUserVerified(id, isVerified);
+  }
 }

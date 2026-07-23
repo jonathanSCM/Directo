@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -27,6 +27,18 @@ export class UsersService {
         city: dto.city,
         avatar_url: dto.avatar_url,
       },
+    });
+    const { password_hash, ...rest } = user;
+    return rest;
+  }
+
+  async updateAvatar(userId: string, file?: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No se recibió la imagen');
+    }
+    const user = await this.prisma.users.update({
+      where: { id: userId },
+      data: { avatar_url: `/uploads/${file.filename}` },
     });
     const { password_hash, ...rest } = user;
     return rest;
