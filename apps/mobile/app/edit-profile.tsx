@@ -62,7 +62,9 @@ export default function EditProfileScreen() {
           type: guessImageMimeType(img.uri, img.mimeType),
           name: img.fileName ?? `avatar.${ext}`,
         } as any);
-        await api.post('/users/me/avatar', formData);
+        await api.post('/users/me/avatar', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
       }
       if (refreshUser) await refreshUser();
     } catch (e: any) {

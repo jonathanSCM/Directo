@@ -135,7 +135,9 @@ export default function ExtraPropertyPaymentModal({
           type: guessImageMimeType(img.uri, img.mimeType),
           name: img.fileName ?? `comprobante.${ext}`,
         } as any);
-        await api.post(`/payments/${payment.id}/upload-proof`, formData);
+        await api.post(`/payments/${payment.id}/upload-proof`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
       }
       setPhase('in_review');
     } catch (e: any) {
