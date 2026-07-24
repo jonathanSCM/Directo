@@ -272,16 +272,22 @@ export class PaymentsService {
   // ── Lógica compartida ───────────────────────────────────────────────────────
 
   async confirmPayment(paymentId: string) {
+    // Update atómico condicionado al status actual: si dos llamadas
+    // (doble clic del admin, reintento del webhook) llegan a la vez, solo
+    // una gana la carrera y corre los efectos de abajo (activar suscripción,
+    // sumar cupo, publicar) — evita incrementar property_count dos veces.
+    const claim = await this.prisma.payments.updateMany({
+      where: { id: paymentId, status: { not: 'confirmed' } },
+      data: { status: 'confirmed', paid_at: new Date() },
+    });
+
     const payment = await this.prisma.payments.findUnique({
       where: { id: paymentId },
     });
     if (!payment) throw new NotFoundException('Pago no encontrado');
-    if (payment.status === 'confirmed') return payment;
+    if (claim.count === 0) return payment;
 
-    const updated = await this.prisma.payments.update({
-      where: { id: paymentId },
-      data: { status: 'confirmed', paid_at: new Date() },
-    });
+    const updated = payment;
 
     if (payment.subscription_id) {
       try {

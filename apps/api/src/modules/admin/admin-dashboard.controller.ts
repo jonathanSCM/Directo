@@ -11,6 +11,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
+import { SetVerifiedDto } from './dto/set-verified.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { AdminService } from './admin.service';
 
@@ -62,8 +63,8 @@ export class AdminDashboardController {
   @ApiOperation({ summary: 'Marcar/desmarcar usuario como verificado' })
   setVerified(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('is_verified') isVerified: boolean,
+    @Body() dto: SetVerifiedDto,
   ) {
-    return this.adminService.setUserVerified(id, isVerified);
+    return this.adminService.setUserVerified(id, dto.is_verified);
   }
 }
