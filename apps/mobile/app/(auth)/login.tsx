@@ -16,14 +16,16 @@ import {
 import { Logo } from '../../src/components/Logo';
 import { useAuth } from '../../src/context/AuthContext';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
+import { useGoogleSignIn } from '../../src/hooks/useGoogleSignIn';
 
 export default function Login() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -42,6 +44,22 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  const { request: googleRequest, promptAsync: googlePromptAsync } = useGoogleSignIn(
+    async (idToken) => {
+      setGoogleLoading(true);
+      try {
+        await googleLogin(idToken);
+      } catch (err: any) {
+        Alert.alert(
+          'Error',
+          err.response?.data?.message ?? 'No se pudo iniciar sesión con Google',
+        );
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+  );
 
   return (
     <KeyboardAvoidingView
@@ -139,9 +157,19 @@ export default function Login() {
 
           {/* Social buttons */}
           <View style={styles.socialRow}>
-            <TouchableOpacity style={styles.socialBtn}>
-              <Text style={styles.socialIcon}>G</Text>
-              <Text style={styles.socialText}>Google</Text>
+            <TouchableOpacity
+              style={styles.socialBtn}
+              disabled={!googleRequest || googleLoading}
+              onPress={() => googlePromptAsync()}
+            >
+              {googleLoading ? (
+                <ActivityIndicator size="small" color={Colors.gray[700]} />
+              ) : (
+                <>
+                  <Text style={styles.socialIcon}>G</Text>
+                  <Text style={styles.socialText}>Google</Text>
+                </>
+              )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialBtn}>
               <Ionicons name="logo-apple" size={20} color={Colors.gray[700]} />
