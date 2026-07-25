@@ -48,14 +48,14 @@ function planFeatures(plan: Plan): { icon: string; text: string }[] {
 
 export default function SubscriptionPromoModal() {
   const { isActive, plans, loading, freeTrialUsed } = useSubscription();
-  const { user } = useAuth();
+  const { user, switchRole } = useAuth();
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(60)).current;
 
   useEffect(() => {
-    if (loading || isActive || !user || user.active_role !== 'owner') return;
+    if (loading || isActive || !user) return;
 
     const check = async () => {
       const last = await AsyncStorage.getItem(STORAGE_KEY);
@@ -80,7 +80,10 @@ export default function SubscriptionPromoModal() {
 
   const goToSub = () => {
     close();
-    setTimeout(() => router.push('/subscription'), 300);
+    setTimeout(async () => {
+      if (user && user.active_role !== 'owner') await switchRole('owner');
+      router.push('/subscription');
+    }, 300);
   };
 
   if (!visible || plans.length === 0) return null;

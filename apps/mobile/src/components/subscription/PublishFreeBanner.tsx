@@ -14,17 +14,22 @@ import api from '../../services/api';
  * - Ya lo usó                 -> empuja a comprar un plan de pago.
  */
 export default function PublishFreeBanner() {
-  const { user } = useAuth();
+  const { user, switchRole } = useAuth();
   const { isActive, loading, freeTrialUsed, plans, refresh } = useSubscription();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
-  if (loading || isActive || user?.active_role !== 'owner') return null;
+  if (loading || isActive || !user) return null;
+
+  const ensureOwnerMode = async () => {
+    if (user.active_role !== 'owner') await switchRole('owner');
+  };
 
   const claimFree = async () => {
     if (busy) return;
     setBusy(true);
     try {
+      await ensureOwnerMode();
       const freePlan = plans.find((p) => Number(p.price) === 0);
       if (!freePlan) {
         router.push('/subscription');
@@ -39,6 +44,11 @@ export default function PublishFreeBanner() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const goToPlans = async () => {
+    await ensureOwnerMode();
+    router.push('/subscription');
   };
 
   if (!freeTrialUsed) {
@@ -64,7 +74,7 @@ export default function PublishFreeBanner() {
     <View style={styles.wrap}>
       <TouchableOpacity
         style={[styles.banner, styles.bannerPaid]}
-        onPress={() => router.push('/subscription')}
+        onPress={goToPlans}
         activeOpacity={0.85}
       >
         <View style={[styles.iconWrap, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
