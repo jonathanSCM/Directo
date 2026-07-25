@@ -3,11 +3,8 @@ import * as Location from 'expo-location';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Dimensions,
-  FlatList,
   Image,
   Keyboard,
-  Linking,
   Platform,
   StyleSheet,
   Text,
@@ -20,14 +17,9 @@ import FilterModal, {
   FilterValues,
 } from '../../src/components/FilterModal';
 import { Logo } from '../../src/components/Logo';
-import { useFavorites } from '../../src/context/FavoritesContext';
-import { getImageUrl } from '../../src/constants/api';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.75;
-const CARD_MARGIN = 10;
 const DEFAULT_RADIUS_KM = 5;
 
 interface PropertyImage {
@@ -62,18 +54,6 @@ const FILTER_MAP: Record<string, string | undefined> = {
   Venta: 'sale',
   Alquiler: 'rent',
   Anticrético: 'anticretico',
-};
-
-const opLabel = (op: string) => {
-  if (op === 'sale') return 'Venta';
-  if (op === 'rent') return 'Alquiler';
-  return 'Anticrético';
-};
-
-const opColor = (op: string) => {
-  if (op === 'sale') return '#F59E0B';
-  if (op === 'rent') return '#EF4444';
-  return '#22C55E';
 };
 
 const markerImages = {
@@ -129,22 +109,9 @@ function PropertyMarker({
   );
 }
 
-const formatPrice = (p: number, c: string) => {
-  if (c === 'USD') return `$${p.toLocaleString()}`;
-  return `Bs. ${p.toLocaleString()}`;
-};
-
-const getMainImage = (images: PropertyImage[]): string | null => {
-  if (!images?.length) return null;
-  const main = images.find((i) => i.is_main);
-  return getImageUrl((main ?? images[0]).url);
-};
-
 export default function ExploreScreen() {
   const router = useRouter();
-  const { isFavorite, toggleFavorite } = useFavorites();
   const mapRef = useRef<MapView>(null);
-  const flatListRef = useRef<FlatList>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [activeFilter, setActiveFilter] = useState('Todos');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -171,7 +138,7 @@ export default function ExploreScreen() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Keyboard listeners to hide carousel
+  // Oculta los controles flotantes mientras el teclado está abierto
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
@@ -307,19 +274,7 @@ export default function ExploreScreen() {
 
   const onMarkerPress = (prop: Property) => {
     setSelectedId(prop.id);
-    const idx = geoProps.findIndex((p) => p.id === prop.id);
-    if (idx >= 0) {
-      flatListRef.current?.scrollToIndex({ index: idx, animated: true });
-    }
-    mapRef.current?.animateToRegion(
-      {
-        latitude: prop.latitude!,
-        longitude: prop.longitude!,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      },
-      400,
-    );
+    router.push(`/property/${prop.slug}`);
   };
 
   const goToMyLocation = () => {
@@ -328,14 +283,6 @@ export default function ExploreScreen() {
     mapRef.current?.animateToRegion(
       { ...userLocation, latitudeDelta: 0.02, longitudeDelta: 0.02 },
       500,
-    );
-  };
-
-  const openWhatsApp = (prop: Property) => {
-    const phone = prop.whatsapp ?? prop.users?.phone;
-    if (!phone) return;
-    Linking.openURL(
-      `https://wa.me/${phone.replace(/\D/g, '')}?text=Hola, me interesa "${prop.title}" en DIRECTO`,
     );
   };
 
@@ -456,107 +403,6 @@ export default function ExploreScreen() {
         >
           <Ionicons name="add" size={16} color={Colors.gray[700]} />
         </TouchableOpacity>
-      </View>}
-
-      {/* Cards carousel */}
-      {!keyboardVisible && <View style={styles.carousel}>
-        <FlatList
-          ref={flatListRef}
-          data={geoProps}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={CARD_WIDTH + CARD_MARGIN * 2}
-          decelerationRate="fast"
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: CARD_MARGIN }}
-          renderItem={({ item }) => {
-            const imgUrl = getMainImage(item.property_images);
-            const liked = isFavorite(item.id);
-            return (
-              <TouchableOpacity
-                style={styles.card}
-                activeOpacity={0.9}
-                onPress={() => router.push(`/property/${item.slug}`)}
-              >
-                {imgUrl ? (
-                  <Image source={{ uri: imgUrl }} style={styles.cardImage} />
-                ) : (
-                  <View style={[styles.cardImage, styles.noImage]}>
-                    <Ionicons
-                      name="image-outline"
-                      size={32}
-                      color={Colors.gray[300]}
-                    />
-                  </View>
-                )}
-                <TouchableOpacity
-                  style={styles.heartBtn}
-                  onPress={() => toggleFavorite(item.id)}
-                >
-                  <Ionicons
-                    name={liked ? 'heart' : 'heart-outline'}
-                    size={22}
-                    color={liked ? '#EF4444' : Colors.white}
-                  />
-                </TouchableOpacity>
-                <View style={styles.cardBody}>
-                  <View style={styles.cardTop}>
-                    <View
-                      style={[
-                        styles.opTag,
-                        { backgroundColor: opColor(item.operation) },
-                      ]}
-                    >
-                      <Text style={styles.opTagText}>
-                        {opLabel(item.operation)}
-                      </Text>
-                    </View>
-                    <Text style={styles.cardPrice}>
-                      {formatPrice(item.price, item.currency)}
-                    </Text>
-                  </View>
-                  <Text style={styles.cardTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <Text style={styles.cardAddress} numberOfLines={1}>
-                    {item.zones
-                      ? `${item.zones.name}, ${item.zones.city}`
-                      : item.address}
-                  </Text>
-                  <View style={styles.cardBottom}>
-                    <View style={styles.cardSpecs}>
-                      {item.bedrooms != null && (
-                        <Text style={styles.specText}>
-                          {item.bedrooms} hab.
-                        </Text>
-                      )}
-                      {item.bathrooms != null && (
-                        <Text style={styles.specText}>
-                          {item.bathrooms} baños
-                        </Text>
-                      )}
-                      {item.area_m2 != null && (
-                        <Text style={styles.specText}>{item.area_m2} m²</Text>
-                      )}
-                    </View>
-                    {(item.whatsapp || item.users?.phone) && (
-                      <TouchableOpacity
-                        style={styles.waBtn}
-                        onPress={() => openWhatsApp(item)}
-                      >
-                        <Ionicons
-                          name="logo-whatsapp"
-                          size={16}
-                          color="#25D366"
-                        />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
       </View>}
 
       <FilterModal
@@ -705,7 +551,7 @@ const styles = StyleSheet.create({
   myLocBtn: {
     position: 'absolute',
     right: Spacing.lg,
-    bottom: 240,
+    bottom: 100,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -721,7 +567,7 @@ const styles = StyleSheet.create({
   radiusControl: {
     position: 'absolute',
     right: Spacing.lg,
-    bottom: 290,
+    bottom: 156,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
@@ -749,75 +595,5 @@ const styles = StyleSheet.create({
     color: Colors.gray[700],
     minWidth: 36,
     textAlign: 'center',
-  },
-  carousel: { position: 'absolute', bottom: 20, left: 0, right: 0 },
-  card: {
-    width: CARD_WIDTH,
-    marginHorizontal: CARD_MARGIN,
-    backgroundColor: Colors.white,
-    borderRadius: Radius.lg,
-    overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-  },
-  cardImage: { width: '100%', height: 120 },
-  noImage: {
-    backgroundColor: Colors.gray[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  heartBtn: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardBody: { padding: Spacing.md },
-  cardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  opTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  opTagText: { color: Colors.white, fontSize: 10, fontWeight: '700' },
-  cardPrice: {
-    fontSize: Fonts.sizes.lg,
-    fontWeight: '700',
-    color: Colors.gray[900],
-  },
-  cardTitle: {
-    fontSize: Fonts.sizes.md,
-    fontWeight: '600',
-    color: Colors.gray[800],
-  },
-  cardAddress: {
-    fontSize: Fonts.sizes.sm,
-    color: Colors.gray[500],
-    marginTop: 2,
-  },
-  cardBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-  },
-  cardSpecs: { flexDirection: 'row', gap: Spacing.md },
-  specText: { fontSize: Fonts.sizes.xs, color: Colors.gray[500] },
-  waBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E8F5E9',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
