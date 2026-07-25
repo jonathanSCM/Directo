@@ -1,9 +1,10 @@
 import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
 import { useEffect } from 'react';
 
-WebBrowser.maybeCompleteAuthSession();
+// WebBrowser.maybeCompleteAuthSession() corre en app/_layout.tsx (a nivel
+// de módulo, no acá) — tiene que ejecutarse sin importar en qué ruta
+// aterrice el popup de Google, no solo cuando se carga esta pantalla.
 
 // Client ID "Web" (verifica el token en el backend) y "Android" (pide el
 // login nativo desde la app) — ambos del mismo proyecto de Google Cloud,

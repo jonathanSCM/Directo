@@ -2,7 +2,17 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { AuthProvider } from '../src/context/AuthContext';
+
+// Tiene que correr apenas se carga el módulo (no en un useEffect): el popup
+// de login con Google puede aterrizar en cualquier ruta, y los efectos de
+// las pantallas hijas (p. ej. la redirección a onboarding si no hay sesión)
+// corren ANTES que los del layout raíz — si esto fuera un efecto, llegaría
+// tarde, la URL ya habría cambiado, y el popup se quedaría pegado.
+if (Platform.OS === 'web') {
+  WebBrowser.maybeCompleteAuthSession();
+}
 import { FavoritesProvider } from '../src/context/FavoritesContext';
 import { NotificationProvider } from '../src/context/NotificationContext';
 import { SubscriptionProvider } from '../src/context/SubscriptionContext';
