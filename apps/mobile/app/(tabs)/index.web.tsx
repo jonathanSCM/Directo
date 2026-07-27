@@ -215,24 +215,32 @@ export default function ExploreScreen() {
       const params: Record<string, any> = { limit: 100 };
       const op = filters.operation ?? FILTER_MAP[activeFilter];
       if (op) params.operation = op;
-      if (search.trim()) params.q = search.trim();
+      const hasTextSearch = !!search.trim();
+      if (hasTextSearch) params.q = search.trim();
       if (filters.propertyType) params.type = filters.propertyType;
       if (filters.minPrice) params.min_price = filters.minPrice;
       if (filters.maxPrice) params.max_price = filters.maxPrice;
       if (filters.bedrooms) params.bedrooms = filters.bedrooms;
-      params.lat = center.latitude;
-      params.lng = center.longitude;
-      params.radius_km = radiusKm;
+      // Con búsqueda de texto no limitamos por radio: si no, un resultado
+      // fuera del área visible del mapa no aparece nunca.
+      if (!hasTextSearch) {
+        params.lat = center.latitude;
+        params.lng = center.longitude;
+        params.radius_km = radiusKm;
+      }
       const { data } = await api.get('/properties', { params });
-      setProperties(
-        (data.data ?? []).map((p: any) => ({
-          ...p,
-          latitude: p.latitude ? Number(p.latitude) : null,
-          longitude: p.longitude ? Number(p.longitude) : null,
-          price: Number(p.price),
-        })),
-      );
-    } catch { /* offline */ }
+      const parsed = (data.data ?? []).map((p: any) => ({
+        ...p,
+        latitude: p.latitude ? Number(p.latitude) : null,
+        longitude: p.longitude ? Number(p.longitude) : null,
+        price: Number(p.price),
+      }));
+      setProperties(parsed);
+      return parsed as Property[];
+    } catch {
+      // offline
+      return [];
+    }
   }, [activeFilter, search, filters, center, radiusKm]);
 
   useEffect(() => { fetchProperties(); }, [activeFilter, filters, radiusKm]);
@@ -259,9 +267,20 @@ export default function ExploreScreen() {
     }
   };
 
-  const onSearchSubmit = () => {
+  const onSearchSubmit = async () => {
     setShowSuggestions(false);
-    fetchProperties();
+    const results = await fetchProperties();
+    // La búsqueda de texto no está limitada al área visible: si los
+    // resultados quedan fuera, hay que mover el mapa para que se vean.
+    if (search.trim()) {
+      const geo = results.filter((p) => p.latitude != null && p.longitude != null);
+      if (geo.length > 0 && mapRef.current) {
+        mapRef.current.fitBounds(
+          geo.map((p) => [p.latitude!, p.longitude!] as [number, number]),
+          { padding: [60, 60] },
+        );
+      }
+    }
   };
 
   const selectZoneSuggestion = async (zone: { id: string; name: string; city: string }) => {

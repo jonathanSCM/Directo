@@ -180,16 +180,21 @@ export default function ExploreScreen() {
         const params: Record<string, any> = { limit: 100 };
         const op = filters.operation ?? FILTER_MAP[activeFilter];
         if (op) params.operation = op;
-        if (search.trim()) params.q = search.trim();
+        const hasTextSearch = !!search.trim();
+        if (hasTextSearch) params.q = search.trim();
         if (filters.propertyType) params.type = filters.propertyType;
         if (filters.minPrice) params.min_price = filters.minPrice;
         if (filters.maxPrice) params.max_price = filters.maxPrice;
         if (filters.bedrooms) params.bedrooms = filters.bedrooms;
 
-        // Radius-based loading
-        params.lat = c.latitude;
-        params.lng = c.longitude;
-        params.radius_km = radiusKm;
+        // Con búsqueda de texto no limitamos por radio: si no, un resultado
+        // fuera del área visible del mapa no aparece nunca y parece que la
+        // búsqueda "no funciona". Sin texto, sí filtramos por cercanía.
+        if (!hasTextSearch) {
+          params.lat = c.latitude;
+          params.lng = c.longitude;
+          params.radius_km = radiusKm;
+        }
 
         const { data } = await api.get('/properties', { params });
         const parsed = (data.data ?? []).map((p: any) => ({
@@ -199,8 +204,10 @@ export default function ExploreScreen() {
           price: Number(p.price),
         }));
         setProperties(parsed);
+        return parsed as Property[];
       } catch {
         // offline
+        return [];
       }
     },
     [activeFilter, search, filters, region, searchCenter, radiusKm],
@@ -219,10 +226,21 @@ export default function ExploreScreen() {
   );
 
   // Search with debounce
-  const onSearchSubmit = useCallback(() => {
+  const onSearchSubmit = useCallback(async () => {
     setShowSuggestions(false);
-    fetchProperties();
-  }, [fetchProperties]);
+    const results = await fetchProperties();
+    // La búsqueda de texto no está limitada al área visible: si los
+    // resultados quedan fuera, hay que mover el mapa para que se vean.
+    if (search.trim()) {
+      const geo = results.filter((p) => p.latitude != null && p.longitude != null);
+      if (geo.length > 0) {
+        mapRef.current?.fitToCoordinates(
+          geo.map((p) => ({ latitude: p.latitude!, longitude: p.longitude! })),
+          { edgePadding: { top: 100, right: 60, bottom: 300, left: 60 }, animated: true },
+        );
+      }
+    }
+  }, [fetchProperties, search]);
 
   const onSearchChange = (text: string) => {
     setSearch(text);

@@ -353,13 +353,21 @@ export class SubscriptionsService {
       ) {
         // Extender la suscripción vigente; la fila de renovación queda como
         // registro histórico en estado `renewed`.
+        // El cupo de la renovación se fijó cuando el usuario la pidió; si
+        // mientras estuvo pendiente pagó una propiedad extra, el cupo de la
+        // suscripción activa pudo haber subido desde entonces. Nos quedamos
+        // con el mayor de los dos para no perder ese aumento al confirmar.
+        const nextPropertyCount = Math.max(
+          sub.property_count ?? 1,
+          current.property_count ?? 1,
+        );
         const [extended] = await this.prisma.$transaction([
           this.prisma.subscriptions.update({
             where: { id: current.id },
             data: {
               end_date: new Date(current.end_date.getTime() + durationMs),
               renewed_at: new Date(),
-              property_count: sub.property_count ?? current.property_count,
+              property_count: nextPropertyCount,
             },
             include: { subscription_plans: true },
           }),

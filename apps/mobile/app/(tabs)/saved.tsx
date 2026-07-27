@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -250,6 +250,20 @@ function OwnerView() {
     setExtraCharge({ id: prop.id, title: prop.title, paymentId: prop.pending_payment.id });
   }, []);
 
+  // Rellena la última fila con celdas invisibles: si no, la propiedad que
+  // queda sola en una fila incompleta se estira con flex:1 y se ve gigante
+  // comparada con el resto.
+  const gridData = useMemo(() => {
+    if (NUM_COLUMNS <= 1) return properties;
+    const remainder = properties.length % NUM_COLUMNS;
+    if (remainder === 0) return properties;
+    const fillers = Array.from({ length: NUM_COLUMNS - remainder }, (_, i) => ({
+      id: `__filler_${i}`,
+      __filler: true,
+    })) as unknown as Property[];
+    return [...properties, ...fillers];
+  }, [properties]);
+
   const fetchMine = useCallback(async () => {
     try {
       const { data } = await api.get('/properties/mine');
@@ -434,7 +448,7 @@ function OwnerView() {
       ) : (
         <FlatList
           key={NUM_COLUMNS}
-          data={properties}
+          data={gridData}
           keyExtractor={(item) => item.id}
           numColumns={NUM_COLUMNS}
           columnWrapperStyle={NUM_COLUMNS > 1 ? styles.gridRow : undefined}
@@ -443,6 +457,9 @@ function OwnerView() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           renderItem={({ item }) => {
+            if ((item as any).__filler) {
+              return <View style={styles.ownerCardFiller} />;
+            }
             const img = getImage(item.property_images);
             const hasPendingPayment = item.status === 'paused' && !!item.pending_payment;
             const st = hasPendingPayment
@@ -669,6 +686,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.gray[100],
     marginBottom: NUM_COLUMNS > 1 ? 0 : Spacing.md,
   },
+  ownerCardFiller: { flex: 1 },
   ownerCardImgWrap: { position: 'relative', width: '100%', aspectRatio: 16 / 10 },
   ownerCardImg: { width: '100%', height: '100%' },
   ownerNoImg: { backgroundColor: Colors.gray[100], justifyContent: 'center', alignItems: 'center' },
