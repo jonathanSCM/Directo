@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import api from '../services/api';
 
 interface Plan {
@@ -242,6 +242,32 @@ export default function Subscriptions() {
     ? subs.filter((s) => s.status === statusFilter)
     : subs;
 
+  // Agrupa por usuario: el nombre/email solo se muestra una vez por grupo
+  // en vez de repetirse en cada fila (el mismo usuario suele tener varias
+  // suscripciones históricas — planes probados, renovaciones, etc).
+  const groupedSubs = useMemo(() => {
+    const sorted = [...filteredSubs].sort((a, b) => {
+      const keyA = a.users?.id ?? a.id;
+      const keyB = b.users?.id ?? b.id;
+      const nameA = a.users?.name ?? '';
+      const nameB = b.users?.name ?? '';
+      if (keyA !== keyB) return nameA.localeCompare(nameB) || keyA.localeCompare(keyB);
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+    const counts = new Map<string, number>();
+    sorted.forEach((s) => {
+      const key = s.users?.id ?? s.id;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    let lastKey: string | null = null;
+    return sorted.map((s) => {
+      const key = s.users?.id ?? s.id;
+      const groupStart = key !== lastKey;
+      lastKey = key;
+      return { ...s, __groupStart: groupStart, __groupCount: counts.get(key) ?? 1 };
+    });
+  }, [filteredSubs]);
+
   const activePlans = plans.filter((p) => p.is_active);
 
   if (loading) return <div className="loading"><div className="spinner" /><p>Cargando...</p></div>;
@@ -374,18 +400,29 @@ export default function Subscriptions() {
               </tr>
             </thead>
             <tbody>
-              {filteredSubs.length === 0 && (
+              {groupedSubs.length === 0 && (
                 <tr><td colSpan={7} className="empty-row">No hay suscripciones</td></tr>
               )}
-              {filteredSubs.map((s) => {
+              {groupedSubs.map((s) => {
                 const badge = STATUS_BADGE[s.status] ?? { cls: 'badge-gray', label: s.status };
                 const canActivate = ['pending_payment', 'in_review', 'expired'].includes(s.status);
                 const canCancel = ['active', 'pending_payment'].includes(s.status);
                 return (
-                  <tr key={s.id}>
+                  <tr key={s.id} className={s.__groupStart ? 'group-start' : 'group-continued'}>
                     <td>
-                      <strong>{s.users?.name || '—'}</strong>
-                      <br /><span className="text-muted">{s.users?.email}</span>
+                      {s.__groupStart ? (
+                        <>
+                          <strong>{s.users?.name || '—'}</strong>
+                          <br /><span className="text-muted">{s.users?.email}</span>
+                          {s.__groupCount > 1 && (
+                            <div style={{ marginTop: 4 }}>
+                              <span className="badge badge-gray">{s.__groupCount} suscripciones</span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <span className="group-identity-faded">↳ misma cuenta</span>
+                      )}
                     </td>
                     <td>
                       {s.subscription_plans?.name || '—'}

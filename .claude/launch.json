@@ -10,6 +10,14 @@
       "autoPort": true
     },
     {
+      "name": "api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:dev"],
+      "port": 3000,
+      "cwd": "apps/api",
+      "autoPort": true
+    },
+    {
       "name": "mobile-web",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["expo", "start", "--web"],
