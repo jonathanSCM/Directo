@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useFavorites } from '../../src/context/FavoritesContext';
-import { getImageUrl } from '../../src/constants/api';
+import { getImageUrl, PUBLIC_WEB_URL } from '../../src/constants/api';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import OwnerSupportFAB from '../../src/components/support/OwnerSupportChat';
@@ -155,8 +155,10 @@ export default function PropertyDetailScreen() {
   const liked = isFavorite(property.id);
 
   const onShare = async () => {
+    const link = `${PUBLIC_WEB_URL}/property/${property.slug}`;
     await Share.share({
-      message: `${property.title} - ${formatPrice(property.price, property.currency)}\nVe esta propiedad en DIRECTO`,
+      message: `${property.title} - ${formatPrice(property.price, property.currency)}\nVe esta propiedad en DIRECTO: ${link}`,
+      url: link,
     });
   };
 

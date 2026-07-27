@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useFavorites } from '../../src/context/FavoritesContext';
-import { getImageUrl } from '../../src/constants/api';
+import { getImageUrl, PUBLIC_WEB_URL } from '../../src/constants/api';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import Avatar from '../../src/components/Avatar';
@@ -263,7 +263,16 @@ export default function PropertyDetailWeb() {
           <Ionicons name="chevron-back" size={22} color={Colors.gray[800]} />
         </TouchableOpacity>
         <View style={S.topRight}>
-          <TouchableOpacity style={S.topBtn} onPress={() => Share.share({ message: `${property.title} - ${formatPrice(property.price, property.currency)}` })}>
+          <TouchableOpacity
+            style={S.topBtn}
+            onPress={() => {
+              const link = `${PUBLIC_WEB_URL}/property/${property.slug}`;
+              Share.share({
+                message: `${property.title} - ${formatPrice(property.price, property.currency)}\n${link}`,
+                url: link,
+              });
+            }}
+          >
             <Ionicons name="share-outline" size={20} color={Colors.gray[700]} />
           </TouchableOpacity>
           <TouchableOpacity style={S.topBtn} onPress={() => toggleFavorite(property.id)}>
