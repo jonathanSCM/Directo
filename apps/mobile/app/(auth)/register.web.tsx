@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +16,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import api from '../../src/services/api';
 
 const BLUE = '#1D4ED8';
+const IS_DESKTOP = Dimensions.get('window').width >= 768;
 
 export default function RegisterWeb() {
   const router = useRouter();
@@ -69,12 +71,14 @@ export default function RegisterWeb() {
     <View style={S.root}>
       {/* Left panel */}
       <View style={S.left}>
-        <View style={S.watermark} pointerEvents="none">
-          <Text style={S.watermarkText}>DIRECTO</Text>
-        </View>
+        {IS_DESKTOP && (
+          <View style={S.watermark} pointerEvents="none">
+            <Text style={S.watermarkText}>DIRECTO</Text>
+          </View>
+        )}
         <View style={S.leftInner}>
           <View style={S.logoRow}>
-            <Logo size={40} variant="white" />
+            <Logo size={IS_DESKTOP ? 40 : 32} variant="white" />
             <Text style={S.brand}>DIRECTO</Text>
           </View>
           <Text style={S.tagline}>COMPRA · VENDE · SIN INTERMEDIARIOS</Text>
@@ -82,14 +86,16 @@ export default function RegisterWeb() {
           <Text style={S.desc}>
             Publica y busca propiedades sin pagar comisiones. Contacta directo con el propietario.
           </Text>
-          <View style={S.stats}>
-            {[{ n: '500+', l: 'Propiedades' }, { n: '0%', l: 'Comisión' }, { n: 'Gratis', l: 'Para siempre' }].map(({ n, l }) => (
-              <View key={l} style={S.statItem}>
-                <Text style={S.statNum}>{n}</Text>
-                <Text style={S.statLabel}>{l}</Text>
-              </View>
-            ))}
-          </View>
+          {IS_DESKTOP && (
+            <View style={S.stats}>
+              {[{ n: '500+', l: 'Propiedades' }, { n: '0%', l: 'Comisión' }, { n: 'Gratis', l: 'Para siempre' }].map(({ n, l }) => (
+                <View key={l} style={S.statItem}>
+                  <Text style={S.statNum}>{n}</Text>
+                  <Text style={S.statLabel}>{l}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </View>
 
@@ -173,6 +179,8 @@ export default function RegisterWeb() {
                       onChange={(e: any) => setCity(e.target.value)}
                       style={{
                         flex: 1,
+                        minWidth: 0,
+                        width: '100%',
                         fontSize: 15,
                         color: city ? '#111827' : '#9CA3AF',
                         border: 'none',
@@ -250,32 +258,32 @@ export default function RegisterWeb() {
 }
 
 const S = StyleSheet.create({
-  root: { flex: 1, flexDirection: 'row', backgroundColor: '#fff' },
+  root: { flex: 1, flexDirection: IS_DESKTOP ? 'row' : 'column', backgroundColor: '#fff' },
 
   // Left
-  left: { flex: 1, backgroundColor: BLUE, overflow: 'hidden' as any, position: 'relative' },
+  left: { flex: IS_DESKTOP ? 1 : undefined, backgroundColor: BLUE, overflow: 'hidden' as any, position: 'relative' },
   watermark: { position: 'absolute', bottom: -60, right: -80, opacity: 0.07 },
   watermarkText: { fontSize: 180, fontWeight: '900' as any, color: '#fff', letterSpacing: -6, userSelect: 'none' as any },
-  leftInner: { flex: 1, justifyContent: 'center', paddingHorizontal: 52, paddingVertical: 60 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
-  brand: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
-  tagline: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.5)', letterSpacing: 2.5, marginBottom: 18 },
-  headline: { fontSize: 42, fontWeight: '800', color: '#fff', lineHeight: 50, marginBottom: 18, letterSpacing: -1 },
-  desc: { fontSize: 15, color: 'rgba(255,255,255,0.7)', lineHeight: 24, maxWidth: 380, marginBottom: 40 },
+  leftInner: { flex: IS_DESKTOP ? 1 : undefined, justifyContent: 'center', paddingHorizontal: IS_DESKTOP ? 52 : 24, paddingVertical: IS_DESKTOP ? 60 : 28 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: IS_DESKTOP ? 24 : 14 },
+  brand: { fontSize: IS_DESKTOP ? 26 : 20, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
+  tagline: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.5)', letterSpacing: 2.5, marginBottom: IS_DESKTOP ? 18 : 10 },
+  headline: { fontSize: IS_DESKTOP ? 42 : 24, fontWeight: '800', color: '#fff', lineHeight: IS_DESKTOP ? 50 : 30, marginBottom: IS_DESKTOP ? 18 : 8, letterSpacing: -1 },
+  desc: { fontSize: IS_DESKTOP ? 15 : 13.5, color: 'rgba(255,255,255,0.7)', lineHeight: IS_DESKTOP ? 24 : 19, maxWidth: 380, marginBottom: IS_DESKTOP ? 40 : 0 },
   stats: { flexDirection: 'row', gap: 36 },
   statItem: { gap: 4 },
   statNum: { fontSize: 28, fontWeight: '800', color: '#fff' },
   statLabel: { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
 
   // Right
-  right: { width: 520, backgroundColor: '#F9FAFB', justifyContent: 'center' },
-  scroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingVertical: 48 },
+  right: { width: IS_DESKTOP ? 520 : '100%', flex: IS_DESKTOP ? undefined : 1, backgroundColor: '#F9FAFB', justifyContent: 'center' },
+  scroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: IS_DESKTOP ? 32 : 20, paddingVertical: IS_DESKTOP ? 48 : 24 },
   card: {
     width: '100%',
     maxWidth: 440,
     backgroundColor: '#fff',
     borderRadius: 20,
-    padding: 36,
+    padding: IS_DESKTOP ? 36 : 22,
     boxShadow: '0 8px 32px rgba(0,0,0,0.08)' as any,
   },
   cardHeader: { alignItems: 'center', marginBottom: 20 },

@@ -1,23 +1,27 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Logo } from '../../src/components/Logo';
+
+const IS_DESKTOP = Dimensions.get('window').width >= 768;
 
 export default function OnboardingWeb() {
   const router = useRouter();
 
   return (
-    <View style={S.root}>
+    <ScrollView style={S.root} contentContainerStyle={S.rootContent}>
       {/* ── Left panel: brand ── */}
       <View style={S.left}>
-        {/* Background watermark */}
-        <View style={S.watermark} pointerEvents="none">
-          <Text style={S.watermarkText}>DIRECTO</Text>
-        </View>
+        {/* Background watermark: en mobile se ve gigante y cortado, mejor ocultarlo */}
+        {IS_DESKTOP && (
+          <View style={S.watermark} pointerEvents="none">
+            <Text style={S.watermarkText}>DIRECTO</Text>
+          </View>
+        )}
 
         <View style={S.leftInner}>
           <View style={S.logoRow}>
-            <Logo size={44} variant="white" />
+            <Logo size={IS_DESKTOP ? 44 : 36} variant="white" />
             <Text style={S.brand}>DIRECTO</Text>
           </View>
 
@@ -32,18 +36,20 @@ export default function OnboardingWeb() {
             Contacta directo al propietario, sin comisiones ni intermediarios.
           </Text>
 
-          <View style={S.stats}>
-            {[
-              { n: '500+', label: 'Propiedades' },
-              { n: '100%', label: 'Sin agentes' },
-              { n: '0%', label: 'Comisión' },
-            ].map(({ n, label }) => (
-              <View key={label} style={S.statItem}>
-                <Text style={S.statNum}>{n}</Text>
-                <Text style={S.statLabel}>{label}</Text>
-              </View>
-            ))}
-          </View>
+          {IS_DESKTOP && (
+            <View style={S.stats}>
+              {[
+                { n: '500+', label: 'Propiedades' },
+                { n: '100%', label: 'Sin agentes' },
+                { n: '0%', label: 'Comisión' },
+              ].map(({ n, label }) => (
+                <View key={label} style={S.statItem}>
+                  <Text style={S.statNum}>{n}</Text>
+                  <Text style={S.statLabel}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </View>
 
@@ -90,7 +96,7 @@ export default function OnboardingWeb() {
           </View>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -98,11 +104,12 @@ const BLUE = '#1D4ED8';
 const DARK_BLUE = '#1239A8';
 
 const S = StyleSheet.create({
-  root: { flex: 1, flexDirection: 'row', backgroundColor: '#fff' },
+  root: { flex: 1, backgroundColor: '#fff' },
+  rootContent: { flexGrow: 1, flexDirection: IS_DESKTOP ? 'row' : 'column' },
 
   // Left panel
   left: {
-    flex: 1,
+    flex: IS_DESKTOP ? 1 : undefined,
     backgroundColor: BLUE,
     overflow: 'hidden' as any,
     position: 'relative',
@@ -121,34 +128,34 @@ const S = StyleSheet.create({
     userSelect: 'none' as any,
   },
   leftInner: {
-    flex: 1,
+    flex: IS_DESKTOP ? 1 : undefined,
     justifyContent: 'center',
-    paddingHorizontal: 56,
-    paddingVertical: 60,
+    paddingHorizontal: IS_DESKTOP ? 56 : 24,
+    paddingVertical: IS_DESKTOP ? 60 : 36,
   },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 32 },
-  brand: { fontSize: 28, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: IS_DESKTOP ? 32 : 20 },
+  brand: { fontSize: IS_DESKTOP ? 28 : 22, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   tagline: {
     fontSize: 11,
     fontWeight: '700',
     color: 'rgba(255,255,255,0.55)',
     letterSpacing: 2.5,
-    marginBottom: 20,
+    marginBottom: IS_DESKTOP ? 20 : 12,
   },
   headline: {
-    fontSize: 46,
+    fontSize: IS_DESKTOP ? 46 : 26,
     fontWeight: '800',
     color: '#fff',
-    lineHeight: 54,
-    marginBottom: 20,
+    lineHeight: IS_DESKTOP ? 54 : 32,
+    marginBottom: IS_DESKTOP ? 20 : 12,
     letterSpacing: -1,
   },
   desc: {
-    fontSize: 16,
+    fontSize: IS_DESKTOP ? 16 : 14,
     color: 'rgba(255,255,255,0.72)',
-    lineHeight: 26,
+    lineHeight: IS_DESKTOP ? 26 : 20,
     maxWidth: 420,
-    marginBottom: 44,
+    marginBottom: IS_DESKTOP ? 44 : 0,
   },
   stats: { flexDirection: 'row', gap: 40 },
   statItem: { gap: 4 },
@@ -157,12 +164,12 @@ const S = StyleSheet.create({
 
   // Right panel
   right: {
-    width: 480,
+    width: IS_DESKTOP ? 480 : '100%',
     backgroundColor: '#F8FAFC',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 48,
+    paddingHorizontal: IS_DESKTOP ? 32 : 20,
+    paddingVertical: IS_DESKTOP ? 48 : 28,
   },
   card: {
     width: '100%',

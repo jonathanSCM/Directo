@@ -6,6 +6,7 @@ import L from 'leaflet';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   Modal,
   ScrollView,
@@ -20,6 +21,8 @@ import { useAuth } from '../src/context/AuthContext';
 import { Colors, Fonts, Radius, Spacing } from '../src/constants/theme';
 import api from '../src/services/api';
 import ExtraPropertyPaymentModal from '../src/components/subscription/ExtraPropertyPaymentModal';
+
+const IS_DESKTOP = Dimensions.get('window').width >= 768;
 
 // ── Leaflet CSS ──────────────────────────────────────────────────────────────
 function useLeafletCSS() {
@@ -341,34 +344,61 @@ export default function CreatePropertyWeb() {
           <Ionicons name="arrow-back" size={24} color={Colors.gray[900]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Publicar propiedad</Text>
-        <View style={{ width: 40 }} />
+        {IS_DESKTOP ? (
+          <View style={{ width: 40 }} />
+        ) : (
+          <Text style={styles.stepCounter}>{step + 1}/{STEPS.length}</Text>
+        )}
       </View>
 
-      <View style={styles.body}>
-        {/* Lista de pasos (sidebar) */}
-        <View style={styles.stepsSidebar}>
+      {!IS_DESKTOP && (
+        <View style={styles.mobileStepsRow}>
           {STEPS.map((s, i) => {
             const done = i < step;
             const active = i === step;
             return (
-              <TouchableOpacity
-                key={s.key}
-                style={styles.stepItem}
-                onPress={() => goToStep(i)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.stepDot, done && styles.stepDotDone, active && styles.stepDotActive]}>
+              <View key={s.key} style={styles.mobileStepDotWrap}>
+                <View style={[styles.stepDot, styles.stepDotSm, done && styles.stepDotDone, active && styles.stepDotActive]}>
                   {done ? (
-                    <Ionicons name="checkmark" size={14} color={Colors.white} />
+                    <Ionicons name="checkmark" size={11} color={Colors.white} />
                   ) : (
                     <Text style={[styles.stepDotText, active && styles.stepDotTextActive]}>{i + 1}</Text>
                   )}
                 </View>
-                <Text style={[styles.stepItemText, active && styles.stepItemTextActive]}>{s.title}</Text>
-              </TouchableOpacity>
+                {i < STEPS.length - 1 && <View style={[styles.mobileStepLine, done && styles.mobileStepLineDone]} />}
+              </View>
             );
           })}
         </View>
+      )}
+
+      <View style={styles.body}>
+        {/* Lista de pasos (sidebar) — solo escritorio, en mobile es la fila de puntos de arriba */}
+        {IS_DESKTOP && (
+          <View style={styles.stepsSidebar}>
+            {STEPS.map((s, i) => {
+              const done = i < step;
+              const active = i === step;
+              return (
+                <TouchableOpacity
+                  key={s.key}
+                  style={styles.stepItem}
+                  onPress={() => goToStep(i)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.stepDot, done && styles.stepDotDone, active && styles.stepDotActive]}>
+                    {done ? (
+                      <Ionicons name="checkmark" size={14} color={Colors.white} />
+                    ) : (
+                      <Text style={[styles.stepDotText, active && styles.stepDotTextActive]}>{i + 1}</Text>
+                    )}
+                  </View>
+                  <Text style={[styles.stepItemText, active && styles.stepItemTextActive]}>{s.title}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         {/* Contenido del paso actual */}
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -759,14 +789,25 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.gray[900] },
+  stepCounter: { width: 40, textAlign: 'right', fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.gray[400] },
 
-  body: { flex: 1, flexDirection: 'row', maxWidth: 980, alignSelf: 'center', width: '100%' },
+  mobileStepsRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl,
+    borderBottomWidth: 1, borderBottomColor: Colors.gray[100],
+  },
+  mobileStepDotWrap: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  mobileStepLine: { flex: 1, height: 2, backgroundColor: Colors.gray[100], marginHorizontal: 4 },
+  mobileStepLineDone: { backgroundColor: Colors.success },
+
+  body: { flex: 1, flexDirection: IS_DESKTOP ? 'row' : 'column', maxWidth: 980, alignSelf: 'center', width: '100%' },
   stepsSidebar: { width: 240, paddingVertical: Spacing.xxl, paddingRight: Spacing.xl, gap: 4 },
   stepItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: 10, cursor: 'pointer' as any },
   stepDot: {
     width: 26, height: 26, borderRadius: 13,
     backgroundColor: Colors.gray[100], justifyContent: 'center', alignItems: 'center',
   },
+  stepDotSm: { width: 22, height: 22, borderRadius: 11 },
   stepDotDone: { backgroundColor: Colors.success },
   stepDotActive: { backgroundColor: Colors.primary },
   stepDotText: { fontSize: 12, fontWeight: '700', color: Colors.gray[500] },
@@ -774,7 +815,13 @@ const styles = StyleSheet.create({
   stepItemText: { fontSize: Fonts.sizes.sm, color: Colors.gray[500], fontWeight: '500', flex: 1 },
   stepItemTextActive: { color: Colors.gray[900], fontWeight: '700' },
 
-  content: { padding: Spacing.xxl, paddingLeft: Spacing.xl, paddingBottom: 60, maxWidth: 680, width: '100%' },
+  content: {
+    padding: IS_DESKTOP ? Spacing.xxl : Spacing.lg,
+    paddingLeft: IS_DESKTOP ? Spacing.xl : Spacing.lg,
+    paddingBottom: 60,
+    maxWidth: IS_DESKTOP ? 680 : '100%',
+    width: '100%',
+  },
 
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
