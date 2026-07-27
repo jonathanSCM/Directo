@@ -184,10 +184,6 @@ export default function LoginWeb() {
                   </>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity style={S.socialBtn}>
-                <Ionicons name="logo-apple" size={20} color="#374151" />
-                <Text style={S.socialText}>Apple</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Footer */}

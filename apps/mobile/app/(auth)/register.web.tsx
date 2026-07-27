@@ -14,13 +14,14 @@ import {
 import { Logo } from '../../src/components/Logo';
 import { useAuth } from '../../src/context/AuthContext';
 import api from '../../src/services/api';
+import { useGoogleSignIn } from '../../src/hooks/useGoogleSignIn';
 
 const BLUE = '#1D4ED8';
 const IS_DESKTOP = Dimensions.get('window').width >= 768;
 
 export default function RegisterWeb() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -30,6 +31,7 @@ export default function RegisterWeb() {
   const [terms, setTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [cities, setCities] = useState<string[]>([]);
   const selectRef = useRef<any>(null);
 
@@ -66,6 +68,20 @@ export default function RegisterWeb() {
       setLoading(false);
     }
   };
+
+  const { request: googleRequest, promptAsync: googlePromptAsync } = useGoogleSignIn(
+    async (idToken) => {
+      setGoogleLoading(true);
+      setError('');
+      try {
+        await googleLogin(idToken);
+      } catch (err: any) {
+        setError(err.response?.data?.message ?? 'No se pudo iniciar sesión con Google');
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+  );
 
   return (
     <View style={S.root}>
@@ -243,6 +259,31 @@ export default function RegisterWeb() {
               }
             </TouchableOpacity>
 
+            {/* Divider */}
+            <View style={S.divider}>
+              <View style={S.line} />
+              <Text style={S.divText}>o continúa con</Text>
+              <View style={S.line} />
+            </View>
+
+            {/* Social */}
+            <View style={S.social}>
+              <TouchableOpacity
+                style={S.socialBtn}
+                disabled={!googleRequest || googleLoading}
+                onPress={() => googlePromptAsync()}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator size="small" color="#374151" />
+                ) : (
+                  <>
+                    <Text style={S.googleG}>G</Text>
+                    <Text style={S.socialText}>Google</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
             {/* Footer */}
             <View style={S.footer}>
               <Text style={S.footerText}>¿Ya tienes cuenta?{' '}</Text>
@@ -327,6 +368,19 @@ const S = StyleSheet.create({
     cursor: 'pointer' as any,
   },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 15.5 },
+
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  line: { flex: 1, height: 1, backgroundColor: '#E5E7EB' },
+  divText: { marginHorizontal: 12, color: '#9CA3AF', fontSize: 13 },
+
+  social: { flexDirection: 'row', gap: 12 },
+  socialBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 13, borderRadius: 10,
+    borderWidth: 1, borderColor: '#E5E7EB', cursor: 'pointer' as any,
+  },
+  googleG: { fontSize: 17, fontWeight: '700', color: '#374151' },
+  socialText: { fontSize: 14, fontWeight: '600', color: '#374151' },
 
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
   footerText: { color: '#6B7280', fontSize: 14 },

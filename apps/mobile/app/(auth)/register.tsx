@@ -17,10 +17,11 @@ import {
 import { useAuth } from '../../src/context/AuthContext';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
+import { useGoogleSignIn } from '../../src/hooks/useGoogleSignIn';
 
 export default function Register() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -28,6 +29,7 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [terms, setTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [cities, setCities] = useState<string[]>([]);
   const [showCityPicker, setShowCityPicker] = useState(false);
 
@@ -72,6 +74,20 @@ export default function Register() {
       setLoading(false);
     }
   };
+
+  const { request: googleRequest, promptAsync: googlePromptAsync } = useGoogleSignIn(
+    async (idToken) => {
+      setGoogleLoading(true);
+      try {
+        await googleLogin(idToken);
+      } catch (err: any) {
+        const msg = err.response?.data?.message;
+        Alert.alert('Error', typeof msg === 'string' ? msg : 'No se pudo iniciar sesión con Google');
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+  );
 
   return (
     <KeyboardAvoidingView
@@ -197,6 +213,31 @@ export default function Register() {
               <Text style={styles.primaryBtnText}>Crear cuenta</Text>
             )}
           </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>o continúa con</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Social */}
+          <View style={styles.socialRow}>
+            <TouchableOpacity
+              style={styles.socialBtn}
+              disabled={!googleRequest || googleLoading}
+              onPress={() => googlePromptAsync()}
+            >
+              {googleLoading ? (
+                <ActivityIndicator size="small" color={Colors.gray[700]} />
+              ) : (
+                <>
+                  <Text style={styles.socialIcon}>G</Text>
+                  <Text style={styles.socialText}>Google</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.footer}>
@@ -340,6 +381,47 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: '700',
     fontSize: Fonts.sizes.lg,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.gray[200],
+  },
+  dividerText: {
+    marginHorizontal: Spacing.md,
+    color: Colors.gray[400],
+    fontSize: Fonts.sizes.sm,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  socialBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: 14,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: Colors.gray[200],
+  },
+  socialIcon: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.gray[700],
+  },
+  socialText: {
+    fontSize: Fonts.sizes.md,
+    fontWeight: '600',
+    color: Colors.gray[700],
   },
   footer: {
     flexDirection: 'row',

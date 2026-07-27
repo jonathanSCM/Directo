@@ -171,10 +171,6 @@ export default function Login() {
                 </>
               )}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.socialBtn}>
-              <Ionicons name="logo-apple" size={20} color={Colors.gray[700]} />
-              <Text style={styles.socialText}>Apple</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
