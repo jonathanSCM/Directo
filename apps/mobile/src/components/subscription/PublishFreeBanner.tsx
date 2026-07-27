@@ -19,7 +19,7 @@ export default function PublishFreeBanner() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
-  if (loading || isActive || !user) return null;
+  if (loading || isActive || !user || user.active_role !== 'owner') return null;
 
   const ensureOwnerMode = async () => {
     if (user.active_role !== 'owner') await switchRole('owner');
