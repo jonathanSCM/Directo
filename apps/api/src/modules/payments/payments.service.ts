@@ -58,6 +58,17 @@ export class PaymentsService {
       );
     }
 
+    // Evita generar cobros duplicados si ya hay uno pendiente para la misma suscripción.
+    const existing = await this.prisma.payments.findFirst({
+      where: {
+        subscription_id: subscription.id,
+        status: { in: ['pending', 'in_review'] },
+      },
+    });
+    if (existing) {
+      return { payment: existing, checkout: existing.metadata };
+    }
+
     const method = dto.method;
     const provider = this.resolveProvider(method);
     // Total con propiedades extra incluidas

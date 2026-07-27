@@ -17,6 +17,7 @@ const IS_DESKTOP = Dimensions.get('window').width >= 900;
 import { Colors, Fonts, Radius, Spacing } from '../src/constants/theme';
 import { useSubscription, Plan } from '../src/context/SubscriptionContext';
 import api from '../src/services/api';
+import SubscriptionPaymentModal from '../src/components/subscription/SubscriptionPaymentModal';
 
 interface Subscription {
   id: string;
@@ -79,6 +80,13 @@ export default function SubscriptionScreen() {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   // Cantidad de propiedades elegida por plan (plan.id -> count)
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [subPayment, setSubPayment] = useState<{
+    subscriptionId: string;
+    planName?: string;
+    amount?: number;
+    currency?: string;
+    paymentId?: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -130,7 +138,12 @@ export default function SubscriptionScreen() {
       });
       refreshSubContext();
       if (data.status === 'pending_payment') {
-        notice('Pendiente de pago', 'Realiza el pago por QR para activar tu suscripción.');
+        setSubPayment({
+          subscriptionId: data.id,
+          planName: data.subscription_plans?.name,
+          amount: priceFor(data.subscription_plans, data.property_count ?? data.subscription_plans?.included_properties ?? 1),
+          currency: data.subscription_plans?.currency,
+        });
         load();
       } else if (isFree) {
         // Plan gratis activado: directo a publicar la primera propiedad
@@ -151,13 +164,13 @@ export default function SubscriptionScreen() {
     try {
       setActivating('renew');
       const { data } = await api.post('/subscriptions/renew', {});
-      if (data.status === 'in_review') {
-        notice(
-          'Renovación creada',
-          'Realiza el pago por QR para confirmarla. Tu plan actual sigue activo y los días se sumarán al confirmarse.',
-        );
-      } else if (data.status === 'pending_payment') {
-        notice('Pendiente de pago', 'Realiza el pago por QR para reactivar tu suscripción.');
+      if (data.status === 'in_review' || data.status === 'pending_payment') {
+        setSubPayment({
+          subscriptionId: data.id,
+          planName: data.subscription_plans?.name,
+          amount: priceFor(data.subscription_plans, data.property_count ?? data.subscription_plans?.included_properties ?? 1),
+          currency: data.subscription_plans?.currency,
+        });
       }
       load();
       refreshSubContext();
@@ -186,6 +199,23 @@ export default function SubscriptionScreen() {
       </View>
     );
   }
+
+  // Cobro ya generado para la suscripción actual (pendiente o en revisión):
+  // reanudarlo en vez de dejar que parezca que no hay forma de pagar.
+  const pendingSubPayment = subscription
+    ? payments.find((p) => p.subscription_id === subscription.id && (p.status === 'pending' || p.status === 'in_review'))
+    : undefined;
+
+  const resumeSubPayment = () => {
+    if (!subscription || !pendingSubPayment) return;
+    setSubPayment({
+      subscriptionId: subscription.id,
+      planName: subscription.subscription_plans?.name,
+      amount: Number(pendingSubPayment.amount),
+      currency: pendingSubPayment.currency,
+      paymentId: pendingSubPayment.id,
+    });
+  };
 
   const currentBlock = (
     <>
@@ -224,13 +254,20 @@ export default function SubscriptionScreen() {
               </View>
             )}
 
-            {subscription.status === 'in_review' && (
-              <View style={styles.renewPendingNote}>
+            {(subscription.status === 'in_review' || subscription.status === 'pending_payment') && (
+              <TouchableOpacity
+                style={styles.renewPendingNote}
+                onPress={pendingSubPayment ? resumeSubPayment : undefined}
+                disabled={!pendingSubPayment}
+              >
                 <Ionicons name="time-outline" size={16} color="#6366F1" />
                 <Text style={styles.renewPendingText}>
-                  Tienes una renovación esperando confirmación de pago.
+                  {subscription.status === 'in_review'
+                    ? 'Tienes una renovación esperando confirmación de pago.'
+                    : 'Tu suscripción está pendiente de pago.'}
+                  {pendingSubPayment ? ' Toca para ver el QR.' : ''}
                 </Text>
-              </View>
+              </TouchableOpacity>
             )}
 
             {/* Renovar: solo planes de pago (el gratis es de un solo uso) */}
@@ -469,6 +506,17 @@ export default function SubscriptionScreen() {
           </>
         )}
       </ScrollView>
+
+      <SubscriptionPaymentModal
+        visible={!!subPayment}
+        subscriptionId={subPayment?.subscriptionId ?? null}
+        planName={subPayment?.planName}
+        amount={subPayment?.amount}
+        currency={subPayment?.currency}
+        resumePaymentId={subPayment?.paymentId ?? null}
+        onClose={() => setSubPayment(null)}
+        onPaid={() => { load(); refreshSubContext(); }}
+      />
     </View>
   );
 }
