@@ -22,6 +22,7 @@ import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import OwnerSupportFAB from '../../src/components/support/OwnerSupportChat';
 import Avatar from '../../src/components/Avatar';
+import ReportPropertyModal from '../../src/components/ReportPropertyModal';
 
 const { width } = Dimensions.get('window');
 
@@ -91,6 +92,7 @@ export default function PropertyDetailScreen() {
   const [property, setProperty] = useState<PropertyDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [imgIndex, setImgIndex] = useState(0);
+  const [reportVisible, setReportVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -223,6 +225,14 @@ export default function PropertyDetailScreen() {
                   color={liked ? '#EF4444' : Colors.white}
                 />
               </TouchableOpacity>
+              {isAuthenticated && (
+                <TouchableOpacity
+                  style={styles.topBtn}
+                  onPress={() => setReportVisible(true)}
+                >
+                  <Ionicons name="flag-outline" size={20} color={Colors.white} />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
           {images.length > 1 && (
@@ -440,6 +450,11 @@ export default function PropertyDetailScreen() {
         </View>
       )}
       {isOwner && <OwnerSupportFAB />}
+      <ReportPropertyModal
+        visible={reportVisible}
+        propertyId={property.id}
+        onClose={() => setReportVisible(false)}
+      />
     </View>
   );
 }

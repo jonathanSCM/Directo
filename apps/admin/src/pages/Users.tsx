@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
-import api from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import api, { getImageUrl } from '../services/api';
 
 interface User {
   id: string;
   name: string;
   email: string;
   phone?: string;
+  avatar_url?: string;
   city?: string;
   status: string;
   active_role?: string;
@@ -35,7 +37,8 @@ interface UserDetail {
   }[];
   subscriptions: {
     id: string; status: string; start_date: string | null; end_date: string | null;
-    subscription_plans: { name: string; slug: string; price: string; currency: string };
+    property_count: number | null;
+    subscription_plans: { name: string; slug: string; price: string; currency: string; included_properties: number };
   }[];
   payments: {
     id: string; amount: string; currency: string; method: string; status: string;
@@ -83,6 +86,7 @@ const inputStyle: React.CSSProperties = {
 };
 
 export default function Users() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('list');
@@ -91,6 +95,8 @@ export default function Users() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('');
+  const [editingCountId, setEditingCountId] = useState<string | null>(null);
+  const [countDraft, setCountDraft] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -134,6 +140,34 @@ export default function Users() {
     if (detail?.id === id) openDetail(id);
   };
 
+  const updatePropertyCount = async (subId: string, count: number) => {
+    try {
+      await api.patch(`/admin/subscriptions/${subId}/property-count`, { property_count: count });
+      if (detail) openDetail(detail.id);
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Error al actualizar el cupo');
+    }
+  };
+
+  const takeDownProperty = async (id: string) => {
+    if (!confirm('¿Dar de baja esta propiedad?')) return;
+    try {
+      await api.patch(`/admin/properties/${id}/take-down`);
+      if (detail) openDetail(detail.id);
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Error al dar de baja');
+    }
+  };
+
+  const restoreProperty = async (id: string) => {
+    try {
+      await api.patch(`/admin/properties/${id}/restore`);
+      if (detail) openDetail(detail.id);
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Error al restaurar');
+    }
+  };
+
   const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('es-BO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
   // ── Detail View ─────────────────────────────────────────────────────────────
@@ -151,8 +185,13 @@ export default function Users() {
             <button className="btn btn-outline" onClick={() => setView('list')} style={{ marginBottom: 12 }}>
               ← Volver
             </button>
-            <h1>{detail.name}</h1>
-            <p className="subtitle">{detail.email}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <Avatar name={detail.name} avatarUrl={detail.avatar_url} size={52} />
+              <div>
+                <h1>{detail.name}</h1>
+                <p className="subtitle">{detail.email}</p>
+              </div>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {detail.is_verified ? (
@@ -214,19 +253,34 @@ export default function Users() {
             <div className="card-header"><h2>Propiedades</h2></div>
             <table>
               <thead>
-                <tr><th>Título</th><th>Operación</th><th>Precio</th><th>Estado</th><th>Vistas</th><th>Fecha</th></tr>
+                <tr><th>Título</th><th>Operación</th><th>Precio</th><th>Estado</th><th>Vistas</th><th>Fecha</th><th>Acciones</th></tr>
               </thead>
               <tbody>
                 {detail.properties.map((p) => {
                   const ps = PROP_STATUS[p.approval_status === 'pending' ? 'pending_approval' : p.status] ?? { cls: 'badge-gray', label: p.status };
                   return (
                     <tr key={p.id}>
-                      <td><strong>{p.title}</strong></td>
+                      <td>
+                        <strong
+                          style={{ cursor: 'pointer', color: '#2563EB' }}
+                          onClick={() => navigate(`/properties?id=${p.id}`)}
+                        >
+                          {p.title}
+                        </strong>
+                      </td>
                       <td>{OP_LABEL[p.operation] ?? p.operation}</td>
                       <td>{p.currency === 'USD' ? '$' : 'Bs.'} {Number(p.price).toLocaleString()}</td>
                       <td><span className={`badge ${ps.cls}`}>{ps.label}</span></td>
                       <td>{p.views_count}</td>
                       <td>{fmt(p.created_at)}</td>
+                      <td className="actions-cell">
+                        <button className="btn btn-sm btn-outline" onClick={() => navigate(`/properties?id=${p.id}`)}>Ver</button>
+                        {p.status !== 'taken_down' ? (
+                          <button className="btn btn-sm btn-warning" onClick={() => takeDownProperty(p.id)}>Dar de baja</button>
+                        ) : (
+                          <button className="btn btn-sm btn-success" onClick={() => restoreProperty(p.id)}>↩ Restaurar</button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -241,7 +295,7 @@ export default function Users() {
             <div className="card-header"><h2>Suscripciones</h2></div>
             <table>
               <thead>
-                <tr><th>Plan</th><th>Precio</th><th>Estado</th><th>Inicio</th><th>Vencimiento</th></tr>
+                <tr><th>Plan</th><th>Precio</th><th>Propiedades</th><th>Estado</th><th>Inicio</th><th>Vencimiento</th></tr>
               </thead>
               <tbody>
                 {detail.subscriptions.map((s) => {
@@ -250,6 +304,47 @@ export default function Users() {
                     <tr key={s.id}>
                       <td><strong>{s.subscription_plans.name}</strong></td>
                       <td>{Number(s.subscription_plans.price) === 0 ? 'Gratis' : `$${Number(s.subscription_plans.price).toFixed(2)}`}</td>
+                      <td>
+                        {editingCountId === s.id ? (
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            <input
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={countDraft}
+                              onChange={(e) => setCountDraft(e.target.value)}
+                              style={{ width: 56, padding: '2px 6px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 13 }}
+                              autoFocus
+                            />
+                            <button
+                              className="btn btn-sm btn-success"
+                              onClick={() => {
+                                const n = Number(countDraft);
+                                if (Number.isInteger(n) && n >= 1 && n <= 100) {
+                                  updatePropertyCount(s.id, n);
+                                  setEditingCountId(null);
+                                } else {
+                                  alert('Cantidad inválida (1-100)');
+                                }
+                              }}
+                            >
+                              ✓
+                            </button>
+                            <button className="btn btn-sm btn-outline" onClick={() => setEditingCountId(null)}>✕</button>
+                          </div>
+                        ) : (
+                          <span
+                            style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
+                            title="Clic para corregir el cupo de esta suscripción"
+                            onClick={() => {
+                              setEditingCountId(s.id);
+                              setCountDraft(String(s.property_count ?? s.subscription_plans.included_properties ?? 1));
+                            }}
+                          >
+                            {s.property_count ?? s.subscription_plans.included_properties ?? '—'}
+                          </span>
+                        )}
+                      </td>
                       <td><span className={`badge ${ss.cls}`}>{ss.label}</span></td>
                       <td>{fmt(s.start_date)}</td>
                       <td>{fmt(s.end_date)}</td>
@@ -371,15 +466,15 @@ export default function Users() {
                 return (
                   <tr key={u.id}>
                     <td>
-                      <strong
-                        style={{ cursor: 'pointer', color: '#2563EB' }}
-                        onClick={() => openDetail(u.id)}
-                      >
-                        {u.name}
-                      </strong>
-                      {u.is_verified && (
-                        <span title="Verificado" style={{ marginLeft: 6, color: '#2563EB' }}>✓</span>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => openDetail(u.id)}>
+                        <Avatar name={u.name} avatarUrl={u.avatar_url} />
+                        <strong style={{ color: '#2563EB' }}>
+                          {u.name}
+                        </strong>
+                        {u.is_verified && (
+                          <span title="Verificado" style={{ color: '#2563EB' }}>✓</span>
+                        )}
+                      </div>
                     </td>
                     <td>{u.email}</td>
                     <td>
@@ -408,6 +503,31 @@ export default function Users() {
         </div>
       )}
     </>
+  );
+}
+
+function Avatar({ name, avatarUrl, size = 32 }: { name: string; avatarUrl?: string; size?: number }) {
+  const initial = name?.charAt(0).toUpperCase() ?? '?';
+  if (avatarUrl) {
+    return (
+      <img
+        src={getImageUrl(avatarUrl)}
+        alt={name}
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+      />
+    );
+  }
+  return (
+    <div
+      style={{
+        width: size, height: size, borderRadius: '50%', flexShrink: 0,
+        background: 'var(--brand-tint)', color: 'var(--brand-ink)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontWeight: 700, fontSize: size * 0.42, fontFamily: 'var(--font-display)',
+      }}
+    >
+      {initial}
+    </div>
   );
 }
 

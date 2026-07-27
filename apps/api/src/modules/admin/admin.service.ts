@@ -208,8 +208,9 @@ export class AdminService {
             start_date: true,
             end_date: true,
             created_at: true,
+            property_count: true,
             subscription_plans: {
-              select: { name: true, slug: true, price: true, currency: true },
+              select: { name: true, slug: true, price: true, currency: true, included_properties: true },
             },
           },
           orderBy: { created_at: 'desc' },

@@ -20,6 +20,7 @@ import { getImageUrl } from '../../src/constants/api';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import Avatar from '../../src/components/Avatar';
+import ReportPropertyModal from '../../src/components/ReportPropertyModal';
 
 interface PropertyImage { id: string; url: string; is_main: boolean; }
 interface PropertyDetail {
@@ -197,6 +198,7 @@ export default function PropertyDetailWeb() {
   const [loading, setLoading] = useState(true);
   const [activeImg, setActiveImg] = useState(0);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [reportVisible, setReportVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -267,6 +269,11 @@ export default function PropertyDetailWeb() {
           <TouchableOpacity style={S.topBtn} onPress={() => toggleFavorite(property.id)}>
             <Ionicons name={liked ? 'heart' : 'heart-outline'} size={20} color={liked ? '#EF4444' : Colors.gray[700]} />
           </TouchableOpacity>
+          {isAuthenticated && (
+            <TouchableOpacity style={S.topBtn} onPress={() => setReportVisible(true)}>
+              <Ionicons name="flag-outline" size={20} color={Colors.gray[700]} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -479,6 +486,11 @@ export default function PropertyDetailWeb() {
           </View>
         </View>
       </ScrollView>
+      <ReportPropertyModal
+        visible={reportVisible}
+        propertyId={property.id}
+        onClose={() => setReportVisible(false)}
+      />
     </View>
   );
 }

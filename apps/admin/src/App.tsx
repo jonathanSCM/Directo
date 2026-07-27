@@ -8,6 +8,7 @@ import Users from './pages/Users';
 import Subscriptions from './pages/Subscriptions';
 import Payments from './pages/Payments';
 import Support from './pages/Support';
+import Reports from './pages/Reports';
 
 function ProtectedLayout() {
   const { isAuthenticated, loading } = useAuth();
@@ -29,6 +30,7 @@ function ProtectedLayout() {
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="payments" element={<Payments />} />
           <Route path="support" element={<Support />} />
+          <Route path="reports" element={<Reports />} />
         </Routes>
       </main>
     </div>

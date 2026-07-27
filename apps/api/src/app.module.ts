@@ -18,6 +18,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AdsModule } from './modules/ads/ads.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { SupportModule } from './modules/support/support.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -38,6 +39,7 @@ import { PrismaModule } from './prisma/prisma.module';
     FavoritesModule,
     SupportModule,
     AdsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [

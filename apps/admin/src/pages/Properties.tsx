@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { getImageUrl } from '../services/api';
 
@@ -88,6 +89,8 @@ export default function Properties() {
   const [selectedReason, setSelectedReason] = useState('');
   const [customReason, setCustomReason] = useState('');
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -99,7 +102,7 @@ export default function Properties() {
 
   useEffect(() => { load(); }, [load]);
 
-  const openDetail = async (id: string) => {
+  const openDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
     setView('detail');
     try {
@@ -107,7 +110,17 @@ export default function Properties() {
       setDetail(data);
     } catch { alert('Error al cargar detalle'); setView('list'); }
     setDetailLoading(false);
-  };
+  }, []);
+
+  // Deep-link: /properties?id=... (p. ej. desde el detalle de un usuario)
+  // abre directo el detalle de esa propiedad.
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (id) {
+      openDetail(id);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, openDetail, setSearchParams]);
 
   const filtered = properties.filter((p) => {
     if (filter) {
