@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Fonts, Radius, Spacing } from '../../constants/theme';
 import api from '../../services/api';
@@ -75,6 +76,7 @@ export default function OwnerSupportFAB() {
 // se abre el mismo chat, con toda la memoria de lo ya conversado.
 function AssistantScreen({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { isAuthenticated } = useAuth();
+  const insets = useSafeAreaInsets();
   const [thread, setThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -236,7 +238,7 @@ function AssistantScreen({ visible, onClose }: { visible: boolean; onClose: () =
           />
         )}
 
-        <View style={styles.inputBar}>
+        <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, Spacing.sm) }]}>
           <TextInput
             style={styles.textInput}
             placeholder="Escribe qué necesitas..."
@@ -335,7 +337,7 @@ const styles = StyleSheet.create({
 
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', padding: Spacing.sm,
-    paddingBottom: Platform.OS === 'ios' ? 30 : Spacing.sm, backgroundColor: Colors.white,
+    backgroundColor: Colors.white,
     borderTopWidth: 1, borderTopColor: Colors.gray[100], gap: Spacing.sm,
   },
   textInput: {
