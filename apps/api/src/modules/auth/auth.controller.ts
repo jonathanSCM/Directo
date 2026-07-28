@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,10 +8,12 @@ import {
   Patch,
   Post,
   Req,
+  Res,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import type { Request } from 'express';
+import type { CookieOptions, Request, Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
@@ -24,21 +27,64 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SwitchRoleDto } from './dto/switch-role.dto';
 import type { AuthUser, SessionContext } from './types/jwt-payload.interface';
 
+interface IssuedTokens {
+  accessToken: string;
+  refreshToken: string;
+  accessTokenExpiresAt: Date;
+  refreshTokenExpiresAt: Date;
+}
+
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
 
   private ctx(req: Request): SessionContext {
     return { ua: req.headers['user-agent'], ip: req.ip };
+  }
+
+  /**
+   * El panel admin (navegador) ya no guarda los tokens en JS — llegan acá
+   * como cookies httpOnly, invisibles para un XSS. La app móvil sigue
+   * usando el accessToken/refreshToken del body de la respuesta (header
+   * Authorization + expo-secure-store); ambos mecanismos conviven porque
+   * la API no sabe (ni le hace falta saber) qué cliente la llamó.
+   */
+  private setAuthCookies(res: Response, tokens: IssuedTokens) {
+    const secure = this.config.get('NODE_ENV') === 'production';
+    const base: CookieOptions = { httpOnly: true, secure, sameSite: 'lax', path: '/' };
+    res.cookie('access_token', tokens.accessToken, {
+      ...base,
+      expires: tokens.accessTokenExpiresAt,
+    });
+    res.cookie('refresh_token', tokens.refreshToken, {
+      ...base,
+      expires: tokens.refreshTokenExpiresAt,
+    });
+  }
+
+  private clearAuthCookies(res: Response) {
+    const secure = this.config.get('NODE_ENV') === 'production';
+    const base: CookieOptions = { httpOnly: true, secure, sameSite: 'lax', path: '/' };
+    res.clearCookie('access_token', base);
+    res.clearCookie('refresh_token', base);
   }
 
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   @ApiOperation({ summary: 'Registrar un nuevo usuario' })
-  register(@Body() dto: RegisterDto, @Req() req: Request) {
-    return this.authService.register(dto, this.ctx(req));
+  async register(
+    @Body() dto: RegisterDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.register(dto, this.ctx(req));
+    this.setAuthCookies(res, result);
+    return result;
   }
 
   @Public()
@@ -46,8 +92,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('login')
   @ApiOperation({ summary: 'Iniciar sesión' })
-  login(@Body() dto: LoginDto, @Req() req: Request) {
-    return this.authService.login(dto, this.ctx(req));
+  async login(
+    @Body() dto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(dto, this.ctx(req));
+    this.setAuthCookies(res, result);
+    return result;
   }
 
   @Public()
@@ -55,16 +107,39 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   @ApiOperation({ summary: 'Renovar el access token con un refresh token' })
-  refresh(@Body() dto: RefreshDto, @Req() req: Request) {
-    return this.authService.refresh(dto.refreshToken, this.ctx(req));
+  async refresh(
+    @Body() dto: RefreshDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const token = dto.refreshToken || req.cookies?.refresh_token;
+    if (!token) {
+      throw new BadRequestException('Falta el refresh token');
+    }
+    const result = await this.authService.refresh(token, this.ctx(req));
+    this.setAuthCookies(res, result);
+    return result;
   }
 
+  @Public()
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   @ApiOperation({ summary: 'Cerrar sesión (revoca refresh tokens)' })
-  logout(@CurrentUser('id') userId: string, @Body() dto: LogoutDto) {
-    return this.authService.logout(userId, dto.refreshToken);
+  async logout(
+    @CurrentUser('id') userId: string | undefined,
+    @Body() dto: LogoutDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.clearAuthCookies(res);
+    const token = dto.refreshToken || req.cookies?.refresh_token;
+    // Sin usuario autenticado (cookie/token ya inválido) no hay nada que
+    // revocar en BD, pero igual limpiamos las cookies arriba.
+    if (!userId) {
+      return { message: 'Sesión cerrada' };
+    }
+    return this.authService.logout(userId, token);
   }
 
   @ApiBearerAuth()
@@ -86,8 +161,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('google')
   @ApiOperation({ summary: 'Iniciar sesión o registrarse con Google' })
-  google(@Body() dto: GoogleAuthDto, @Req() req: Request) {
-    return this.authService.googleAuth(dto.idToken, this.ctx(req));
+  async google(
+    @Body() dto: GoogleAuthDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.googleAuth(dto.idToken, this.ctx(req));
+    this.setAuthCookies(res, result);
+    return result;
   }
 
   @Public()

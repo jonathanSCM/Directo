@@ -18,7 +18,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     if (isPublic) {
       const request = context.switchToHttp().getRequest();
       const auth = request.headers?.authorization;
-      if (auth?.startsWith('Bearer ')) {
+      const hasCookieToken = !!request.cookies?.access_token;
+      if (auth?.startsWith('Bearer ') || hasCookieToken) {
         // Try to validate token to populate req.user, but don't block
         return super.canActivate(context);
       }

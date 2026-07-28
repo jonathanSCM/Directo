@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { mkdirSync } from 'fs';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -15,6 +16,21 @@ function resolveCorsOrigin(): boolean | string[] {
 }
 
 async function bootstrap() {
+  // El login del panel admin ahora se autentica con una cookie httpOnly
+  // (credentials: true). Combinado con un CORS abierto (sin CORS_ORIGINS),
+  // el navegador reenviaría esa cookie a CUALQUIER sitio que llame a la API
+  // — es una condición insegura, no solo una mala práctica. En producción
+  // es obligatorio fijar CORS_ORIGINS a la lista real de dominios.
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (!process.env.CORS_ORIGINS || process.env.CORS_ORIGINS.trim() === '*')
+  ) {
+    throw new Error(
+      'CORS_ORIGINS debe estar configurado en producción (no puede quedar abierto): ' +
+        'las cookies de sesión del admin se reenviarían a cualquier origen.',
+    );
+  }
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: {
       origin: resolveCorsOrigin(),
@@ -29,6 +45,7 @@ async function bootstrap() {
   app.setGlobalPrefix(prefix);
 
   app.use(helmet({ crossOriginResourcePolicy: false }));
+  app.use(cookieParser());
 
   // Validación global de DTOs
   app.useGlobalPipes(

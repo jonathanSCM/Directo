@@ -29,31 +29,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    // La sesión vive en una cookie httpOnly: no hay nada que leer en JS
+    // para saber si hay sesión, hay que preguntarle a la API directamente.
     api.get('/auth/me')
       .then((r) => setUser(r.data))
-      .catch(() => {
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_refresh');
-      })
+      .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password });
-    localStorage.setItem('admin_token', data.accessToken);
-    if (data.refreshToken) localStorage.setItem('admin_refresh', data.refreshToken);
     setUser(data.user);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_refresh');
     setUser(null);
+    // Best-effort: limpia las cookies y revoca el refresh token en el
+    // servidor. No hace falta esperarlo para reflejar el logout en la UI.
+    api.post('/auth/logout').catch(() => {});
   }, []);
 
   return (

@@ -2,27 +2,22 @@ import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+// La sesión vive en cookies httpOnly que pone la API (ver auth.controller.ts
+// del backend) — invisibles para JS, así que acá no se guarda ni se manda
+// ningún token a mano. `withCredentials` es lo que hace que el navegador
+// adjunte esas cookies en cada request.
 const api = axios.create({
   baseURL: API_BASE,
   timeout: 15_000,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('admin_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+let refreshing: Promise<void> | null = null;
 
-let refreshing: Promise<string> | null = null;
-
-async function refreshAccessToken(): Promise<string> {
-  const refreshToken = localStorage.getItem('admin_refresh');
-  if (!refreshToken) throw new Error('no refresh token');
-  const { data } = await axios.post(`${API_BASE}/auth/refresh`, { refreshToken });
-  localStorage.setItem('admin_token', data.accessToken);
-  if (data.refreshToken) localStorage.setItem('admin_refresh', data.refreshToken);
-  return data.accessToken;
+async function refreshSession(): Promise<void> {
+  // Sin body: el refresh token va en la cookie httpOnly, no en JS.
+  await axios.post(`${API_BASE}/auth/refresh`, {}, { withCredentials: true });
 }
 
 api.interceptors.response.use(
@@ -33,15 +28,12 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !isAuthCall && !original._retried) {
       original._retried = true;
       try {
-        refreshing = refreshing ?? refreshAccessToken();
-        const token = await refreshing;
+        refreshing = refreshing ?? refreshSession();
+        await refreshing;
         refreshing = null;
-        original.headers.Authorization = `Bearer ${token}`;
         return api(original);
       } catch {
         refreshing = null;
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_refresh');
         if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login';
         }

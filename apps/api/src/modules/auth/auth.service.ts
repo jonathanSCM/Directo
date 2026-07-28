@@ -371,14 +371,15 @@ export class AuthService {
       },
     );
 
-    const decoded = this.jwt.decode(refreshToken) as { exp: number };
+    const decodedAccess = this.jwt.decode(accessToken) as { exp: number };
+    const decodedRefresh = this.jwt.decode(refreshToken) as { exp: number };
     await this.prisma.refresh_tokens.create({
       data: {
         user_id: user.id,
         token_hash: this.sha256(refreshToken),
         user_agent: ctx.ua,
         ip_address: ctx.ip,
-        expires_at: new Date(decoded.exp * 1000),
+        expires_at: new Date(decodedRefresh.exp * 1000),
       },
     });
 
@@ -386,6 +387,8 @@ export class AuthService {
       accessToken,
       refreshToken,
       tokenType: 'Bearer',
+      accessTokenExpiresAt: new Date(decodedAccess.exp * 1000),
+      refreshTokenExpiresAt: new Date(decodedRefresh.exp * 1000),
     };
   }
 
