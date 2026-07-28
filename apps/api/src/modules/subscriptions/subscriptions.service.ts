@@ -428,11 +428,30 @@ export class SubscriptionsService {
     if (!sub) {
       throw new NotFoundException('Suscripción no encontrada');
     }
-    return this.prisma.subscriptions.update({
+    const updated = await this.prisma.subscriptions.update({
       where: { id: subscriptionId },
       data: { status: 'cancelled' },
       include: { subscription_plans: true },
     });
+
+    // Igual que la expiración por cron: sin suscripción, las propiedades
+    // publicadas del dueño quedan en pausa (no visibles públicamente).
+    const paused = await this.prisma.properties.updateMany({
+      where: { owner_id: sub.user_id, status: 'published' },
+      data: { status: 'paused' },
+    });
+
+    await this.notify(
+      sub.user_id,
+      'subscription_expired',
+      'Suscripción cancelada',
+      paused.count > 0
+        ? 'Tu suscripción fue cancelada y tus propiedades publicadas quedaron en pausa.'
+        : 'Tu suscripción fue cancelada.',
+      { subscription_id: sub.id },
+    );
+
+    return updated;
   }
 
   // ── Enforcement (§18) ───────────────────────────────────────────────────────
