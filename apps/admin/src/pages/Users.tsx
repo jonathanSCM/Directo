@@ -103,7 +103,9 @@ export default function Users() {
     try {
       const { data } = await api.get('/admin/users');
       setUsers(data.data || data);
-    } catch { /* */ }
+    } catch {
+      alert('Error al cargar usuarios');
+    }
     setLoading(false);
   }, []);
 

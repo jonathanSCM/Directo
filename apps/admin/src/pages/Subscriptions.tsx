@@ -100,7 +100,9 @@ export default function Subscriptions() {
       ]);
       setPlans(plansRes.data);
       setSubs(Array.isArray(subsRes.data) ? subsRes.data : subsRes.data.data || []);
-    } catch { /* */ }
+    } catch {
+      alert('Error al cargar suscripciones');
+    }
     setLoading(false);
   }, []);
 

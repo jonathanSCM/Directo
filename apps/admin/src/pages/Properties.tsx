@@ -83,6 +83,7 @@ export default function Properties() {
   const [view, setView] = useState<View>('list');
   const [detail, setDetail] = useState<Property | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [acting, setActing] = useState<string | null>(null);
 
   // Reject modal
   const [rejectId, setRejectId] = useState<string | null>(null);
@@ -96,7 +97,9 @@ export default function Properties() {
     try {
       const { data } = await api.get('/admin/properties?limit=100');
       setProperties(data.data || data);
-    } catch { /* */ }
+    } catch {
+      alert('Error al cargar propiedades');
+    }
     setLoading(false);
   }, []);
 
@@ -154,9 +157,15 @@ export default function Properties() {
 
   const approve = async (id: string) => {
     if (!confirm('¿Aprobar esta propiedad?')) return;
-    await api.patch(`/admin/properties/${id}/approve`);
-    load();
-    if (detail?.id === id) openDetail(id);
+    setActing(id);
+    try {
+      await api.patch(`/admin/properties/${id}/approve`);
+      await load();
+      if (detail?.id === id) await openDetail(id);
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Error al aprobar la propiedad');
+    }
+    setActing(null);
   };
 
   const openReject = (id: string) => {
@@ -175,24 +184,43 @@ export default function Properties() {
   const submitReject = async () => {
     const reason = getRejectMessage();
     if (!reason) return alert('Selecciona o escribe un motivo');
-    await api.patch(`/admin/properties/${rejectId}/reject`, { reason });
-    setRejectId(null);
-    load();
-    if (detail?.id === rejectId) openDetail(rejectId!);
+    const id = rejectId!;
+    setActing(id);
+    try {
+      await api.patch(`/admin/properties/${id}/reject`, { reason });
+      setRejectId(null);
+      await load();
+      if (detail?.id === id) await openDetail(id);
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Error al rechazar la propiedad');
+    }
+    setActing(null);
   };
 
   const takeDown = async (id: string) => {
     if (!confirm('¿Dar de baja esta propiedad? La propiedad dejará de ser visible pero podrá restaurarse.')) return;
-    await api.patch(`/admin/properties/${id}/take-down`);
-    load();
-    if (detail?.id === id) openDetail(id);
+    setActing(id);
+    try {
+      await api.patch(`/admin/properties/${id}/take-down`);
+      await load();
+      if (detail?.id === id) await openDetail(id);
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Error al dar de baja la propiedad');
+    }
+    setActing(null);
   };
 
   const restore = async (id: string) => {
     if (!confirm('¿Restaurar esta propiedad? Volverá a estar publicada y visible.')) return;
-    await api.patch(`/admin/properties/${id}/restore`);
-    load();
-    if (detail?.id === id) openDetail(id);
+    setActing(id);
+    try {
+      await api.patch(`/admin/properties/${id}/restore`);
+      await load();
+      if (detail?.id === id) await openDetail(id);
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Error al restaurar la propiedad');
+    }
+    setActing(null);
   };
 
   const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('es-BO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -233,15 +261,15 @@ export default function Properties() {
           <div style={{ display: 'flex', gap: 8 }}>
             {isPending && (
               <>
-                <button className="btn btn-success" onClick={() => approve(detail.id)}>Aprobar</button>
-                <button className="btn btn-danger" onClick={() => openReject(detail.id)}>Rechazar</button>
+                <button className="btn btn-success" disabled={acting === detail.id} onClick={() => approve(detail.id)}>Aprobar</button>
+                <button className="btn btn-danger" disabled={acting === detail.id} onClick={() => openReject(detail.id)}>Rechazar</button>
               </>
             )}
             {isPublished && (
-              <button className="btn btn-warning" onClick={() => takeDown(detail.id)}>Dar de baja</button>
+              <button className="btn btn-warning" disabled={acting === detail.id} onClick={() => takeDown(detail.id)}>Dar de baja</button>
             )}
             {isTakenDown && (
-              <button className="btn btn-success" onClick={() => restore(detail.id)}>↩ Restaurar</button>
+              <button className="btn btn-success" disabled={acting === detail.id} onClick={() => restore(detail.id)}>↩ Restaurar</button>
             )}
           </div>
         </div>
@@ -384,6 +412,7 @@ export default function Properties() {
           customReason={customReason}
           setCustomReason={setCustomReason}
           onSubmit={submitReject}
+          submitting={acting === rejectId}
         />
       </>
     );
@@ -475,15 +504,15 @@ export default function Properties() {
                       <button className="btn btn-sm btn-outline" onClick={() => openDetail(p.id)}>Ver</button>
                       {sk === 'pending' && (
                         <>
-                          <button className="btn btn-sm btn-success" onClick={() => approve(p.id)}>Aprobar</button>
-                          <button className="btn btn-sm btn-danger" onClick={() => openReject(p.id)}>Rechazar</button>
+                          <button className="btn btn-sm btn-success" disabled={acting === p.id} onClick={() => approve(p.id)}>Aprobar</button>
+                          <button className="btn btn-sm btn-danger" disabled={acting === p.id} onClick={() => openReject(p.id)}>Rechazar</button>
                         </>
                       )}
                       {sk === 'published' && (
-                        <button className="btn btn-sm btn-warning" onClick={() => takeDown(p.id)}>Dar de baja</button>
+                        <button className="btn btn-sm btn-warning" disabled={acting === p.id} onClick={() => takeDown(p.id)}>Dar de baja</button>
                       )}
                       {sk === 'taken_down' && (
-                        <button className="btn btn-sm btn-success" onClick={() => restore(p.id)}>↩ Restaurar</button>
+                        <button className="btn btn-sm btn-success" disabled={acting === p.id} onClick={() => restore(p.id)}>↩ Restaurar</button>
                       )}
                     </td>
                   </tr>
@@ -518,7 +547,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 function RejectModal({
-  show, onClose, selectedReason, setSelectedReason, customReason, setCustomReason, onSubmit,
+  show, onClose, selectedReason, setSelectedReason, customReason, setCustomReason, onSubmit, submitting,
 }: {
   show: boolean;
   onClose: () => void;
@@ -527,6 +556,7 @@ function RejectModal({
   customReason: string;
   setCustomReason: (v: string) => void;
   onSubmit: () => void;
+  submitting?: boolean;
 }) {
   if (!show) return null;
   return (
@@ -566,9 +596,9 @@ function RejectModal({
         )}
 
         <div className="modal-actions">
-          <button className="btn btn-outline" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-danger" onClick={onSubmit} disabled={!selectedReason && !customReason.trim()}>
-            Rechazar
+          <button className="btn btn-outline" onClick={onClose} disabled={submitting}>Cancelar</button>
+          <button className="btn btn-danger" onClick={onSubmit} disabled={submitting || (!selectedReason && !customReason.trim())}>
+            {submitting ? 'Rechazando...' : 'Rechazar'}
           </button>
         </div>
       </div>

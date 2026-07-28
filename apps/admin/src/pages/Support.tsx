@@ -139,7 +139,9 @@ export default function Support() {
       });
       setReplyText('');
       await refreshTicketMessages(selectedTicket.id);
-    } catch {}
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Error al enviar la respuesta');
+    }
     setSending(false);
   };
 
@@ -148,7 +150,9 @@ export default function Support() {
       await api.patch(`/admin/support/tickets/${id}/resolve`);
       fetchData();
       setSelectedTicket(null);
-    } catch {}
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Error al resolver el ticket');
+    }
   };
 
   const fmtDate = (d: string) => new Date(d).toLocaleDateString('es-BO', {

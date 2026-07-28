@@ -51,6 +51,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   @ApiOperation({ summary: 'Renovar el access token con un refresh token' })
