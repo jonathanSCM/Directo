@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: "directo-app",
+    name: "DIRECTO",
     slug: "directo",
     version: "1.0.0",
     orientation: "portrait",
