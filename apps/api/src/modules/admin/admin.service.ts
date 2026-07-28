@@ -254,6 +254,10 @@ export class AdminService {
         data: { status: 'suspended' },
         select: { id: true, name: true, email: true, status: true },
       }),
+      this.prisma.properties.updateMany({
+        where: { owner_id: userId, status: 'published' },
+        data: { status: 'paused' },
+      }),
       this.prisma.admin_logs.create({
         data: {
           admin_id: adminId,
