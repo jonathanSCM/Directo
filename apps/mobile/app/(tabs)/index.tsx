@@ -19,6 +19,7 @@ import FilterModal, {
 import { Logo } from '../../src/components/Logo';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
+import { distanceKm } from '../../src/utils/geo';
 
 const DEFAULT_RADIUS_KM = 5;
 
@@ -46,6 +47,14 @@ interface Property {
   bedrooms?: number;
   bathrooms?: number;
   area_m2?: number;
+}
+
+interface ZoneOption {
+  id: string;
+  name: string;
+  city: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 const FILTERS = ['Todos', 'Venta', 'Alquiler', 'Anticrético'];
@@ -134,8 +143,9 @@ export default function ExploreScreen() {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   // Zone search suggestions
-  const [zoneSuggestions, setZoneSuggestions] = useState<{ id: string; name: string; city: string }[]>([]);
+  const [zoneSuggestions, setZoneSuggestions] = useState<ZoneOption[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Oculta los controles flotantes mientras el teclado está abierto
@@ -180,17 +190,20 @@ export default function ExploreScreen() {
         const params: Record<string, any> = { limit: 100 };
         const op = filters.operation ?? FILTER_MAP[activeFilter];
         if (op) params.operation = op;
-        const hasTextSearch = !!search.trim();
-        if (hasTextSearch) params.q = search.trim();
+        // La búsqueda es por zona (catálogo), no texto libre contra el
+        // título de la propiedad — evita falsos positivos raros y hace la
+        // búsqueda predecible.
+        const hasZoneSearch = !!selectedZoneId;
+        if (hasZoneSearch) params.zone_id = selectedZoneId;
         if (filters.propertyType) params.type = filters.propertyType;
         if (filters.minPrice) params.min_price = filters.minPrice;
         if (filters.maxPrice) params.max_price = filters.maxPrice;
         if (filters.bedrooms) params.bedrooms = filters.bedrooms;
 
-        // Con búsqueda de texto no limitamos por radio: si no, un resultado
+        // Con zona seleccionada no limitamos por radio: si no, un resultado
         // fuera del área visible del mapa no aparece nunca y parece que la
-        // búsqueda "no funciona". Sin texto, sí filtramos por cercanía.
-        if (!hasTextSearch) {
+        // búsqueda "no funciona". Sin zona, sí filtramos por cercanía.
+        if (!hasZoneSearch) {
           params.lat = c.latitude;
           params.lng = c.longitude;
           params.radius_km = radiusKm;
@@ -210,13 +223,13 @@ export default function ExploreScreen() {
         return [];
       }
     },
-    [activeFilter, search, filters, region, searchCenter, radiusKm],
+    [activeFilter, selectedZoneId, filters, region, searchCenter, radiusKm],
   );
 
   // Fetch on filter/search change
   useEffect(() => {
     fetchProperties();
-  }, [activeFilter, filters, searchCenter, radiusKm]);
+  }, [activeFilter, filters, searchCenter, radiusKm, selectedZoneId]);
 
   // Reload properties when screen gains focus (e.g. after creating/editing)
   useFocusEffect(
@@ -225,33 +238,61 @@ export default function ExploreScreen() {
     }, [fetchProperties]),
   );
 
-  // Search with debounce
-  const onSearchSubmit = useCallback(async () => {
+  // Referencia para ordenar las sugerencias por cercanía: la ubicación real
+  // del usuario si la tenemos, si no el centro actual del mapa.
+  const suggestionOrigin = userLocation ?? searchCenter ?? { latitude: region.latitude, longitude: region.longitude };
+
+  const selectZoneSuggestion = useCallback((zone: ZoneOption) => {
+    setSearch(zone.name);
     setShowSuggestions(false);
-    const results = await fetchProperties();
-    // La búsqueda de texto no está limitada al área visible: si los
-    // resultados quedan fuera, hay que mover el mapa para que se vean.
-    if (search.trim()) {
-      const geo = results.filter((p) => p.latitude != null && p.longitude != null);
-      if (geo.length > 0) {
-        mapRef.current?.fitToCoordinates(
-          geo.map((p) => ({ latitude: p.latitude!, longitude: p.longitude! })),
-          { edgePadding: { top: 100, right: 60, bottom: 300, left: 60 }, animated: true },
-        );
-      }
+    setSelectedZoneId(zone.id);
+    // Las zonas ya traen su propia coordenada guardada — no hace falta
+    // geocodificar de nuevo (más rápido y no depende de un servicio externo).
+    if (zone.latitude != null && zone.longitude != null) {
+      const coords = { latitude: zone.latitude, longitude: zone.longitude };
+      setSearchCenter(coords);
+      mapRef.current?.animateToRegion(
+        { ...coords, latitudeDelta: 0.04, longitudeDelta: 0.04 },
+        600,
+      );
     }
-  }, [fetchProperties, search]);
+  }, []);
+
+  // Al tocar buscar (o Enter), se usa la primera opción recomendada — no el
+  // texto tal cual se escribió — así el resultado siempre es una zona real.
+  const onSearchSubmit = useCallback(() => {
+    if (zoneSuggestions.length > 0) {
+      selectZoneSuggestion(zoneSuggestions[0]);
+    } else {
+      setShowSuggestions(false);
+    }
+  }, [zoneSuggestions, selectZoneSuggestion]);
 
   const onSearchChange = (text: string) => {
     setSearch(text);
+    // El texto ya no corresponde a la zona seleccionada anteriormente.
+    setSelectedZoneId(null);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (text.trim().length >= 2) {
       searchTimerRef.current = setTimeout(async () => {
         try {
           const { data } = await api.get('/zones');
-          const filtered = data.filter((z: any) =>
-            `${z.name} ${z.city}`.toLowerCase().includes(text.toLowerCase()),
-          );
+          const filtered = (data as ZoneOption[])
+            .filter((z) => `${z.name} ${z.city}`.toLowerCase().includes(text.toLowerCase()))
+            .map((z) => ({
+              ...z,
+              latitude: z.latitude != null ? Number(z.latitude) : null,
+              longitude: z.longitude != null ? Number(z.longitude) : null,
+            }))
+            .sort((a, b) => {
+              const da = a.latitude != null && a.longitude != null
+                ? distanceKm(suggestionOrigin, { latitude: a.latitude, longitude: a.longitude })
+                : Infinity;
+              const db = b.latitude != null && b.longitude != null
+                ? distanceKm(suggestionOrigin, { latitude: b.latitude, longitude: b.longitude })
+                : Infinity;
+              return da - db;
+            });
           setZoneSuggestions(filtered.slice(0, 5));
           setShowSuggestions(filtered.length > 0);
         } catch {
@@ -262,24 +303,6 @@ export default function ExploreScreen() {
       setZoneSuggestions([]);
       setShowSuggestions(false);
     }
-  };
-
-  const selectZoneSuggestion = async (zone: { id: string; name: string; city: string }) => {
-    setSearch(zone.name);
-    setShowSuggestions(false);
-    // Geocode the zone to center the map
-    try {
-      const results = await Location.geocodeAsync(`${zone.name}, ${zone.city}, Bolivia`);
-      if (results.length > 0) {
-        const coords = { latitude: results[0].latitude, longitude: results[0].longitude };
-        setSearchCenter(coords);
-        mapRef.current?.animateToRegion(
-          { ...coords, latitudeDelta: 0.04, longitudeDelta: 0.04 },
-          600,
-        );
-      }
-    } catch {}
-    fetchProperties();
   };
 
   useEffect(() => {

@@ -26,6 +26,7 @@ import { getImageUrl } from '../../src/constants/api';
 import { useFavorites } from '../../src/context/FavoritesContext';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
+import { distanceKm } from '../../src/utils/geo';
 
 // Inject Leaflet CSS + our own overrides (strip default tooltip chrome so our
 // custom preview card renders without Leaflet's bubble/arrow styling) once
@@ -80,6 +81,14 @@ interface Property {
   zones?: { name: string; city: string };
   users?: { name: string; phone?: string };
   whatsapp?: string; bedrooms?: number; bathrooms?: number; area_m2?: number;
+}
+
+interface ZoneOption {
+  id: string;
+  name: string;
+  city: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 const FILTERS = ['Todos', 'Venta', 'Alquiler', 'Anticrético'];
@@ -189,8 +198,9 @@ export default function ExploreScreen() {
   const [flyTarget, setFlyTarget] = useState<{ coord: [number, number]; zoom?: number } | null>(null);
 
   // Zone suggestions
-  const [zoneSuggestions, setZoneSuggestions] = useState<{ id: string; name: string; city: string }[]>([]);
+  const [zoneSuggestions, setZoneSuggestions] = useState<ZoneOption[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
 
   // Get user location on mount
   useEffect(() => {
@@ -215,15 +225,17 @@ export default function ExploreScreen() {
       const params: Record<string, any> = { limit: 100 };
       const op = filters.operation ?? FILTER_MAP[activeFilter];
       if (op) params.operation = op;
-      const hasTextSearch = !!search.trim();
-      if (hasTextSearch) params.q = search.trim();
+      // La búsqueda es por zona (catálogo), no texto libre contra el
+      // título de la propiedad.
+      const hasZoneSearch = !!selectedZoneId;
+      if (hasZoneSearch) params.zone_id = selectedZoneId;
       if (filters.propertyType) params.type = filters.propertyType;
       if (filters.minPrice) params.min_price = filters.minPrice;
       if (filters.maxPrice) params.max_price = filters.maxPrice;
       if (filters.bedrooms) params.bedrooms = filters.bedrooms;
-      // Con búsqueda de texto no limitamos por radio: si no, un resultado
+      // Con zona seleccionada no limitamos por radio: si no, un resultado
       // fuera del área visible del mapa no aparece nunca.
-      if (!hasTextSearch) {
+      if (!hasZoneSearch) {
         params.lat = center.latitude;
         params.lng = center.longitude;
         params.radius_km = radiusKm;
@@ -241,22 +253,64 @@ export default function ExploreScreen() {
       // offline
       return [];
     }
-  }, [activeFilter, search, filters, center, radiusKm]);
+  }, [activeFilter, selectedZoneId, filters, center, radiusKm]);
 
-  useEffect(() => { fetchProperties(); }, [activeFilter, filters, radiusKm]);
+  useEffect(() => { fetchProperties(); }, [activeFilter, filters, radiusKm, selectedZoneId]);
 
   useFocusEffect(useCallback(() => { fetchProperties(); }, [fetchProperties]));
 
+  // Referencia para ordenar las sugerencias por cercanía: la ubicación real
+  // del usuario si la tenemos, si no el centro actual del mapa.
+  const suggestionOrigin = userLocation ?? searchCenter ?? { latitude: DEFAULT_CENTER[0], longitude: DEFAULT_CENTER[1] };
+
+  const selectZoneSuggestion = useCallback((zone: ZoneOption) => {
+    setSearch(zone.name);
+    setShowSuggestions(false);
+    setSelectedZoneId(zone.id);
+    // Las zonas ya traen su propia coordenada guardada — no hace falta
+    // geocodificar de nuevo (más rápido y no depende de un servicio externo).
+    if (zone.latitude != null && zone.longitude != null) {
+      const coords = { latitude: zone.latitude, longitude: zone.longitude };
+      setSearchCenter(coords);
+      setFlyTarget({ coord: [coords.latitude, coords.longitude], zoom: 14 });
+    }
+  }, []);
+
+  // Al tocar buscar (o Enter), se usa la primera opción recomendada — no el
+  // texto tal cual se escribió — así el resultado siempre es una zona real.
+  const onSearchSubmit = useCallback(() => {
+    if (zoneSuggestions.length > 0) {
+      selectZoneSuggestion(zoneSuggestions[0]);
+    } else {
+      setShowSuggestions(false);
+    }
+  }, [zoneSuggestions, selectZoneSuggestion]);
+
   const onSearchChange = (text: string) => {
     setSearch(text);
+    // El texto ya no corresponde a la zona seleccionada anteriormente.
+    setSelectedZoneId(null);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (text.trim().length >= 2) {
       searchTimerRef.current = setTimeout(async () => {
         try {
           const { data } = await api.get('/zones');
-          const filtered = data.filter((z: any) =>
-            `${z.name} ${z.city}`.toLowerCase().includes(text.toLowerCase()),
-          );
+          const filtered = (data as ZoneOption[])
+            .filter((z) => `${z.name} ${z.city}`.toLowerCase().includes(text.toLowerCase()))
+            .map((z) => ({
+              ...z,
+              latitude: z.latitude != null ? Number(z.latitude) : null,
+              longitude: z.longitude != null ? Number(z.longitude) : null,
+            }))
+            .sort((a, b) => {
+              const da = a.latitude != null && a.longitude != null
+                ? distanceKm(suggestionOrigin, { latitude: a.latitude, longitude: a.longitude })
+                : Infinity;
+              const db = b.latitude != null && b.longitude != null
+                ? distanceKm(suggestionOrigin, { latitude: b.latitude, longitude: b.longitude })
+                : Infinity;
+              return da - db;
+            });
           setZoneSuggestions(filtered.slice(0, 5));
           setShowSuggestions(filtered.length > 0);
         } catch { setShowSuggestions(false); }
@@ -265,40 +319,6 @@ export default function ExploreScreen() {
       setZoneSuggestions([]);
       setShowSuggestions(false);
     }
-  };
-
-  const onSearchSubmit = async () => {
-    setShowSuggestions(false);
-    const results = await fetchProperties();
-    // La búsqueda de texto no está limitada al área visible: si los
-    // resultados quedan fuera, hay que mover el mapa para que se vean.
-    if (search.trim()) {
-      const geo = results.filter((p) => p.latitude != null && p.longitude != null);
-      if (geo.length > 0 && mapRef.current) {
-        mapRef.current.fitBounds(
-          geo.map((p) => [p.latitude!, p.longitude!] as [number, number]),
-          { padding: [60, 60] },
-        );
-      }
-    }
-  };
-
-  const selectZoneSuggestion = async (zone: { id: string; name: string; city: string }) => {
-    setSearch(zone.name);
-    setShowSuggestions(false);
-    try {
-      // Use Nominatim (free, no API key needed on web)
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(`${zone.name}, ${zone.city}, Bolivia`)}&format=json&limit=1`,
-      );
-      const results = await res.json();
-      if (results.length > 0) {
-        const coords = { latitude: parseFloat(results[0].lat), longitude: parseFloat(results[0].lon) };
-        setSearchCenter(coords);
-        setFlyTarget({ coord: [coords.latitude, coords.longitude], zoom: 14 });
-      }
-    } catch {}
-    fetchProperties();
   };
 
   useEffect(() => () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); }, []);
