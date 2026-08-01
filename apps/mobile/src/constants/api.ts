@@ -19,6 +19,10 @@ export const PUBLIC_WEB_URL =
     ? window.location.origin
     : 'https://directoapp.net';
 
+// Google Places (autocompletado de calles/lugares en el buscador del mapa).
+const defaultGooglePlacesKey = 'AIzaSyA2lp4wqwY747Xk2lzUdkdYV1K7rA8VTy4';
+export const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || defaultGooglePlacesKey;
+
 export const getImageUrl = (path: string | null | undefined): string | null => {
   if (!path) return null;
   if (path.startsWith('http')) return path;

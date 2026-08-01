@@ -26,7 +26,7 @@ import { getImageUrl } from '../../src/constants/api';
 import { useFavorites } from '../../src/context/FavoritesContext';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
-import { distanceKm } from '../../src/utils/geo';
+import { searchPlaces, resolvePlaceCoords, PlaceOption } from '../../src/utils/placeSearch';
 
 // Inject Leaflet CSS + our own overrides (strip default tooltip chrome so our
 // custom preview card renders without Leaflet's bubble/arrow styling) once
@@ -81,14 +81,6 @@ interface Property {
   zones?: { name: string; city: string };
   users?: { name: string; phone?: string };
   whatsapp?: string; bedrooms?: number; bathrooms?: number; area_m2?: number;
-}
-
-interface ZoneOption {
-  id: string;
-  name: string;
-  city: string;
-  latitude: number | null;
-  longitude: number | null;
 }
 
 const FILTERS = ['Todos', 'Venta', 'Alquiler', 'Anticrético'];
@@ -197,8 +189,8 @@ export default function ExploreScreen() {
   const [searchCenter, setSearchCenter] = useState<{ latitude: number; longitude: number } | null>(null);
   const [flyTarget, setFlyTarget] = useState<{ coord: [number, number]; zoom?: number } | null>(null);
 
-  // Zone suggestions
-  const [zoneSuggestions, setZoneSuggestions] = useState<ZoneOption[]>([]);
+  // Search suggestions (zonas del catálogo + calles/lugares vía Google Places)
+  const [placeSuggestions, setPlaceSuggestions] = useState<PlaceOption[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
 
@@ -263,60 +255,40 @@ export default function ExploreScreen() {
   // del usuario si la tenemos, si no el centro actual del mapa.
   const suggestionOrigin = userLocation ?? searchCenter ?? { latitude: DEFAULT_CENTER[0], longitude: DEFAULT_CENTER[1] };
 
-  const selectZoneSuggestion = useCallback((zone: ZoneOption) => {
-    setSearch(zone.name);
+  const selectPlaceSuggestion = useCallback(async (place: PlaceOption) => {
+    setSearch(place.label);
     setShowSuggestions(false);
-    setSelectedZoneId(zone.id);
-    // Las zonas ya traen su propia coordenada guardada — no hace falta
-    // geocodificar de nuevo (más rápido y no depende de un servicio externo).
-    if (zone.latitude != null && zone.longitude != null) {
-      const coords = { latitude: zone.latitude, longitude: zone.longitude };
+    setSelectedZoneId(place.zoneId);
+    const coords = await resolvePlaceCoords(place);
+    if (coords) {
       setSearchCenter(coords);
       setFlyTarget({ coord: [coords.latitude, coords.longitude], zoom: 14 });
     }
   }, []);
 
   // Al tocar buscar (o Enter), se usa la primera opción recomendada — no el
-  // texto tal cual se escribió — así el resultado siempre es una zona real.
+  // texto tal cual se escribió — así el resultado siempre es un lugar real.
   const onSearchSubmit = useCallback(() => {
-    if (zoneSuggestions.length > 0) {
-      selectZoneSuggestion(zoneSuggestions[0]);
+    if (placeSuggestions.length > 0) {
+      selectPlaceSuggestion(placeSuggestions[0]);
     } else {
       setShowSuggestions(false);
     }
-  }, [zoneSuggestions, selectZoneSuggestion]);
+  }, [placeSuggestions, selectPlaceSuggestion]);
 
   const onSearchChange = (text: string) => {
     setSearch(text);
-    // El texto ya no corresponde a la zona seleccionada anteriormente.
+    // El texto ya no corresponde al lugar seleccionado anteriormente.
     setSelectedZoneId(null);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (text.trim().length >= 2) {
       searchTimerRef.current = setTimeout(async () => {
-        try {
-          const { data } = await api.get('/zones');
-          const filtered = (data as ZoneOption[])
-            .filter((z) => `${z.name} ${z.city}`.toLowerCase().includes(text.toLowerCase()))
-            .map((z) => ({
-              ...z,
-              latitude: z.latitude != null ? Number(z.latitude) : null,
-              longitude: z.longitude != null ? Number(z.longitude) : null,
-            }))
-            .sort((a, b) => {
-              const da = a.latitude != null && a.longitude != null
-                ? distanceKm(suggestionOrigin, { latitude: a.latitude, longitude: a.longitude })
-                : Infinity;
-              const db = b.latitude != null && b.longitude != null
-                ? distanceKm(suggestionOrigin, { latitude: b.latitude, longitude: b.longitude })
-                : Infinity;
-              return da - db;
-            });
-          setZoneSuggestions(filtered.slice(0, 5));
-          setShowSuggestions(filtered.length > 0);
-        } catch { setShowSuggestions(false); }
+        const results = await searchPlaces(text, suggestionOrigin);
+        setPlaceSuggestions(results);
+        setShowSuggestions(results.length > 0);
       }, 400);
     } else {
-      setZoneSuggestions([]);
+      setPlaceSuggestions([]);
       setShowSuggestions(false);
     }
   };
@@ -442,17 +414,17 @@ export default function ExploreScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Zone suggestions */}
+      {/* Place suggestions */}
       {showSuggestions && (
         <View style={styles.suggestionsContainer}>
-          {zoneSuggestions.map(z => (
+          {placeSuggestions.map(p => (
             <TouchableOpacity
-              key={z.id}
+              key={p.id}
               style={styles.suggestionItem}
-              onPress={() => selectZoneSuggestion(z)}
+              onPress={() => selectPlaceSuggestion(p)}
             >
               <Ionicons name="location-outline" size={16} color={Colors.primary} />
-              <Text style={styles.suggestionText}>{z.name}, {z.city}</Text>
+              <Text style={styles.suggestionText}>{p.label}, {p.city}</Text>
             </TouchableOpacity>
           ))}
         </View>
