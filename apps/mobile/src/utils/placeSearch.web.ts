@@ -12,11 +12,12 @@ export interface PlaceOption {
   placeId?: string;
 }
 
-// La API REST de Places bloquea llamadas directas desde el navegador (CORS):
-// en web hay que usar el SDK de Google Maps JS, que carga como <script> y
-// hace las llamadas por su cuenta (sin problema de CORS).
-const SCZ_CENTER = { lat: -17.7833, lng: -63.1821 };
-const SCZ_RADIUS_M = 25000;
+// Radio máximo (desde la ubicación del usuario) para aceptar un resultado de
+// Google — no atado a ninguna ciudad, funciona para cualquier usuario en
+// cualquier parte de Bolivia. locationBias del SDK es solo una sugerencia
+// (no restringe de verdad), por eso la validación real es la distancia
+// calculada acá una vez resuelta la coordenada exacta de cada candidato.
+const MAX_RESULT_RADIUS_KM = 80;
 
 let scriptPromise: Promise<void> | null = null;
 function loadGoogleMaps(): Promise<void> {
@@ -43,6 +44,20 @@ function getServices() {
   return { autocompleteService, placesService };
 }
 
+function fetchPlaceDetailsCoords(placeId: string): Promise<{ latitude: number; longitude: number } | null> {
+  const google = (window as any).google;
+  const { placesService } = getServices();
+  return new Promise((resolve) => {
+    placesService.getDetails({ placeId, fields: ['geometry'] }, (place: any, status: string) => {
+      if (status !== google.maps.places.PlacesServiceStatus.OK || !place?.geometry?.location) {
+        resolve(null);
+        return;
+      }
+      resolve({ latitude: place.geometry.location.lat(), longitude: place.geometry.location.lng() });
+    });
+  });
+}
+
 async function searchZoneCatalog(text: string): Promise<PlaceOption[]> {
   try {
     const { data } = await api.get('/zones');
@@ -62,39 +77,44 @@ async function searchZoneCatalog(text: string): Promise<PlaceOption[]> {
   }
 }
 
-async function searchGooglePlaces(text: string): Promise<PlaceOption[]> {
+async function searchGooglePlaces(
+  text: string,
+  origin: { latitude: number; longitude: number },
+): Promise<PlaceOption[]> {
   if (!GOOGLE_PLACES_API_KEY) return [];
   try {
     await loadGoogleMaps();
     const google = (window as any).google;
     const { autocompleteService } = getServices();
-    return await new Promise((resolve) => {
+    const predictions: any[] = await new Promise((resolve) => {
       autocompleteService.getPlacePredictions(
         {
           input: text,
-          locationBias: { center: SCZ_CENTER, radius: SCZ_RADIUS_M },
+          locationBias: { center: { lat: origin.latitude, lng: origin.longitude }, radius: MAX_RESULT_RADIUS_KM * 1000 },
           componentRestrictions: { country: 'bo' },
           language: 'es',
         },
-        (predictions: any[] | null, status: string) => {
-          if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
-            resolve([]);
-            return;
-          }
-          resolve(
-            predictions.map((p) => ({
-              id: `g-${p.place_id}`,
-              label: p.structured_formatting?.main_text ?? p.description,
-              city: 'Santa Cruz de la Sierra',
-              latitude: null,
-              longitude: null,
-              zoneId: null,
-              placeId: p.place_id,
-            })),
-          );
+        (results: any[] | null, status: string) => {
+          resolve(status === google.maps.places.PlacesServiceStatus.OK && results ? results.slice(0, 5) : []);
         },
       );
     });
+
+    const withCoords = await Promise.all(
+      predictions.map(async (p) => ({ p, coords: await fetchPlaceDetailsCoords(p.place_id) })),
+    );
+
+    return withCoords
+      .filter(({ coords }) => coords && distanceKm(origin, coords) <= MAX_RESULT_RADIUS_KM)
+      .map(({ p, coords }) => ({
+        id: `g-${p.place_id}`,
+        label: p.structured_formatting?.main_text ?? p.description,
+        city: p.structured_formatting?.secondary_text ?? '',
+        latitude: coords!.latitude,
+        longitude: coords!.longitude,
+        zoneId: null,
+        placeId: p.place_id,
+      }));
   } catch {
     return [];
   }
@@ -104,7 +124,7 @@ export async function searchPlaces(
   text: string,
   origin: { latitude: number; longitude: number },
 ): Promise<PlaceOption[]> {
-  const [zones, places] = await Promise.all([searchZoneCatalog(text), searchGooglePlaces(text)]);
+  const [zones, places] = await Promise.all([searchZoneCatalog(text), searchGooglePlaces(text, origin)]);
 
   const seen = new Set<string>();
   const merged: PlaceOption[] = [];
@@ -115,12 +135,9 @@ export async function searchPlaces(
     merged.push(p);
   }
 
-  const zonesSorted = merged
-    .filter((p) => p.zoneId)
-    .sort((a, b) => distanceKm(origin, { latitude: a.latitude!, longitude: a.longitude! }) - distanceKm(origin, { latitude: b.latitude!, longitude: b.longitude! }));
-  const others = merged.filter((p) => !p.zoneId);
-
-  return [...zonesSorted, ...others].slice(0, 6);
+  return merged
+    .sort((a, b) => distanceKm(origin, { latitude: a.latitude!, longitude: a.longitude! }) - distanceKm(origin, { latitude: b.latitude!, longitude: b.longitude! }))
+    .slice(0, 6);
 }
 
 export async function resolvePlaceCoords(
@@ -130,23 +147,6 @@ export async function resolvePlaceCoords(
     return { latitude: option.latitude, longitude: option.longitude };
   }
   if (!option.placeId) return null;
-  try {
-    await loadGoogleMaps();
-    const google = (window as any).google;
-    const { placesService } = getServices();
-    return await new Promise((resolve) => {
-      placesService.getDetails(
-        { placeId: option.placeId, fields: ['geometry'] },
-        (place: any, status: string) => {
-          if (status !== google.maps.places.PlacesServiceStatus.OK || !place?.geometry?.location) {
-            resolve(null);
-            return;
-          }
-          resolve({ latitude: place.geometry.location.lat(), longitude: place.geometry.location.lng() });
-        },
-      );
-    });
-  } catch {
-    return null;
-  }
+  await loadGoogleMaps();
+  return fetchPlaceDetailsCoords(option.placeId);
 }
