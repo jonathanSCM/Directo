@@ -242,7 +242,7 @@ export default function ExploreScreen() {
     if (coords) {
       setSearchCenter(coords);
       mapRef.current?.animateToRegion(
-        { ...coords, latitudeDelta: 0.04, longitudeDelta: 0.04 },
+        { ...coords, latitudeDelta: 0.008, longitudeDelta: 0.008 },
         600,
       );
     }
@@ -297,6 +297,19 @@ export default function ExploreScreen() {
     );
   };
 
+  const clearSearch = () => {
+    setSearch('');
+    setSelectedZoneId(null);
+    setPlaceSuggestions([]);
+    setShowSuggestions(false);
+    setSearchCenter(userLocation);
+    const fallback = userLocation ?? { latitude: region.latitude, longitude: region.longitude };
+    mapRef.current?.animateToRegion(
+      { ...fallback, latitudeDelta: 0.08, longitudeDelta: 0.08 },
+      500,
+    );
+  };
+
   const center = searchCenter ?? { latitude: region.latitude, longitude: region.longitude };
 
   return (
@@ -344,9 +357,15 @@ export default function ExploreScreen() {
           onSubmitEditing={onSearchSubmit}
           returnKeyType="search"
         />
-        <TouchableOpacity onPress={onSearchSubmit}>
-          <Ionicons name="search" size={20} color={Colors.primary} />
-        </TouchableOpacity>
+        {search.length > 0 ? (
+          <TouchableOpacity onPress={clearSearch}>
+            <Ionicons name="close-circle" size={20} color={Colors.gray[400]} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={onSearchSubmit}>
+            <Ionicons name="search" size={20} color={Colors.primary} />
+          </TouchableOpacity>
+        )}
         <View style={styles.searchDivider} />
         <TouchableOpacity onPress={() => setShowFilters(true)}>
           <Ionicons name="options" size={20} color={Colors.gray[600]} />

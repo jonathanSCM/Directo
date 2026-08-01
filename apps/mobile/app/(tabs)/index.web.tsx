@@ -262,7 +262,7 @@ export default function ExploreScreen() {
     const coords = await resolvePlaceCoords(place);
     if (coords) {
       setSearchCenter(coords);
-      setFlyTarget({ coord: [coords.latitude, coords.longitude], zoom: 14 });
+      setFlyTarget({ coord: [coords.latitude, coords.longitude], zoom: 17 });
     }
   }, []);
 
@@ -338,6 +338,16 @@ export default function ExploreScreen() {
     setFlyTarget({ coord: [userLocation.latitude, userLocation.longitude], zoom: 15 });
   };
 
+  const clearSearch = () => {
+    setSearch('');
+    setSelectedZoneId(null);
+    setPlaceSuggestions([]);
+    setShowSuggestions(false);
+    setSearchCenter(userLocation);
+    const fallback = userLocation ?? { latitude: DEFAULT_CENTER[0], longitude: DEFAULT_CENTER[1] };
+    setFlyTarget({ coord: [fallback.latitude, fallback.longitude], zoom: 12 });
+  };
+
   return (
     <View style={styles.container}>
       {/* Full-screen Leaflet map */}
@@ -405,9 +415,15 @@ export default function ExploreScreen() {
           onSubmitEditing={onSearchSubmit}
           returnKeyType="search"
         />
-        <TouchableOpacity onPress={onSearchSubmit}>
-          <Ionicons name="search" size={20} color={Colors.primary} />
-        </TouchableOpacity>
+        {search.length > 0 ? (
+          <TouchableOpacity onPress={clearSearch}>
+            <Ionicons name="close-circle" size={20} color={Colors.gray[400]} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={onSearchSubmit}>
+            <Ionicons name="search" size={20} color={Colors.primary} />
+          </TouchableOpacity>
+        )}
         <View style={styles.searchDivider} />
         <TouchableOpacity onPress={() => setShowFilters(true)}>
           <Ionicons name="options" size={20} color={Colors.gray[600]} />
