@@ -39,6 +39,7 @@ async function searchZoneCatalog(text: string): Promise<PlaceOption[]> {
 }
 
 async function searchGooglePlaces(text: string): Promise<PlaceOption[]> {
+  if (!GOOGLE_PLACES_API_KEY) return [];
   try {
     const url =
       `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}` +

@@ -20,8 +20,11 @@ export const PUBLIC_WEB_URL =
     : 'https://directoapp.net';
 
 // Google Places (autocompletado de calles/lugares en el buscador del mapa).
-const defaultGooglePlacesKey = 'AIzaSyA2lp4wqwY747Xk2lzUdkdYV1K7rA8VTy4';
-export const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || defaultGooglePlacesKey;
+// Sin default hardcodeado a propósito: se configura por variable de entorno
+// en el deploy (EXPO_PUBLIC_GOOGLE_PLACES_API_KEY). Si falta, la búsqueda de
+// calles simplemente no trae resultados de Google (el catálogo de zonas
+// propio sigue funcionando igual).
+export const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? '';
 
 export const getImageUrl = (path: string | null | undefined): string | null => {
   if (!path) return null;
