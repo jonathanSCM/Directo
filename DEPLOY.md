@@ -111,13 +111,16 @@ Coolify → **+ New → Application** → mismo repo.
 | Dockerfile Location | `/apps/mobile/Dockerfile.web` |
 | Puerto expuesto | `80` |
 
-**Build argument:**
+**Build arguments** (ambas como **"Build Variable"** en Coolify):
 
 ```env
 EXPO_PUBLIC_API_URL=https://api.tudominio.com/api
+EXPO_PUBLIC_GOOGLE_PLACES_API_KEY=<tu key de Google Places>
 ```
 
-También como **"Build Variable"**.
+`EXPO_PUBLIC_GOOGLE_PLACES_API_KEY` es opcional: sin ella, el buscador
+del mapa sigue funcionando por el catálogo de zonas propio, solo que
+sin sugerencias de calles/lugares vía Google Places.
 
 **Dominio:** `https://app.tudominio.com` (o el dominio raíz)
 
