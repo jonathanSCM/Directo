@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import MapView, { Circle, Marker, Region } from 'react-native-maps';
+import MapView, { Circle, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import FilterModal, {
   FilterValues,
 } from '../../src/components/FilterModal';
@@ -316,6 +316,7 @@ export default function ExploreScreen() {
     <View style={styles.container}>
       <MapView
         ref={mapRef}
+        provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFillObject}
         initialRegion={region}
         onRegionChangeComplete={(r) => setRegion(r)}
@@ -454,13 +455,16 @@ export default function ExploreScreen() {
   );
 }
 
-// Plomo/gris claro, igual look que las teselas CartoDB "light_all" de la versión web.
+// Estilo colorido tipo Google Maps clásico: agua celeste, parques verdes,
+// autopistas ámbar, calles blancas sobre fondo crema. Sin POI/tránsito
+// (labels e iconos apagados via stylers y via showsPointsOfInterest/
+// showsTraffic/showsIndoors=false en el <MapView>), solo geometría de calles.
 const mapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#f2f2f2' }] },
+  { elementType: 'geometry', stylers: [{ color: '#f5f2e9' }] },
   { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#707070' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#f2f2f2' }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#d6d6d6' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#5c5648' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f2e9' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#d8d3c4' }] },
   { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
   {
     featureType: 'poi',
@@ -468,18 +472,22 @@ const mapStyle = [
     stylers: [{ visibility: 'off' }],
   },
   { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e5e8e5' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#bfe3b0' }] },
+  { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: '#eef1e4' }] },
   { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e0e0e0' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#e8e8e8' }] },
-  { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#8a8a8a' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e3d9c4' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#ffc966' }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#e6a531' }] },
+  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+  { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#8a7a5c' }] },
+  { featureType: 'road.local', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
   {
     featureType: 'transit',
     elementType: 'labels.icon',
     stylers: [{ visibility: 'off' }],
   },
-  { featureType: 'transit.line', elementType: 'geometry', stylers: [{ color: '#e0e0e0' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#dde3e8' }] },
+  { featureType: 'transit.line', elementType: 'geometry', stylers: [{ color: '#e3d9c4' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#a6d3f2' }] },
 ];
 
 const styles = StyleSheet.create({
