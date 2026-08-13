@@ -67,6 +67,10 @@ export default function RootLayout() {
             name="notifications"
             options={{ headerShown: false }}
           />
+          <Stack.Screen
+            name="terms"
+            options={{ headerShown: false }}
+          />
         </Stack>
         </SubscriptionProvider>
         </NotificationProvider>

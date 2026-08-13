@@ -2,41 +2,63 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSubscription } from '../../context/SubscriptionContext';
+import { useSubscription, Plan } from '../../context/SubscriptionContext';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Fonts, Radius, Spacing } from '../../constants/theme';
+import { describeUpgradeBenefits } from '../../utils/subscriptionCopy';
 
-const MESSAGES = [
+const NO_SUB_MESSAGES = (freeDays: number | null) => [
   { icon: 'trending-up', text: 'Los propietarios Premium reciben 2x más consultas' },
   { icon: 'search', text: 'Tus propiedades aparecerían más arriba en las búsquedas' },
   { icon: 'star', text: 'Destaca tus propiedades con un plan Premium' },
   { icon: 'rocket', text: 'Aprovecha y suscríbete para recibir beneficios exclusivos' },
   { icon: 'people', text: 'Llega a más compradores con una suscripción activa' },
-  { icon: 'gift', text: '¡No pierdas tu prueba gratuita de 30 días!' },
+  { icon: 'gift', text: `¡No pierdas tu prueba gratuita de ${freeDays ?? 30} días!` },
   { icon: 'flash', text: 'Publica más propiedades y vende más rápido' },
   { icon: 'ribbon', text: 'Suscríbete y obtén estadísticas de tus propiedades' },
+];
+
+// Mensajes para quien ya está en el plan gratis: empuje a mejorar/renovar en
+// vez de "suscribite" (ya lo hizo) — con los días que le quedan cuando se
+// conocen, para meter algo de urgencia sin ser agresivos. El beneficio
+// concreto sale de `describeUpgradeBenefits` (plan real, no hardcodeado).
+const UPGRADE_MESSAGES = (daysLeft: number | null, targetPlan: Plan | null) => [
+  { icon: 'trending-up', text: describeUpgradeBenefits(targetPlan) },
+  {
+    icon: 'time',
+    text: daysLeft != null
+      ? `Te quedan ${daysLeft} día${daysLeft === 1 ? '' : 's'} de plan gratis — renová para no cortar tu publicación`
+      : 'Renová tu plan para seguir publicando sin cortes',
+  },
 ];
 
 const INTERVAL_MS = 4 * 60 * 1000;
 const DISPLAY_MS = 6000;
 
+type Message = { icon: string; text: string };
+
 export default function SubscriptionToast() {
-  const { isActive, loading, freeTrialUsed } = useSubscription();
+  const { isActive, isFreePlanActive, daysLeft, loading, freeTrialUsed, freePlan, cheapestPaidPlan } =
+    useSubscription();
   const { user } = useAuth();
   const router = useRouter();
-  const [currentMsg, setCurrentMsg] = useState<typeof MESSAGES[0] | null>(null);
+  const [currentMsg, setCurrentMsg] = useState<Message | null>(null);
   const translateY = useRef(new Animated.Value(-120)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const msgIndex = useRef(0);
   const isOwner = user?.active_role === 'owner';
 
   useEffect(() => {
-    if (loading || isActive || !isOwner) return;
+    if (loading || !isOwner) return;
+    if (isActive && !isFreePlanActive) return; // plan pago activo: nada que ofrecer
 
     const show = () => {
-      const available = freeTrialUsed
-        ? MESSAGES.filter((m) => m.icon !== 'gift')
-        : MESSAGES;
+      const offerFreeTrial = !freeTrialUsed && !!freePlan;
+      const available = isFreePlanActive
+        ? UPGRADE_MESSAGES(daysLeft, cheapestPaidPlan)
+        : offerFreeTrial
+          ? NO_SUB_MESSAGES(freePlan!.duration_days)
+          : NO_SUB_MESSAGES(null).filter((m) => m.icon !== 'gift');
       const msg = available[msgIndex.current % available.length];
       msgIndex.current++;
       setCurrentMsg(msg);
@@ -61,7 +83,7 @@ export default function SubscriptionToast() {
       clearTimeout(initialDelay);
       clearInterval(interval);
     };
-  }, [loading, isActive, isOwner, freeTrialUsed]);
+  }, [loading, isActive, isFreePlanActive, daysLeft, isOwner, freeTrialUsed, freePlan, cheapestPaidPlan]);
 
   if (!currentMsg) return null;
 

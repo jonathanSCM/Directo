@@ -35,6 +35,14 @@ interface SubscriptionContextType {
   plans: Plan[];
   freeTrialUsed: boolean;
   isActive: boolean;
+  /** Suscripción activa y es el plan gratis (price === 0) — todavía no pagó nunca. */
+  isFreePlanActive: boolean;
+  /** Días restantes de la suscripción activa (redondeado hacia arriba), o null si no hay `end_date`. */
+  daysLeft: number | null;
+  /** Plan gratis del catálogo (para su duración real, precios de referencia, etc). */
+  freePlan: Plan | null;
+  /** Plan pago más barato del catálogo, para mostrar "desde $X" en las promos. */
+  cheapestPaidPlan: Plan | null;
   loading: boolean;
   refresh: () => Promise<void>;
 }
@@ -44,6 +52,10 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
   plans: [],
   freeTrialUsed: true,
   isActive: false,
+  isFreePlanActive: false,
+  daysLeft: null,
+  freePlan: null,
+  cheapestPaidPlan: null,
   loading: true,
   refresh: async () => {},
 });
@@ -82,9 +94,30 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   }, [refresh]);
 
   const isActive = subscription?.status === 'active';
+  const isFreePlanActive = isActive && Number(subscription?.subscription_plans?.price ?? -1) === 0;
+  const daysLeft = subscription?.end_date
+    ? Math.max(0, Math.ceil((new Date(subscription.end_date).getTime() - Date.now()) / 86_400_000))
+    : null;
+  const freePlan = plans.find((p) => Number(p.price) === 0) ?? null;
+  const cheapestPaidPlan = plans
+    .filter((p) => Number(p.price) > 0)
+    .reduce<Plan | null>((min, p) => (!min || Number(p.price) < Number(min.price) ? p : min), null);
 
   return (
-    <SubscriptionContext.Provider value={{ subscription, plans, freeTrialUsed, isActive, loading, refresh }}>
+    <SubscriptionContext.Provider
+      value={{
+        subscription,
+        plans,
+        freeTrialUsed,
+        isActive,
+        isFreePlanActive,
+        daysLeft,
+        freePlan,
+        cheapestPaidPlan,
+        loading,
+        refresh,
+      }}
+    >
       {children}
     </SubscriptionContext.Provider>
   );

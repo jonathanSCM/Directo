@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function SubscriptionGate({ visible, onClose, reason = 'no_subscription' }: Props) {
-  const { plans, freeTrialUsed } = useSubscription();
+  const { plans, freeTrialUsed, freePlan } = useSubscription();
   const router = useRouter();
 
   const goToSub = () => {
@@ -70,11 +70,11 @@ export default function SubscriptionGate({ visible, onClose, reason = 'no_subscr
             </View>
           )}
 
-          {!freeTrialUsed && (
+          {!freeTrialUsed && freePlan && (
             <View style={styles.trialHint}>
               <Ionicons name="gift" size={16} color="#F59E0B" />
               <Text style={styles.trialText}>
-                ¡Tienes una prueba gratuita de 30 días disponible!
+                ¡Tienes una prueba gratuita de {freePlan.duration_days} días disponible!
               </Text>
             </View>
           )}

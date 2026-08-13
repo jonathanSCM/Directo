@@ -196,8 +196,10 @@ export default function Register() {
               color={terms ? Colors.primary : Colors.gray[300]}
             />
             <Text style={styles.termsText}>
-              Acepto los <Text style={styles.termsLink}>Términos</Text> y la{' '}
-              <Text style={styles.termsLink}>Política de Privacidad</Text>
+              Acepto los{' '}
+              <Text style={styles.termsLink} onPress={() => router.push('/terms')}>
+                Términos y Condiciones
+              </Text>
               {'\n'}de DIRECTO.
             </Text>
           </TouchableOpacity>

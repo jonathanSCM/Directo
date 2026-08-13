@@ -21,6 +21,7 @@ import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import Avatar from '../../src/components/Avatar';
 import ReportPropertyModal from '../../src/components/ReportPropertyModal';
+import AdBanner from '../../src/components/AdBanner';
 
 interface PropertyImage { id: string; url: string; is_main: boolean; }
 interface PropertyDetail {
@@ -455,6 +456,9 @@ export default function PropertyDetailWeb() {
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* Publicidad de marca (opcional, no invasiva; no renderiza nada si no hay ads) */}
+            <AdBanner latitude={property.latitude} longitude={property.longitude} />
             </>)}
           </View>
 

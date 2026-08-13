@@ -7,6 +7,7 @@ import Properties from './pages/Properties';
 import Users from './pages/Users';
 import Subscriptions from './pages/Subscriptions';
 import Payments from './pages/Payments';
+import Ads from './pages/Ads';
 import Support from './pages/Support';
 import Reports from './pages/Reports';
 
@@ -29,6 +30,7 @@ function ProtectedLayout() {
           <Route path="users" element={<Users />} />
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="payments" element={<Payments />} />
+          <Route path="ads" element={<Ads />} />
           <Route path="support" element={<Support />} />
           <Route path="reports" element={<Reports />} />
         </Routes>

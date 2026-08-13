@@ -80,8 +80,11 @@ export default function NotificationsScreen() {
     if (!item.read_at) markAsRead(item.id);
 
     const propertyId = (item.data as any)?.property_id;
+    const url = (item.data as any)?.url;
     if (propertyId) {
       router.push(`/property/${propertyId}`);
+    } else if (url) {
+      router.push(url);
     }
   };
 
@@ -110,6 +113,11 @@ export default function NotificationsScreen() {
         return { name: 'calendar', color: '#2563eb' };
       case 'visit_request_updated':
         return { name: 'calendar-outline', color: '#7c3aed' };
+      case 'promotion':
+        return { name: 'pricetags', color: '#B45309' };
+      case 'subscription_expiring':
+      case 'subscription_expired':
+        return { name: 'time', color: Colors.warning };
       default:
         return { name: 'notifications', color: Colors.primary };
     }

@@ -15,10 +15,14 @@ Coolify → **+ New → Database → PostgreSQL** (versión 16).
 - Base de datos: `inmobiliaria`
 
 Una vez creada, inicializa el esquema conectándote a ella (con la URL interna
-que muestra Coolify) y ejecutando **en este orden**:
+que muestra Coolify) y ejecutando **en este orden** (por fecha — este listado
+estaba desactualizado, le faltaban varias migraciones ya escritas en
+`apps/api/prisma/migrations/manual/`; si tu base de producción es vieja,
+probablemente también le falten y hay que aplicarlas ahora):
 
 ```
 database/schema.sql
+apps/api/prisma/migrations/manual/add_favorites.sql
 apps/api/prisma/migrations/manual/add_amenities.sql
 database/seed.sql
 database/migrations/001_visit_availability.sql
@@ -26,9 +30,23 @@ database/migrations/002_payments_gateway.sql
 database/migrations/003_notification_promotion.sql
 database/migrations/004_directo_changes.sql
 database/migrations/005_google_oauth.sql
-apps/api/prisma/migrations/manual/add_favorites.sql
 apps/api/prisma/migrations/manual/add_support_chat.sql
+apps/api/prisma/migrations/manual/subscriptions_v2.sql
+apps/api/prisma/migrations/manual/ads_companies.sql
+apps/api/prisma/migrations/manual/ad_zones.sql
+apps/api/prisma/migrations/manual/advisor_requests.sql
+apps/api/prisma/migrations/manual/advisor_thread_unique.sql
+apps/api/prisma/migrations/manual/payments_property_extra.sql
+apps/api/prisma/migrations/manual/add_user_verification.sql
+apps/api/prisma/migrations/manual/add_property_reports.sql
+apps/api/prisma/migrations/manual/add_push_tokens.sql   <- nueva de esta sesión (push notifications)
 ```
+
+> **Antes de correr esto en producción:** conectate a la base de producción y
+> revisá qué tablas/columnas ya existen (`\dt`, `\d users`) para saber cuáles
+> de estas ya se aplicaron y cuáles faltan — todos los `.sql` de
+> `manual/` usan `IF NOT EXISTS`, así que re-ejecutar uno ya aplicado no rompe
+> nada, pero mejor confirmar antes de una migración en vivo.
 
 > Tip: puedes usar la terminal del contenedor en Coolify o
 > `psql "postgres://..." -f archivo.sql` desde tu máquina si expones el puerto temporalmente.

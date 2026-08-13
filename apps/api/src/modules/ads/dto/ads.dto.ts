@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUrl, MaxLength, MinLength } from 'class-validator';
+import { IsDateString, IsIn, IsOptional, IsString, IsUrl, MaxLength, MinLength } from 'class-validator';
 
 export class CreateCompanyDto {
   @ApiProperty({ example: 'Constructora Andina' })
@@ -39,4 +39,59 @@ export class CreateAdDto {
   @IsOptional()
   @IsString()
   zone_ids?: string;
+}
+
+/** Anuncio "casa" creado directamente por el admin, sin empresa/suscripción de por medio. */
+export class AdminCreateAdDto {
+  @ApiProperty({ example: 'Constructora Andina — Preventa' })
+  @IsString()
+  @MinLength(3)
+  @MaxLength(120)
+  title: string;
+
+  @ApiPropertyOptional({ example: 'https://miempresa.com/promo' })
+  @IsOptional()
+  @IsUrl({ require_protocol: true })
+  link_url?: string;
+
+  @ApiPropertyOptional({
+    description: 'Fecha de fin del anuncio (ISO). Vacío = sin vencimiento.',
+    example: '2026-12-31T23:59:59.000Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  ends_at?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'IDs de zona objetivo, como JSON stringificado. Vacío = se muestra en cualquier sector.',
+    example: '["3fa85f64-5717-4562-b3fc-2c963f66afa6"]',
+  })
+  @IsOptional()
+  @IsString()
+  zone_ids?: string;
+}
+
+export class AdminUpdateAdDto {
+  @ApiPropertyOptional({ example: 'Constructora Andina — Preventa' })
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(120)
+  title?: string;
+
+  @ApiPropertyOptional({ example: 'https://miempresa.com/promo' })
+  @IsOptional()
+  @IsUrl({ require_protocol: true })
+  link_url?: string;
+
+  @ApiPropertyOptional({ example: '2026-12-31T23:59:59.000Z' })
+  @IsOptional()
+  @IsDateString()
+  ends_at?: string;
+
+  @ApiPropertyOptional({ enum: ['active', 'paused'] })
+  @IsOptional()
+  @IsIn(['active', 'paused'])
+  status?: 'active' | 'paused';
 }

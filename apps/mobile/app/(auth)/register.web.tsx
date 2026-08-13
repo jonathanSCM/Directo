@@ -241,8 +241,11 @@ export default function RegisterWeb() {
                   {terms && <Ionicons name="checkmark" size={14} color="#fff" />}
                 </View>
                 <Text style={S.termsText}>
-                  Acepto los <Text style={S.termsLink}>Términos</Text> y la{' '}
-                  <Text style={S.termsLink}>Política de Privacidad</Text> de DIRECTO.
+                  Acepto los{' '}
+                  <Text style={S.termsLink} onPress={() => router.push('/terms')}>
+                    Términos y Condiciones
+                  </Text>{' '}
+                  de DIRECTO.
                 </Text>
               </TouchableOpacity>
             </View>

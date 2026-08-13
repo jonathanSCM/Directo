@@ -386,7 +386,7 @@ export default function SubscriptionScreen() {
                   <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
                   <Text style={styles.featureText}>
                     {isFree
-                      ? '1 propiedad por 30 días (un solo uso)'
+                      ? `1 propiedad por ${plan.duration_days} días (un solo uso)`
                       : `${plan.included_properties} propiedad(es) incluidas`}
                   </Text>
                 </View>

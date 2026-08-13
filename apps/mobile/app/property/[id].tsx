@@ -23,6 +23,7 @@ import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import OwnerSupportFAB from '../../src/components/support/OwnerSupportChat';
 import Avatar from '../../src/components/Avatar';
 import ReportPropertyModal from '../../src/components/ReportPropertyModal';
+import AdBanner from '../../src/components/AdBanner';
 
 const { width } = Dimensions.get('window');
 
@@ -431,6 +432,9 @@ export default function PropertyDetailScreen() {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Publicidad de marca (opcional, no invasiva; no renderiza nada si no hay ads) */}
+          <AdBanner latitude={property.latitude} longitude={property.longitude} />
           </>)}
         </View>
       </ScrollView>

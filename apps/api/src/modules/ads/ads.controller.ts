@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -16,7 +18,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { imageMulterOptions } from '../properties/multer.config';
 import { AdsService } from './ads.service';
-import { CreateAdDto, CreateCompanyDto } from './dto/ads.dto';
+import { AdminCreateAdDto, AdminUpdateAdDto, CreateAdDto, CreateCompanyDto } from './dto/ads.dto';
 
 @ApiTags('ads')
 @Controller()
@@ -27,14 +29,17 @@ export class AdsController {
 
   @Public()
   @Get('ads/serve')
-  @ApiOperation({
-    summary: 'Desactivado: la publicidad de empresas está deshabilitada',
-  })
-  serve() {
-    // Feature de publicidad/empresas desactivada. Se deja el endpoint (en vez
-    // de borrarlo) para que clientes viejos en caché no rompan; simplemente
-    // ya no entrega anuncios.
-    return [];
+  @ApiOperation({ summary: 'Anuncios a mostrar (banners de marca cargados por el admin)' })
+  serve(
+    @Query('count') count?: string,
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
+  ) {
+    return this.adsService.serve(
+      count ? parseInt(count, 10) : 1,
+      lat ? parseFloat(lat) : undefined,
+      lng ? parseFloat(lng) : undefined,
+    );
   }
 
   // ── Empresa (dueño) ─────────────────────────────────────────────────────────
@@ -96,5 +101,37 @@ export class AdsController {
     @Body() body: { status: 'active' | 'paused' },
   ) {
     return this.adsService.adminSetStatus(id, body.status);
+  }
+
+  @ApiBearerAuth()
+  @Roles('admin')
+  @Post('admin/ads')
+  @ApiOperation({ summary: 'Cargar un banner de marca (publicidad "casa", sin empresa externa)' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('image', imageMulterOptions))
+  adminCreateAd(@Body() dto: AdminCreateAdDto, @UploadedFile() file: Express.Multer.File) {
+    return this.adsService.adminCreateAd(dto, file);
+  }
+
+  @ApiBearerAuth()
+  @Roles('admin')
+  @Patch('admin/ads/:id')
+  @ApiOperation({ summary: 'Editar título/link/vencimiento/estado/imagen de un anuncio (admin)' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('image', imageMulterOptions))
+  adminUpdateAd(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AdminUpdateAdDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.adsService.adminUpdateAd(id, dto, file);
+  }
+
+  @ApiBearerAuth()
+  @Roles('admin')
+  @Delete('admin/ads/:id')
+  @ApiOperation({ summary: 'Eliminar un anuncio (admin)' })
+  adminDeleteAd(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adsService.adminDeleteAd(id);
   }
 }

@@ -70,6 +70,14 @@ const PANEL_WIDTH = Math.min(width, 420);
 const isDesktop = width >= 768;
 const DEFAULT_RADIUS_KM = 5;
 const DEFAULT_CENTER: [number, number] = [-17.7833, -63.1821];
+// Referencia estable (no un objeto nuevo en cada render): si no hay
+// searchCenter (geolocalización denegada/fallida), `center` de abajo caía en
+// un objeto literal recreado en cada render, lo que rompía la identidad de
+// `fetchProperties` (useCallback) y disparaba un loop infinito de fetch vía
+// useFocusEffect — cada re-render generaba una nueva referencia de `center`,
+// que generaba una nueva de `fetchProperties`, que volvía a disparar el
+// efecto. Ver también DEFAULT_CENTER.
+const DEFAULT_CENTER_COORDS = { latitude: DEFAULT_CENTER[0], longitude: DEFAULT_CENTER[1] };
 
 interface PropertyImage { id: string; url: string; is_main: boolean; }
 interface Property {
@@ -210,7 +218,7 @@ export default function ExploreScreen() {
     })();
   }, []);
 
-  const center = searchCenter ?? { latitude: DEFAULT_CENTER[0], longitude: DEFAULT_CENTER[1] };
+  const center = searchCenter ?? DEFAULT_CENTER_COORDS;
 
   const fetchProperties = useCallback(async () => {
     try {

@@ -1,10 +1,25 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useAuth } from './AuthContext';
 import api from '../services/api';
 import { Colors, Fonts, Radius, Spacing } from '../constants/theme';
+
+// Con la app en foreground, mostrar la notificación igual (banner + sonido)
+// en vez de tragársela silenciosamente — es el comportamiento por defecto
+// que espera cualquier usuario de una app con notificaciones reales.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 interface NotificationBanner {
   id: string;
@@ -77,8 +92,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (banner) {
       api.patch(`/notifications/${banner.id}/read`).catch(() => {});
       const propertyId = (banner.data as any)?.property_id;
+      const url = (banner.data as any)?.url;
       if (propertyId) {
         router.push(`/property/${propertyId}`);
+      } else if (url) {
+        router.push(url);
       } else {
         router.push('/notifications');
       }
@@ -98,15 +116,82 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [isAuthenticated, fetchUnread, checkNewNotifications]);
 
+  // Push notifications reales del SO (Android/iOS) — no aplica a web, ahí no
+  // hay token de dispositivo que registrar de esta forma. Al cerrar sesión
+  // se da de baja el token (no queda mandándole push de esta cuenta a un
+  // celular donde ya nadie inició sesión).
+  const pushTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (!isAuthenticated) {
+      if (pushTokenRef.current) {
+        api.delete('/users/me/push-token', { data: { token: pushTokenRef.current } }).catch(() => {});
+        pushTokenRef.current = null;
+      }
+      return;
+    }
+    registerForPushNotifications();
+  }, [isAuthenticated]);
+
+  const registerForPushNotifications = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.DEFAULT,
+        });
+      }
+      const { status: existing } = await Notifications.getPermissionsAsync();
+      let status = existing;
+      if (status !== 'granted') {
+        const req = await Notifications.requestPermissionsAsync();
+        status = req.status;
+      }
+      if (status !== 'granted') return;
+
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      const { data: token } = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined,
+      );
+      pushTokenRef.current = token;
+      await api.post('/users/me/push-token', { token, platform: Platform.OS });
+    } catch {
+      // sin permiso, sin proyecto EAS en dev, etc. — no rompe el resto de la app
+    }
+  };
+
+  // Tocar la notificación real (con la app en background o recién abierta
+  // desde ella) navega igual que el banner in-app: por property_id o,
+  // para promos de suscripción, por `data.url`.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+      const propertyId = data?.property_id;
+      const url = data?.url;
+      if (propertyId) {
+        router.push(`/property/${propertyId}`);
+      } else if (typeof url === 'string') {
+        router.push(url as any);
+      }
+    });
+    return () => sub.remove();
+  }, [router]);
+
   const getIconName = (type: string) => {
     if (type === 'property_approved') return 'checkmark-circle';
     if (type === 'property_rejected') return 'close-circle';
+    if (type === 'promotion') return 'pricetags';
+    if (type === 'subscription_expiring' || type === 'subscription_expired') return 'time';
     return 'notifications';
   };
 
   const getIconColor = (type: string) => {
     if (type === 'property_approved') return Colors.success;
     if (type === 'property_rejected') return Colors.error;
+    if (type === 'promotion') return '#B45309';
+    if (type === 'subscription_expiring' || type === 'subscription_expired') return Colors.warning;
     return Colors.primary;
   };
 

@@ -4,8 +4,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+
+/**
+ * Cupo de vistas que se le asigna a un anuncio "casa" (creado por el admin):
+ * un número lo bastante alto para que en la práctica nunca sea el motivo de
+ * que un anuncio deje de mostrarse — el control real es `status`/`ends_at`.
+ */
+const HOUSE_AD_VIEWS = 1_000_000_000;
+
+/** Key en la tabla genérica `settings` donde se guarda el id de la empresa "casa". */
+const HOUSE_COMPANY_SETTINGS_KEY = 'ads.house_company_id';
 
 @Injectable()
 export class AdsService {
@@ -15,15 +26,60 @@ export class AdsService {
   ) {}
 
   /**
-   * Feature de publicidad/empresas desactivada por completo: se bloquea acá
-   * (además de que /ads/serve ya no entrega nada), para que alguien con una
-   * suscripción de empresa vieja tampoco pueda crear/editar empresas o
-   * anuncios llamando a la API directamente.
+   * El marketplace self-service (empresa externa compra plan "Empresas" y
+   * gestiona sus propios anuncios) sigue desactivado por decisión de
+   * producto — se bloquea acá para que nadie con una suscripción de empresa
+   * vieja pueda crear/editar empresas o anuncios propios llamando a la API
+   * directamente. La publicidad "casa" (admin) usa un camino aparte que no
+   * pasa por acá, ver `adminCreateAd`.
    */
   private async requireBusinessSubscription(
     _userId: string,
   ): Promise<NonNullable<Awaited<ReturnType<SubscriptionsService['getActiveSubscription']>>>> {
     throw new ForbiddenException('La publicidad de empresas está desactivada');
+  }
+
+  /**
+   * Empresa interna usada como dueña de los anuncios que carga el admin a
+   * mano (sin marketplace de por medio). Se crea una sola vez y su id se
+   * guarda en `settings` para no depender de qué usuario admin la creó.
+   */
+  private async getOrCreateHouseCompany() {
+    const setting = await this.prisma.settings.findUnique({
+      where: { key: HOUSE_COMPANY_SETTINGS_KEY },
+    });
+    const savedId = (setting?.value as { companyId?: string } | null)?.companyId;
+    if (savedId) {
+      const existing = await this.prisma.companies.findUnique({ where: { id: savedId } });
+      if (existing) return existing;
+    }
+
+    // Dueña técnica: el primer usuario admin (la FK companies.user_id la exige).
+    const adminUser = await this.prisma.users.findFirst({
+      where: { user_roles: { some: { roles: { name: 'admin' } } } },
+      orderBy: { created_at: 'asc' },
+    });
+    if (!adminUser) {
+      throw new BadRequestException('No hay un usuario admin para asociar la publicidad');
+    }
+
+    const company = await this.prisma.companies.upsert({
+      where: { user_id: adminUser.id },
+      create: { user_id: adminUser.id, name: 'DIRECTO' },
+      update: {},
+    });
+
+    await this.prisma.settings.upsert({
+      where: { key: HOUSE_COMPANY_SETTINGS_KEY },
+      create: {
+        key: HOUSE_COMPANY_SETTINGS_KEY,
+        value: { companyId: company.id } as unknown as Prisma.InputJsonValue,
+        description: 'Empresa interna dueña de los anuncios cargados por el admin',
+      },
+      update: { value: { companyId: company.id } as unknown as Prisma.InputJsonValue },
+    });
+
+    return company;
   }
 
   // ── Empresa ─────────────────────────────────────────────────────────────────
@@ -289,5 +345,78 @@ export class AdsService {
     const ad = await this.prisma.ads.findUnique({ where: { id: adId } });
     if (!ad) throw new NotFoundException('Anuncio no encontrado');
     return this.prisma.ads.update({ where: { id: adId }, data: { status } });
+  }
+
+  /** Anuncio "casa" cargado directamente por el admin (sin empresa/suscripción externa). */
+  async adminCreateAd(
+    data: { title: string; link_url?: string; ends_at?: string; zone_ids?: string },
+    file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('El anuncio necesita una imagen');
+    }
+    const company = await this.getOrCreateHouseCompany();
+
+    let zoneIds: string[] = [];
+    if (data.zone_ids) {
+      try {
+        const parsed = JSON.parse(data.zone_ids);
+        if (Array.isArray(parsed)) zoneIds = parsed.filter((z) => typeof z === 'string');
+      } catch {
+        throw new BadRequestException('zone_ids inválido');
+      }
+    }
+
+    const ad = await this.prisma.ads.create({
+      data: {
+        company_id: company.id,
+        title: data.title,
+        link_url: data.link_url,
+        image_url: `/uploads/${file.filename}`,
+        views_purchased: HOUSE_AD_VIEWS,
+        ends_at: data.ends_at ? new Date(data.ends_at) : null,
+      },
+    });
+
+    if (zoneIds.length > 0) {
+      const validZones = await this.prisma.zones.findMany({
+        where: { id: { in: zoneIds } },
+        select: { id: true },
+      });
+      if (validZones.length > 0) {
+        await this.prisma.ad_zones.createMany({
+          data: validZones.map((z) => ({ ad_id: ad.id, zone_id: z.id })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    return ad;
+  }
+
+  async adminUpdateAd(
+    adId: string,
+    data: { title?: string; link_url?: string; ends_at?: string; status?: 'active' | 'paused' },
+    file?: Express.Multer.File,
+  ) {
+    const ad = await this.prisma.ads.findUnique({ where: { id: adId } });
+    if (!ad) throw new NotFoundException('Anuncio no encontrado');
+    return this.prisma.ads.update({
+      where: { id: adId },
+      data: {
+        ...(data.title !== undefined ? { title: data.title } : {}),
+        ...(data.link_url !== undefined ? { link_url: data.link_url } : {}),
+        ...(data.ends_at !== undefined ? { ends_at: data.ends_at ? new Date(data.ends_at) : null } : {}),
+        ...(data.status !== undefined ? { status: data.status } : {}),
+        ...(file ? { image_url: `/uploads/${file.filename}` } : {}),
+      },
+    });
+  }
+
+  async adminDeleteAd(adId: string) {
+    const ad = await this.prisma.ads.findUnique({ where: { id: adId } });
+    if (!ad) throw new NotFoundException('Anuncio no encontrado');
+    await this.prisma.ads.delete({ where: { id: adId } });
+    return { success: true };
   }
 }

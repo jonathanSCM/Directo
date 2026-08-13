@@ -38,6 +38,13 @@ export default {
       "expo-router",
       "expo-secure-store",
       "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          icon: "./assets/icon-directo.png",
+          color: "#2563EB",
+        },
+      ],
     ],
     extra: {
       eas: {
