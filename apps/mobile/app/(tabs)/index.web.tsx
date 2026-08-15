@@ -105,14 +105,18 @@ const getMainImage = (imgs: PropertyImage[]): string | null => {
   return getImageUrl((main ?? imgs[0]).url);
 };
 
-// PNG markers from /public/markers/ — served as static assets on web
+// PNG markers from /public/markers/ — servidos como assets estáticos con
+// Cache-Control: immutable (nginx.conf), 1 año. Como el nombre de archivo no
+// cambia cuando se reemplaza la imagen, un ?v= es la única forma de que el
+// navegador pida la versión nueva en vez de servir la vieja desde caché.
+const MARKER_VERSION = '2';
 const MARKER_URLS: Record<string, string> = {
-  sale: '/markers/marker-sale.png',
-  rent: '/markers/marker-rent.png',
-  anticretico: '/markers/marker-anti.png',
+  sale: `/markers/marker-sale.png?v=${MARKER_VERSION}`,
+  rent: `/markers/marker-rent.png?v=${MARKER_VERSION}`,
+  anticretico: `/markers/marker-anti.png?v=${MARKER_VERSION}`,
 };
-const MARKER_ACTIVE_URL = '/markers/marker-active.png';
-const MARKER_PRO_URL = '/markers/marker-pro.png';
+const MARKER_ACTIVE_URL = `/markers/marker-active.png?v=${MARKER_VERSION}`;
+const MARKER_PRO_URL = `/markers/marker-pro.png?v=${MARKER_VERSION}`;
 
 // El marcador PRO reemplaza al de operación para propietarios con un plan
 // que lo habilita — sin importar venta/alquiler/anticrético. El de
