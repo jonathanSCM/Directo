@@ -93,4 +93,12 @@ export class CreatePlanDto {
   @IsInt()
   @Min(0)
   ad_views?: number;
+
+  @ApiPropertyOptional({
+    default: false,
+    description: 'Las propiedades de dueños con este plan usan el marcador PRO en el mapa, sin importar la operación',
+  })
+  @IsOptional()
+  @IsBoolean()
+  use_pro_marker?: boolean;
 }

@@ -161,6 +161,7 @@ tr.group-continued td { padding-top: 9px; padding-bottom: 9px; color: var(--ink-
 .badge-yellow { background: var(--amber-tint); color: var(--amber); }
 .badge-blue { background: var(--brand-tint); color: var(--brand-ink); }
 .badge-gray { background: var(--line-soft); color: var(--ink-soft); }
+.badge-violet { background: var(--violet-tint); color: var(--violet); }
 
 /* Buttons */
 .btn {

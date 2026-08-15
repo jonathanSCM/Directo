@@ -24,7 +24,26 @@ const listInclude = {
   zones: { select: { id: true, name: true, city: true } },
   property_images: { where: { is_main: true }, take: 1 },
   property_amenities: { select: amenityInclude },
+  // Solo para resolver el marcador PRO del mapa — se aplana a un booleano
+  // y se descarta el resto (no se expone el owner en el listado público).
+  users: {
+    select: {
+      subscriptions: {
+        where: { status: 'active', subscription_plans: { use_pro_marker: true } },
+        select: { id: true },
+        take: 1,
+      },
+    },
+  },
 } satisfies Prisma.propertiesInclude;
+
+/** Aplana el include de arriba a un booleano plano y saca el `users` crudo de la respuesta pública. */
+function withProMarkerFlag<T extends { users?: { subscriptions: unknown[] } | null }>(
+  prop: T,
+): Omit<T, 'users'> & { owner_pro_marker: boolean } {
+  const { users, ...rest } = prop;
+  return { ...rest, owner_pro_marker: (users?.subscriptions.length ?? 0) > 0 };
+}
 
 const detailInclude = {
   property_types: { select: { id: true, name: true, slug: true } },
@@ -99,7 +118,7 @@ export class PropertiesService {
       },
       include: listInclude,
     });
-    return property;
+    return withProMarkerFlag(property);
   }
 
   async update(user: AuthUser, id: string, dto: UpdatePropertyDto) {
@@ -123,7 +142,7 @@ export class PropertiesService {
     // editar nada NO pasa por acá — ver publish()/reactivate().
     const needsReReview = prop.approval_status === 'approved';
 
-    return this.prisma.properties.update({
+    const updated = await this.prisma.properties.update({
       where: { id },
       data: {
         title: dto.title,
@@ -147,6 +166,7 @@ export class PropertiesService {
       },
       include: listInclude,
     });
+    return withProMarkerFlag(updated);
   }
 
   async publish(user: AuthUser, id: string) {
@@ -545,7 +565,7 @@ export class PropertiesService {
       }),
     ]);
     return {
-      data,
+      data: data.map(withProMarkerFlag),
       meta: {
         page,
         limit,
@@ -776,7 +796,7 @@ export class PropertiesService {
     });
 
     return {
-      data,
+      data: data.map(withProMarkerFlag),
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 0 },
     };
   }

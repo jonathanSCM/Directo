@@ -222,6 +222,7 @@ model subscription_plans {
   is_business               Boolean         @default(false)
   ad_views                  Int             @default(0)
   is_active                 Boolean         @default(true)
+  use_pro_marker            Boolean         @default(false)
   created_at                DateTime        @default(now()) @db.Timestamptz(6)
   updated_at                DateTime        @default(now()) @db.Timestamptz(6)
   subscriptions             subscriptions[]

@@ -39,6 +39,7 @@ export class PlansService {
         is_business: dto.is_business ?? false,
         ad_views: dto.ad_views ?? 0,
         is_active: dto.is_active ?? true,
+        use_pro_marker: dto.use_pro_marker ?? false,
       },
     });
   }
@@ -62,6 +63,7 @@ export class PlansService {
         is_business: dto.is_business,
         ad_views: dto.ad_views,
         is_active: dto.is_active,
+        use_pro_marker: dto.use_pro_marker,
       },
     });
   }

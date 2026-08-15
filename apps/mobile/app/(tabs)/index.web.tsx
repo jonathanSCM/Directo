@@ -89,6 +89,7 @@ interface Property {
   zones?: { name: string; city: string };
   users?: { name: string; phone?: string };
   whatsapp?: string; bedrooms?: number; bathrooms?: number; area_m2?: number;
+  owner_pro_marker?: boolean;
 }
 
 const FILTERS = ['Todos', 'Venta', 'Alquiler', 'Anticrético'];
@@ -111,9 +112,17 @@ const MARKER_URLS: Record<string, string> = {
   anticretico: '/markers/marker-anti.png',
 };
 const MARKER_ACTIVE_URL = '/markers/marker-active.png';
+const MARKER_PRO_URL = '/markers/marker-pro.png';
 
-const makeMarkerIcon = (operation: string, isSelected: boolean) => {
-  const url = isSelected ? MARKER_ACTIVE_URL : (MARKER_URLS[operation] ?? MARKER_URLS.sale);
+// El marcador PRO reemplaza al de operación para propietarios con un plan
+// que lo habilita — sin importar venta/alquiler/anticrético. El de
+// "seleccionado" sigue ganando siempre.
+const makeMarkerIcon = (operation: string, isSelected: boolean, isProOwner?: boolean) => {
+  const url = isSelected
+    ? MARKER_ACTIVE_URL
+    : isProOwner
+      ? MARKER_PRO_URL
+      : (MARKER_URLS[operation] ?? MARKER_URLS.sale);
   const w = isSelected ? 36 : 30;
   const h = isSelected ? 48 : 40;
   return L.icon({
@@ -385,7 +394,7 @@ export default function ExploreScreen() {
               <Marker
                 key={p.id}
                 position={[p.latitude!, p.longitude!]}
-                icon={makeMarkerIcon(p.operation, isSelected)}
+                icon={makeMarkerIcon(p.operation, isSelected, p.owner_pro_marker)}
                 eventHandlers={{ click: () => onMarkerPress(p) }}
               >
                 <Tooltip

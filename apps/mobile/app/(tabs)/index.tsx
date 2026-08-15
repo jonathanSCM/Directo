@@ -47,6 +47,7 @@ interface Property {
   bedrooms?: number;
   bathrooms?: number;
   area_m2?: number;
+  owner_pro_marker?: boolean;
 }
 
 const FILTERS = ['Todos', 'Venta', 'Alquiler', 'Anticrético'];
@@ -62,10 +63,15 @@ const markerImages = {
   rent: require('../../assets/markers/marker-rent.png'),
   anticretico: require('../../assets/markers/marker-anti.png'),
   active: require('../../assets/markers/marker-active.png'),
+  pro: require('../../assets/markers/marker-pro.png'),
 };
 
-const getMarkerImage = (operation: string, isSelected: boolean) => {
+// El marcador PRO reemplaza al de operación (venta/alquiler/anticrético)
+// para propietarios con un plan que lo habilita — sin importar la
+// operación. El de "seleccionado" sigue ganando siempre.
+const getMarkerImage = (operation: string, isSelected: boolean, isProOwner?: boolean) => {
   if (isSelected) return markerImages.active;
+  if (isProOwner) return markerImages.pro;
   if (operation === 'sale') return markerImages.sale;
   if (operation === 'rent') return markerImages.rent;
   return markerImages.anticretico;
@@ -102,7 +108,7 @@ function PropertyMarker({
       tracksViewChanges={tracks}
     >
       <Image
-        source={getMarkerImage(prop.operation, selected)}
+        source={getMarkerImage(prop.operation, selected, prop.owner_pro_marker)}
         style={{ width: w, height: h }}
         resizeMode="contain"
       />

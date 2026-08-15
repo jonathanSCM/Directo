@@ -218,22 +218,20 @@ function AssistantScreen({ visible, onClose }: { visible: boolean; onClose: () =
               );
             }}
             ListFooterComponent={
-              !needKnown ? (
-                <View style={styles.quickReplies}>
-                  {NEED_OPTIONS.map((opt) => (
-                    <TouchableOpacity
-                      key={opt.id}
-                      style={styles.needChip}
-                      onPress={() => send(opt.label)}
-                      activeOpacity={0.8}
-                      disabled={sending}
-                    >
-                      <Ionicons name={opt.icon} size={16} color={OWNER_PRIMARY} />
-                      <Text style={styles.needChipText}>{opt.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ) : null
+              <View style={styles.quickReplies}>
+                {NEED_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.id}
+                    style={styles.needChip}
+                    onPress={() => send(opt.label)}
+                    activeOpacity={0.8}
+                    disabled={sending}
+                  >
+                    <Ionicons name={opt.icon} size={16} color={OWNER_PRIMARY} />
+                    <Text style={styles.needChipText}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             }
           />
         )}
