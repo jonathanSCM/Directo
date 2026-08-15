@@ -21,7 +21,8 @@
     "prisma:generate": "prisma generate",
     "prisma:pull": "prisma db pull",
     "prisma:studio": "prisma studio",
-    "prisma:format": "prisma format"
+    "prisma:format": "prisma format",
+    "seed:demo": "node prisma/seed-demo-vendor.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
