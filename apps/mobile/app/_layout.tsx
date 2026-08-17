@@ -16,6 +16,7 @@ if (Platform.OS === 'web') {
 import { FavoritesProvider } from '../src/context/FavoritesContext';
 import { NotificationProvider } from '../src/context/NotificationContext';
 import { SubscriptionProvider } from '../src/context/SubscriptionContext';
+import OwnerSupportFAB from '../src/components/support/OwnerSupportChat';
 
 function useWebStyles() {
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function RootLayout() {
             options={{ headerShown: false }}
           />
         </Stack>
+        <OwnerSupportFAB />
         </SubscriptionProvider>
         </NotificationProvider>
       </FavoritesProvider>

@@ -5,7 +5,6 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/context/AuthContext';
 import { Colors, Radius } from '../../src/constants/theme';
-import OwnerSupportFAB from '../../src/components/support/OwnerSupportChat';
 import SubscriptionPromoModal from '../../src/components/subscription/SubscriptionPromoModal';
 import PublishFreeBanner from '../../src/components/subscription/PublishFreeBanner';
 import { useRoleColors } from '../../src/hooks/useRoleColors';
@@ -127,7 +126,6 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
-    {isOwner && <OwnerSupportFAB />}
     <SubscriptionPromoModal />
     <PublishFreeBanner />
     </View>

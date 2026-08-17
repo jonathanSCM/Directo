@@ -20,7 +20,6 @@ import { useFavorites } from '../../src/context/FavoritesContext';
 import { getImageUrl, PUBLIC_WEB_URL } from '../../src/constants/api';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
-import OwnerSupportFAB from '../../src/components/support/OwnerSupportChat';
 import Avatar from '../../src/components/Avatar';
 import ReportPropertyModal from '../../src/components/ReportPropertyModal';
 import AdBanner from '../../src/components/AdBanner';
@@ -87,8 +86,7 @@ const formatPrice = (p: number, c: string) => {
 export default function PropertyDetailScreen() {
   const { id: slug } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
-  const isOwner = user?.active_role === 'owner';
+  const { isAuthenticated } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [property, setProperty] = useState<PropertyDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -455,7 +453,6 @@ export default function PropertyDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
-      {isOwner && <OwnerSupportFAB />}
       <ReportPropertyModal
         visible={reportVisible}
         propertyId={property.id}
