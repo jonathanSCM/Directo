@@ -144,7 +144,7 @@ export default function LoginWeb() {
                 </View>
               </View>
 
-              <TouchableOpacity style={S.forgotRow}>
+              <TouchableOpacity style={S.forgotRow} onPress={() => router.push('/(auth)/forgot-password')}>
                 <Text style={S.forgotText}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
             </View>

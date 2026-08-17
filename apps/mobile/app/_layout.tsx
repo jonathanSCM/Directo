@@ -72,6 +72,10 @@ export default function RootLayout() {
             name="terms"
             options={{ headerShown: false }}
           />
+          <Stack.Screen
+            name="reset-password"
+            options={{ headerShown: false }}
+          />
         </Stack>
         <OwnerSupportFAB />
         </SubscriptionProvider>

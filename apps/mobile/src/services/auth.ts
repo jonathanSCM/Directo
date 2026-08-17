@@ -30,4 +30,12 @@ export const authService = {
   logout(refreshToken?: string) {
     return api.post('/auth/logout', { refreshToken });
   },
+
+  forgotPassword(email: string) {
+    return api.post('/auth/forgot-password', { email });
+  },
+
+  resetPassword(token: string, password: string) {
+    return api.post('/auth/reset-password', { token, password });
+  },
 };

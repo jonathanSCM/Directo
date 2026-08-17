@@ -12,6 +12,7 @@ import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -29,6 +30,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly email: EmailService,
   ) {
     this.googleClient = new OAuth2Client(
       this.config.get<string>('GOOGLE_CLIENT_ID'),
@@ -210,7 +212,12 @@ export class AuthService {
       },
     });
 
-    // TODO: enviar el token por email (§14). En desarrollo se devuelve para pruebas.
+    const webUrl = this.config.get<string>('WEB_APP_URL') ?? 'https://directoapp.net';
+    const resetUrl = `${webUrl}/reset-password?token=${token}`;
+    await this.email.sendPasswordReset(user.email, resetUrl);
+
+    // En desarrollo también se devuelve el token directo, para no depender
+    // de que RESEND_API_KEY esté configurada mientras se prueba localmente.
     if (this.config.get('NODE_ENV') !== 'production') {
       return { ...generic, devResetToken: token };
     }
