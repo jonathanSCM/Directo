@@ -32,7 +32,7 @@ export default function AdBanner({
     let cancelled = false;
     (async () => {
       try {
-        const params: Record<string, any> = { count: 1 };
+        const params: Record<string, any> = { count: 1, placement: 'banner' };
         if (latitude != null && longitude != null) {
           params.lat = latitude;
           params.lng = longitude;

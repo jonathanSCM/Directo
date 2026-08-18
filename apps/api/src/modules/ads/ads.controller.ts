@@ -34,11 +34,13 @@ export class AdsController {
     @Query('count') count?: string,
     @Query('lat') lat?: string,
     @Query('lng') lng?: string,
+    @Query('placement') placement?: 'banner' | 'popup',
   ) {
     return this.adsService.serve(
       count ? parseInt(count, 10) : 1,
       lat ? parseFloat(lat) : undefined,
       lng ? parseFloat(lng) : undefined,
+      placement === 'popup' ? 'popup' : 'banner',
     );
   }
 

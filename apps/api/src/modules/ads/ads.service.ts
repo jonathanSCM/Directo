@@ -210,11 +210,12 @@ export class AdsService {
    * tampoco hay, cae a los anuncios sin zonas (globales, se muestran en
    * cualquier lado). Sin ubicación, se comporta como antes (aleatorio total).
    */
-  async serve(count = 1, lat?: number, lng?: number) {
+  async serve(count = 1, lat?: number, lng?: number, placement: 'banner' | 'popup' = 'banner') {
     const take = Math.max(1, Math.min(count, 10));
     const eligible = await this.prisma.ads.findMany({
       where: {
         status: 'active',
+        placement: { in: [placement, 'both'] },
         OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
       },
       include: {
@@ -349,7 +350,13 @@ export class AdsService {
 
   /** Anuncio "casa" cargado directamente por el admin (sin empresa/suscripción externa). */
   async adminCreateAd(
-    data: { title: string; link_url?: string; ends_at?: string; zone_ids?: string },
+    data: {
+      title: string;
+      link_url?: string;
+      ends_at?: string;
+      zone_ids?: string;
+      placement?: 'banner' | 'popup' | 'both';
+    },
     file: Express.Multer.File,
   ) {
     if (!file) {
@@ -375,6 +382,7 @@ export class AdsService {
         image_url: `/uploads/${file.filename}`,
         views_purchased: HOUSE_AD_VIEWS,
         ends_at: data.ends_at ? new Date(data.ends_at) : null,
+        placement: data.placement ?? 'both',
       },
     });
 
@@ -396,7 +404,13 @@ export class AdsService {
 
   async adminUpdateAd(
     adId: string,
-    data: { title?: string; link_url?: string; ends_at?: string; status?: 'active' | 'paused' },
+    data: {
+      title?: string;
+      link_url?: string;
+      ends_at?: string;
+      status?: 'active' | 'paused';
+      placement?: 'banner' | 'popup' | 'both';
+    },
     file?: Express.Multer.File,
   ) {
     const ad = await this.prisma.ads.findUnique({ where: { id: adId } });
@@ -408,6 +422,7 @@ export class AdsService {
         ...(data.link_url !== undefined ? { link_url: data.link_url } : {}),
         ...(data.ends_at !== undefined ? { ends_at: data.ends_at ? new Date(data.ends_at) : null } : {}),
         ...(data.status !== undefined ? { status: data.status } : {}),
+        ...(data.placement !== undefined ? { placement: data.placement } : {}),
         ...(file ? { image_url: `/uploads/${file.filename}` } : {}),
       },
     });

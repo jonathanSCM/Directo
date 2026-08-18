@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import type { ChangeEvent } from 'react';
 import api, { getImageUrl } from '../services/api';
 
+type Placement = 'banner' | 'popup' | 'both';
+
 interface Ad {
   id: string;
   title: string;
@@ -9,11 +11,18 @@ interface Ad {
   link_url: string | null;
   status: 'active' | 'paused';
   ends_at: string | null;
+  placement: Placement;
   created_at: string;
   companies: { name: string; user_id: string };
 }
 
-const EMPTY_FORM = { title: '', link_url: '', ends_at: '' };
+const PLACEMENT_LABEL: Record<Placement, string> = {
+  banner: 'Banner',
+  popup: 'Popup',
+  both: 'Banner + Popup',
+};
+
+const EMPTY_FORM = { title: '', link_url: '', ends_at: '', placement: 'both' as Placement };
 
 export default function Ads() {
   const [ads, setAds] = useState<Ad[]>([]);
@@ -59,6 +68,7 @@ export default function Ads() {
       title: ad.title,
       link_url: ad.link_url ?? '',
       ends_at: ad.ends_at ? ad.ends_at.slice(0, 10) : '',
+      placement: ad.placement ?? 'both',
     });
     setFile(null);
     setPreview(null);
@@ -74,6 +84,7 @@ export default function Ads() {
       formData.append('title', form.title.trim());
       if (form.link_url.trim()) formData.append('link_url', form.link_url.trim());
       if (form.ends_at) formData.append('ends_at', new Date(form.ends_at).toISOString());
+      formData.append('placement', form.placement);
       if (file) formData.append('image', file);
       if (editingId) {
         await api.patch(`/admin/ads/${editingId}`, formData, {
@@ -140,6 +151,7 @@ export default function Ads() {
               <th>Banner</th>
               <th>Título</th>
               <th>Link</th>
+              <th>Tipo</th>
               <th>Vencimiento</th>
               <th>Estado</th>
               <th>Acciones</th>
@@ -147,7 +159,7 @@ export default function Ads() {
           </thead>
           <tbody>
             {ads.length === 0 && (
-              <tr><td colSpan={6} className="empty-row">Todavía no cargaste ningún banner</td></tr>
+              <tr><td colSpan={7} className="empty-row">Todavía no cargaste ningún banner</td></tr>
             )}
             {ads.map((ad) => (
               <tr key={ad.id} style={{ opacity: ad.status === 'active' ? 1 : 0.5 }}>
@@ -164,6 +176,7 @@ export default function Ads() {
                     ? <a href={ad.link_url} target="_blank" rel="noreferrer" style={{ fontSize: 13 }}>{ad.link_url}</a>
                     : <span className="text-muted">—</span>}
                 </td>
+                <td>{PLACEMENT_LABEL[ad.placement] ?? 'Banner + Popup'}</td>
                 <td>{fmt(ad.ends_at)}</td>
                 <td>
                   <span className={`badge ${ad.status === 'active' ? 'badge-green' : 'badge-gray'}`}>
@@ -245,6 +258,17 @@ export default function Ads() {
                   value={form.ends_at}
                   onChange={(e) => setForm({ ...form, ends_at: e.target.value })}
                 />
+              </div>
+              <div className="form-group">
+                <label>Dónde se muestra</label>
+                <select
+                  value={form.placement}
+                  onChange={(e) => setForm({ ...form, placement: e.target.value as Placement })}
+                >
+                  <option value="both">Banner + Popup (ambos)</option>
+                  <option value="banner">Solo banner (detalle de propiedad)</option>
+                  <option value="popup">Solo popup (al entrar a Explorar)</option>
+                </select>
               </div>
             </div>
           </div>

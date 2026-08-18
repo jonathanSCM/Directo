@@ -33,7 +33,7 @@ export default function AdPopupModal({
       let cancelled = false;
       (async () => {
         try {
-          const params: Record<string, any> = { count: 1 };
+          const params: Record<string, any> = { count: 1, placement: 'popup' };
           if (latitude != null && longitude != null) {
             params.lat = latitude;
             params.lng = longitude;
@@ -69,14 +69,14 @@ export default function AdPopupModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <TouchableOpacity style={styles.closeBtn} onPress={close} hitSlop={10}>
-            <Ionicons name="close" size={20} color={Colors.white} />
-          </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.92} onPress={handlePress}>
             <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
             <View style={styles.tag}>
               <Text style={styles.tagText}>Publicidad</Text>
             </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.closeBtn} onPress={close} hitSlop={10}>
+            <Ionicons name="close" size={20} color={Colors.white} />
           </TouchableOpacity>
         </View>
       </View>
@@ -112,8 +112,8 @@ const styles = StyleSheet.create({
   tagText: { color: Colors.white, fontSize: Fonts.sizes.xs, fontWeight: '700' },
   closeBtn: {
     position: 'absolute',
-    top: -14,
-    right: -14,
+    top: 10,
+    right: 10,
     zIndex: 1,
     width: 32,
     height: 32,

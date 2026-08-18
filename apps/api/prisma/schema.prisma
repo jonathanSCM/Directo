@@ -246,6 +246,7 @@ model ads {
   image_url       String
   link_url        String?
   status          String    @default("active") @db.VarChar(20)
+  placement       String    @default("both") @db.VarChar(10)
   views_purchased Int       @default(0)
   views_used      Int       @default(0)
   starts_at       DateTime  @default(now()) @db.Timestamptz(6)

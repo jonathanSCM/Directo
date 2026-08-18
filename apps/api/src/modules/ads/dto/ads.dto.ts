@@ -63,6 +63,16 @@ export class AdminCreateAdDto {
   ends_at?: string;
 
   @ApiPropertyOptional({
+    enum: ['banner', 'popup', 'both'],
+    description:
+      'Dónde se muestra: "banner" (tarjeta chica en el detalle de propiedad), "popup" (modal al entrar a Explorar) o "both" (ambos).',
+    default: 'both',
+  })
+  @IsOptional()
+  @IsIn(['banner', 'popup', 'both'])
+  placement?: 'banner' | 'popup' | 'both';
+
+  @ApiPropertyOptional({
     description:
       'IDs de zona objetivo, como JSON stringificado. Vacío = se muestra en cualquier sector.',
     example: '["3fa85f64-5717-4562-b3fc-2c963f66afa6"]',
@@ -94,4 +104,13 @@ export class AdminUpdateAdDto {
   @IsOptional()
   @IsIn(['active', 'paused'])
   status?: 'active' | 'paused';
+
+  @ApiPropertyOptional({
+    enum: ['banner', 'popup', 'both'],
+    description:
+      'Dónde se muestra: "banner" (tarjeta chica en el detalle de propiedad), "popup" (modal al entrar a Explorar) o "both" (ambos).',
+  })
+  @IsOptional()
+  @IsIn(['banner', 'popup', 'both'])
+  placement?: 'banner' | 'popup' | 'both';
 }
