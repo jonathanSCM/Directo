@@ -110,7 +110,7 @@ const getMainImage = (imgs: PropertyImage[]): string | null => {
 // Cache-Control: immutable (nginx.conf), 1 año. Como el nombre de archivo no
 // cambia cuando se reemplaza la imagen, un ?v= es la única forma de que el
 // navegador pida la versión nueva en vez de servir la vieja desde caché.
-const MARKER_VERSION = '2';
+const MARKER_VERSION = '3';
 const MARKER_URLS: Record<string, string> = {
   sale: `/markers/marker-sale.png?v=${MARKER_VERSION}`,
   rent: `/markers/marker-rent.png?v=${MARKER_VERSION}`,
