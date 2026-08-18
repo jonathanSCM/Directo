@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../../src/context/AuthContext';
 import { useFavorites } from '../../src/context/FavoritesContext';
 import { useNotifications } from '../../src/context/NotificationContext';
+import { useSupportChat } from '../../src/context/SupportChatContext';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import { useRoleColors } from '../../src/hooks/useRoleColors';
 import RoleBadge from '../../src/components/RoleBadge';
@@ -29,6 +30,7 @@ export default function ProfileScreen() {
   const { count: savedCount } = useFavorites();
   const { unreadCount } = useNotifications();
   const { accent, accentLight } = useRoleColors();
+  const { openChat } = useSupportChat();
   const isOwner = user?.active_role === 'owner';
   const [ownerSavesCount, setOwnerSavesCount] = useState(0);
 
@@ -231,6 +233,12 @@ export default function ProfileScreen() {
             icon="card-outline"
             label="Mi suscripción"
             onPress={() => router.push('/subscription')}
+          />
+          <MenuItem
+            icon="headset-outline"
+            label="Contactar con un asistente de ventas"
+            color="#7C3AED"
+            onPress={openChat}
           />
         </>
       )}

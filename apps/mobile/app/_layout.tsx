@@ -16,6 +16,7 @@ if (Platform.OS === 'web') {
 import { FavoritesProvider } from '../src/context/FavoritesContext';
 import { NotificationProvider } from '../src/context/NotificationContext';
 import { SubscriptionProvider } from '../src/context/SubscriptionContext';
+import { SupportChatProvider } from '../src/context/SupportChatContext';
 import OwnerSupportFAB from '../src/components/support/OwnerSupportChat';
 
 function useWebStyles() {
@@ -40,6 +41,7 @@ export default function RootLayout() {
       <FavoritesProvider>
         <NotificationProvider>
         <SubscriptionProvider>
+        <SupportChatProvider>
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
@@ -78,6 +80,7 @@ export default function RootLayout() {
           />
         </Stack>
         <OwnerSupportFAB />
+        </SupportChatProvider>
         </SubscriptionProvider>
         </NotificationProvider>
       </FavoritesProvider>

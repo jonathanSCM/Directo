@@ -16,6 +16,7 @@ import MapView, { Circle, Marker, PROVIDER_GOOGLE, Region } from 'react-native-m
 import FilterModal, {
   FilterValues,
 } from '../../src/components/FilterModal';
+import AdPopupModal from '../../src/components/AdPopupModal';
 import { Logo } from '../../src/components/Logo';
 import api from '../../src/services/api';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
@@ -457,6 +458,8 @@ export default function ExploreScreen() {
           }
         }}
       />
+
+      <AdPopupModal latitude={center.latitude} longitude={center.longitude} />
     </View>
   );
 }

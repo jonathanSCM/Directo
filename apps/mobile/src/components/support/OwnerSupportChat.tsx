@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
+import { useSupportChat } from '../../context/SupportChatContext';
 import { Colors, Fonts, Radius, Spacing } from '../../constants/theme';
 import api from '../../services/api';
 
@@ -47,7 +48,7 @@ interface Thread {
 
 export default function OwnerSupportFAB() {
   const { user } = useAuth();
-  const [visible, setVisible] = useState(false);
+  const { visible, openChat, closeChat } = useSupportChat();
   const scale = useRef(new Animated.Value(1)).current;
 
   if (!user || user.active_role !== 'owner') return null;
@@ -57,7 +58,7 @@ export default function OwnerSupportFAB() {
       Animated.timing(scale, { toValue: 0.85, duration: 100, useNativeDriver: true }),
       Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
     ]).start();
-    setVisible(true);
+    openChat();
   };
 
   return (
@@ -67,7 +68,7 @@ export default function OwnerSupportFAB() {
           <Ionicons name="headset" size={24} color={Colors.white} />
         </TouchableOpacity>
       </Animated.View>
-      <AssistantScreen visible={visible} onClose={() => setVisible(false)} />
+      <AssistantScreen visible={visible} onClose={closeChat} />
     </>
   );
 }

@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { Circle, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import FilterModal, { FilterValues } from '../../src/components/FilterModal';
+import AdPopupModal from '../../src/components/AdPopupModal';
 import { Logo } from '../../src/components/Logo';
 import { getImageUrl } from '../../src/constants/api';
 import { useFavorites } from '../../src/context/FavoritesContext';
@@ -602,6 +603,8 @@ export default function ExploreScreen() {
           }
         }}
       />
+
+      <AdPopupModal latitude={center.latitude} longitude={center.longitude} />
     </View>
   );
 }
