@@ -30,7 +30,7 @@ const NEED_OPTIONS: { id: string; label: string; icon: keyof typeof Ionicons.gly
   { id: 'sell', label: 'Vender mi propiedad', icon: 'cash-outline' },
   { id: 'rent', label: 'Alquilar mi propiedad', icon: 'key-outline' },
   { id: 'anticretico', label: 'Poner en anticrético', icon: 'swap-horizontal-outline' },
-  { id: 'full_service', label: 'No tengo tiempo, quiero ayuda con todo', icon: 'time-outline' },
+  { id: 'full_service', label: 'Contactar con un asesor de ventas', icon: 'headset-outline' },
 ];
 
 interface Message {

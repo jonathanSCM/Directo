@@ -371,7 +371,7 @@ const ADVISOR_NEED_LABELS: Record<string, string> = {
   sell: 'Vender su propiedad',
   rent: 'Alquilar su propiedad',
   anticretico: 'Poner en anticrético',
-  full_service: 'No tiene tiempo, quiere que le gestionen todo',
+  full_service: 'Quiere contactar con un asesor de ventas',
   other: 'Otro',
 };
 
@@ -385,7 +385,7 @@ const ADVISOR_GREETING =
 const SELL_WORDS = /\b(vender|venta|vendo|se vende)\b/i;
 const RENT_WORDS = /\b(alquilar|alquiler|alquilo|arrendar|arriendo|rentar|renta)\b/i;
 const ANTICRETICO_WORDS = /\b(anticr[eé]tico|anticresis)\b/i;
-const FULL_SERVICE_WORDS = /\b(no tengo tiempo|no tengo el tiempo|que se encargue|que gestionen|gest[ií]onen|h[aá]ganlo|todo ustedes|se encarguen|ayuda con todo)\b/i;
+const FULL_SERVICE_WORDS = /\b(no tengo tiempo|no tengo el tiempo|que se encargue|que gestionen|gest[ií]onen|h[aá]ganlo|todo ustedes|se encarguen|ayuda con todo|asesor de ventas|contactar con un asesor|hablar con un asesor)\b/i;
 const GREETING_WORDS = /^\s*(hola|buenas|hey|qu[eé] tal|buenos d[ií]as|buenas tardes|buenas noches)\b/i;
 const THANKS_WORDS = /^\s*(gracias|muchas gracias|listo|ok|okay|perfecto|dale)\b/i;
 
