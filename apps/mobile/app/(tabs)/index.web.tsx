@@ -111,6 +111,7 @@ const getMainImage = (imgs: PropertyImage[]): string | null => {
 // cambia cuando se reemplaza la imagen, un ?v= es la única forma de que el
 // navegador pida la versión nueva en vez de servir la vieja desde caché.
 const MARKER_VERSION = '3';
+const STADIA_MAPS_API_KEY = process.env.EXPO_PUBLIC_STADIA_MAPS_API_KEY;
 const MARKER_URLS: Record<string, string> = {
   sale: `/markers/marker-sale.png?v=${MARKER_VERSION}`,
   rent: `/markers/marker-rent.png?v=${MARKER_VERSION}`,
@@ -382,8 +383,8 @@ export default function ExploreScreen() {
           zoomControl={false}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url={`https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${STADIA_MAPS_API_KEY}`}
           />
           <Circle
             center={[center.latitude, center.longitude]}
