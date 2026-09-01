@@ -62,7 +62,6 @@ const EMPTY_PLAN_FORM = {
   extra_property_price: 0,
   allows_featured: false,
   includes_statistics: false,
-  priority_in_results: false,
   is_business: false,
   ad_views: 0,
   publication_duration_days: '' as number | '',
@@ -152,7 +151,6 @@ export default function Subscriptions() {
       extra_property_price: Number(p.extra_property_price ?? 0),
       allows_featured: p.allows_featured,
       includes_statistics: p.includes_statistics,
-      priority_in_results: p.priority_in_results,
       is_business: p.is_business ?? false,
       ad_views: p.ad_views ?? 0,
       publication_duration_days: p.publication_duration_days ?? '',
@@ -359,11 +357,10 @@ export default function Subscriptions() {
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {p.allows_featured && <span className="badge badge-blue">Destacadas</span>}
                       {p.includes_statistics && <span className="badge badge-blue">Estadísticas</span>}
-                      {p.priority_in_results && <span className="badge badge-blue">Prioridad</span>}
                       {p.is_business && <span className="badge badge-yellow">Empresas · {Number(p.ad_views).toLocaleString()} vistas</span>}
                       {p.use_pro_marker && <span className="badge badge-violet">Marcador PRO</span>}
                       {p.includes_sales_agent && <span className="badge badge-green">Asesor de ventas</span>}
-                      {!p.allows_featured && !p.includes_statistics && !p.priority_in_results && !p.use_pro_marker && !p.includes_sales_agent && (
+                      {!p.allows_featured && !p.includes_statistics && !p.use_pro_marker && !p.includes_sales_agent && (
                         <span className="text-muted">Básico</span>
                       )}
                     </div>
@@ -566,10 +563,6 @@ export default function Subscriptions() {
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
               <input type="checkbox" checked={planForm.includes_statistics} onChange={(e) => setPlanForm({ ...planForm, includes_statistics: e.target.checked })} />
               Incluye estadísticas
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
-              <input type="checkbox" checked={planForm.priority_in_results} onChange={(e) => setPlanForm({ ...planForm, priority_in_results: e.target.checked })} />
-              Prioridad en resultados
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
               <input type="checkbox" checked={planForm.use_pro_marker} onChange={(e) => setPlanForm({ ...planForm, use_pro_marker: e.target.checked })} />

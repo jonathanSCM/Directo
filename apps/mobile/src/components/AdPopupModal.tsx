@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Image, Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -13,10 +14,14 @@ interface Ad {
   link_url: string | null;
 }
 
+const LAST_SHOWN_KEY = 'ad_popup_last_shown';
+const COOLDOWN_MINUTES = 2;
+
 /**
- * Pop-up de publicidad (mismos banners que carga el admin) que aparece cada
- * vez que se entra a la pestaña Explorar — no solo la primera vez. Si no hay
- * ad disponible, no muestra nada.
+ * Pop-up de publicidad (mismos banners que carga el admin) que aparece al
+ * entrar a la pestaña Explorar, como mucho una vez cada COOLDOWN_MINUTES —
+ * evita que se repita en cada entrada/salida rápida de una propiedad. Si no
+ * hay ad disponible, no muestra nada.
  */
 export default function AdPopupModal({
   latitude,
@@ -33,6 +38,12 @@ export default function AdPopupModal({
       let cancelled = false;
       (async () => {
         try {
+          const lastShown = await AsyncStorage.getItem(LAST_SHOWN_KEY);
+          if (lastShown) {
+            const elapsedMs = Date.now() - Number(lastShown);
+            if (elapsedMs < COOLDOWN_MINUTES * 60 * 1000) return;
+          }
+
           const params: Record<string, any> = { count: 1, placement: 'popup' };
           if (latitude != null && longitude != null) {
             params.lat = latitude;
@@ -42,6 +53,7 @@ export default function AdPopupModal({
           if (!cancelled && Array.isArray(data) && data[0]) {
             setAd(data[0]);
             setVisible(true);
+            AsyncStorage.setItem(LAST_SHOWN_KEY, Date.now().toString());
           }
         } catch {
           // silencioso: la publicidad nunca debe romper la pantalla

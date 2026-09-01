@@ -13,7 +13,6 @@ export function describeUpgradeBenefits(plan: Plan | null): string {
   if (plan.included_properties > 1) {
     perks.push(`hasta ${plan.included_properties} propiedades`);
   }
-  if (plan.priority_in_results) perks.push('prioridad en resultados');
   if (plan.allows_featured) perks.push('propiedad destacada');
   if (plan.includes_statistics) perks.push('estadísticas de visitas');
 

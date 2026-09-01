@@ -416,12 +416,6 @@ export default function SubscriptionScreen() {
                     </Text>
                   </View>
                 )}
-                {plan.priority_in_results && (
-                  <View style={styles.featureRow}>
-                    <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                    <Text style={styles.featureText}>Prioridad en resultados</Text>
-                  </View>
-                )}
                 {plan.allows_featured && (
                   <View style={styles.featureRow}>
                     <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
