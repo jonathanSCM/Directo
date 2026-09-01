@@ -19,6 +19,10 @@ interface Plan {
   publication_duration_days: number | null;
   is_active: boolean;
   use_pro_marker: boolean;
+  includes_sales_agent: boolean;
+  agent_commission_sale_pct: string | null;
+  agent_commission_rent_pct: string | null;
+  agent_commission_anticretico_pct: string | null;
 }
 
 interface Subscription {
@@ -64,6 +68,10 @@ const EMPTY_PLAN_FORM = {
   publication_duration_days: '' as number | '',
   is_active: true,
   use_pro_marker: false,
+  includes_sales_agent: false,
+  agent_commission_sale_pct: '' as number | '',
+  agent_commission_rent_pct: '' as number | '',
+  agent_commission_anticretico_pct: '' as number | '',
 };
 
 type PlanForm = typeof EMPTY_PLAN_FORM;
@@ -150,6 +158,10 @@ export default function Subscriptions() {
       publication_duration_days: p.publication_duration_days ?? '',
       is_active: p.is_active,
       use_pro_marker: p.use_pro_marker ?? false,
+      includes_sales_agent: p.includes_sales_agent ?? false,
+      agent_commission_sale_pct: p.agent_commission_sale_pct == null ? '' : Number(p.agent_commission_sale_pct),
+      agent_commission_rent_pct: p.agent_commission_rent_pct == null ? '' : Number(p.agent_commission_rent_pct),
+      agent_commission_anticretico_pct: p.agent_commission_anticretico_pct == null ? '' : Number(p.agent_commission_anticretico_pct),
     });
     setPlanModal(true);
   };
@@ -163,6 +175,9 @@ export default function Subscriptions() {
         extra_property_price: Number(planForm.extra_property_price) || 0,
         publication_duration_days: planForm.publication_duration_days === '' ? null : Number(planForm.publication_duration_days),
         price: Number(planForm.price),
+        agent_commission_sale_pct: planForm.agent_commission_sale_pct === '' ? null : Number(planForm.agent_commission_sale_pct),
+        agent_commission_rent_pct: planForm.agent_commission_rent_pct === '' ? null : Number(planForm.agent_commission_rent_pct),
+        agent_commission_anticretico_pct: planForm.agent_commission_anticretico_pct === '' ? null : Number(planForm.agent_commission_anticretico_pct),
       };
       if (editingPlanId) {
         await api.patch(`/admin/subscription-plans/${editingPlanId}`, body);
@@ -347,7 +362,8 @@ export default function Subscriptions() {
                       {p.priority_in_results && <span className="badge badge-blue">Prioridad</span>}
                       {p.is_business && <span className="badge badge-yellow">Empresas · {Number(p.ad_views).toLocaleString()} vistas</span>}
                       {p.use_pro_marker && <span className="badge badge-violet">Marcador PRO</span>}
-                      {!p.allows_featured && !p.includes_statistics && !p.priority_in_results && !p.use_pro_marker && (
+                      {p.includes_sales_agent && <span className="badge badge-green">Asesor de ventas</span>}
+                      {!p.allows_featured && !p.includes_statistics && !p.priority_in_results && !p.use_pro_marker && !p.includes_sales_agent && (
                         <span className="text-muted">Básico</span>
                       )}
                     </div>
@@ -559,7 +575,28 @@ export default function Subscriptions() {
               <input type="checkbox" checked={planForm.use_pro_marker} onChange={(e) => setPlanForm({ ...planForm, use_pro_marker: e.target.checked })} />
               Marcador PRO en el mapa
             </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
+              <input type="checkbox" checked={planForm.includes_sales_agent} onChange={(e) => setPlanForm({ ...planForm, includes_sales_agent: e.target.checked })} />
+              Incluye asesor de ventas
+            </label>
           </div>
+
+          {planForm.includes_sales_agent && (
+            <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
+              <div className="form-group">
+                <label>Comisión venta (%)</label>
+                <input type="number" min="0" max="100" step="0.01" value={planForm.agent_commission_sale_pct} onChange={(e) => setPlanForm({ ...planForm, agent_commission_sale_pct: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Vacío = sin comisión" />
+              </div>
+              <div className="form-group">
+                <label>Comisión alquiler (%)</label>
+                <input type="number" min="0" max="100" step="0.01" value={planForm.agent_commission_rent_pct} onChange={(e) => setPlanForm({ ...planForm, agent_commission_rent_pct: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Vacío = sin comisión" />
+              </div>
+              <div className="form-group">
+                <label>Comisión anticrético (%)</label>
+                <input type="number" min="0" max="100" step="0.01" value={planForm.agent_commission_anticretico_pct} onChange={(e) => setPlanForm({ ...planForm, agent_commission_anticretico_pct: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Vacío = sin comisión" />
+              </div>
+            </div>
+          )}
 
           {editingPlanId && (
             <div style={{ marginTop: 12 }}>

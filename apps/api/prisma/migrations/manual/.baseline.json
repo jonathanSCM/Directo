@@ -1,0 +1,16 @@
+[
+  "ad_zones.sql",
+  "add_ad_placement.sql",
+  "add_amenities.sql",
+  "add_favorites.sql",
+  "add_plan_pro_marker.sql",
+  "add_property_reports.sql",
+  "add_push_tokens.sql",
+  "add_support_chat.sql",
+  "add_user_verification.sql",
+  "ads_companies.sql",
+  "advisor_requests.sql",
+  "advisor_thread_unique.sql",
+  "payments_property_extra.sql",
+  "subscriptions_v2.sql"
+]

@@ -19,6 +19,10 @@ export interface Plan {
   is_business: boolean;
   ad_views: number;
   is_active: boolean;
+  includes_sales_agent?: boolean;
+  agent_commission_sale_pct?: string | null;
+  agent_commission_rent_pct?: string | null;
+  agent_commission_anticretico_pct?: string | null;
 }
 
 export interface Subscription {

@@ -16,6 +16,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { useFavorites } from '../../src/context/FavoritesContext';
 import { useNotifications } from '../../src/context/NotificationContext';
 import { useSupportChat } from '../../src/context/SupportChatContext';
+import { useSubscription } from '../../src/context/SubscriptionContext';
 import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import { useRoleColors } from '../../src/hooks/useRoleColors';
 import RoleBadge from '../../src/components/RoleBadge';
@@ -31,6 +32,14 @@ export default function ProfileScreen() {
   const { unreadCount } = useNotifications();
   const { accent, accentLight } = useRoleColors();
   const { openChat } = useSupportChat();
+  const { subscription } = useSubscription();
+  const agentPlan = subscription?.status === 'active' ? subscription.subscription_plans : null;
+  const agentCommissionParts: string[] = [];
+  if (agentPlan?.includes_sales_agent) {
+    if (agentPlan.agent_commission_sale_pct != null) agentCommissionParts.push(`${Number(agentPlan.agent_commission_sale_pct)}% venta`);
+    if (agentPlan.agent_commission_rent_pct != null) agentCommissionParts.push(`${Number(agentPlan.agent_commission_rent_pct)}% alquiler`);
+    if (agentPlan.agent_commission_anticretico_pct != null) agentCommissionParts.push(`${Number(agentPlan.agent_commission_anticretico_pct)}% anticrético`);
+  }
   const isOwner = user?.active_role === 'owner';
   const [ownerSavesCount, setOwnerSavesCount] = useState(0);
 
@@ -240,6 +249,13 @@ export default function ProfileScreen() {
             color="#7C3AED"
             onPress={openChat}
           />
+          {agentPlan?.includes_sales_agent && (
+            <Text style={styles.agentCommissionHint}>
+              {agentCommissionParts.length > 0
+                ? `Tu plan incluye asesor de ventas — comisión: ${agentCommissionParts.join(', ')}`
+                : 'Tu plan incluye asesor de ventas'}
+            </Text>
+          )}
         </>
       )}
 
@@ -493,6 +509,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Fonts.sizes.md,
     color: Colors.gray[700],
+  },
+  agentCommissionHint: {
+    fontSize: Fonts.sizes.sm,
+    color: '#7C3AED',
+    paddingBottom: Spacing.md,
+    marginTop: -Spacing.sm,
   },
   notifBadge: {
     position: 'absolute',

@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -101,4 +102,33 @@ export class CreatePlanDto {
   @IsOptional()
   @IsBoolean()
   use_pro_marker?: boolean;
+
+  @ApiPropertyOptional({
+    default: false,
+    description: 'Los dueños con este plan pueden contactar a un asesor de ventas que gestiona la venta/alquiler de sus propiedades a cambio de una comisión',
+  })
+  @IsOptional()
+  @IsBoolean()
+  includes_sales_agent?: boolean;
+
+  @ApiPropertyOptional({ description: 'Comisión del asesor sobre el precio de venta (%)', example: 3 })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  agent_commission_sale_pct?: number;
+
+  @ApiPropertyOptional({ description: 'Comisión del asesor sobre el primer alquiler (%)', example: 50 })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  agent_commission_rent_pct?: number;
+
+  @ApiPropertyOptional({ description: 'Comisión del asesor sobre el anticrético (%)', example: 4 })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  agent_commission_anticretico_pct?: number;
 }

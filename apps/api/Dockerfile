@@ -18,4 +18,4 @@ COPY prisma ./prisma
 RUN mkdir -p uploads
 
 EXPOSE 3000
-CMD ["node", "dist/main"]
+CMD ["sh", "-c", "node prisma/run-manual-migrations.js && node dist/main"]

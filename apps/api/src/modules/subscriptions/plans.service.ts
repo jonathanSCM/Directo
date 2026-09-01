@@ -40,6 +40,10 @@ export class PlansService {
         ad_views: dto.ad_views ?? 0,
         is_active: dto.is_active ?? true,
         use_pro_marker: dto.use_pro_marker ?? false,
+        includes_sales_agent: dto.includes_sales_agent ?? false,
+        agent_commission_sale_pct: dto.agent_commission_sale_pct,
+        agent_commission_rent_pct: dto.agent_commission_rent_pct,
+        agent_commission_anticretico_pct: dto.agent_commission_anticretico_pct,
       },
     });
   }
@@ -64,6 +68,10 @@ export class PlansService {
         ad_views: dto.ad_views,
         is_active: dto.is_active,
         use_pro_marker: dto.use_pro_marker,
+        includes_sales_agent: dto.includes_sales_agent,
+        agent_commission_sale_pct: dto.agent_commission_sale_pct,
+        agent_commission_rent_pct: dto.agent_commission_rent_pct,
+        agent_commission_anticretico_pct: dto.agent_commission_anticretico_pct,
       },
     });
   }

@@ -69,6 +69,17 @@ const priceFor = (plan: Plan, count: number) => {
 const fmtMoney = (n: number, c: string) =>
   `${c === 'USD' ? '$' : 'Bs.'} ${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
+/** Texto de comisión del asesor de ventas, solo con las operaciones que el plan tenga configuradas. */
+const agentCommissionText = (plan: Plan): string | null => {
+  if (!plan.includes_sales_agent) return null;
+  const parts: string[] = [];
+  if (plan.agent_commission_sale_pct != null) parts.push(`${Number(plan.agent_commission_sale_pct)}% en venta`);
+  if (plan.agent_commission_rent_pct != null) parts.push(`${Number(plan.agent_commission_rent_pct)}% del primer alquiler`);
+  if (plan.agent_commission_anticretico_pct != null) parts.push(`${Number(plan.agent_commission_anticretico_pct)}% en anticrético`);
+  if (parts.length === 0) return 'Asesor de ventas incluido';
+  return `Asesor de ventas incluido — comisión: ${parts.join(', ')}`;
+};
+
 export default function SubscriptionScreen() {
   const router = useRouter();
   const { refresh: refreshSubContext } = useSubscription();
@@ -254,6 +265,13 @@ export default function SubscriptionScreen() {
               </View>
             )}
 
+            {isActive && subscription.subscription_plans && agentCommissionText(subscription.subscription_plans) && (
+              <View style={styles.agentNote}>
+                <Ionicons name="briefcase-outline" size={16} color="#7C3AED" />
+                <Text style={styles.agentNoteText}>{agentCommissionText(subscription.subscription_plans)}</Text>
+              </View>
+            )}
+
             {(subscription.status === 'in_review' || subscription.status === 'pending_payment') && (
               <TouchableOpacity
                 style={styles.renewPendingNote}
@@ -425,6 +443,13 @@ export default function SubscriptionScreen() {
                   <Text style={styles.featureText}>Contacto directo por WhatsApp</Text>
                 </View>
               </View>
+
+              {agentCommissionText(plan) && (
+                <View style={styles.agentNote}>
+                  <Ionicons name="briefcase-outline" size={16} color="#7C3AED" />
+                  <Text style={styles.agentNoteText}>{agentCommissionText(plan)}</Text>
+                </View>
+              )}
 
               {/* Selector de cantidad de propiedades (solo planes de pago) */}
               {!isFree && !isCurrent && Number(plan.extra_property_price) > 0 && (
@@ -685,6 +710,16 @@ const styles = StyleSheet.create({
   planFeatures: { marginTop: Spacing.lg, gap: Spacing.sm },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   featureText: { fontSize: Fonts.sizes.sm, color: Colors.gray[600] },
+  agentNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    backgroundColor: '#F5F3FF',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  agentNoteText: { flex: 1, fontSize: Fonts.sizes.sm, color: '#5B21B6', fontWeight: '600' },
 
   countRow: {
     flexDirection: 'row',
