@@ -2,10 +2,24 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { Image, Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  Linking,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { getImageUrl } from '../constants/api';
 import api from '../services/api';
 import { Colors, Fonts, Radius, Spacing } from '../constants/theme';
+
+const SCREEN = Dimensions.get('window');
+const CARD_MAX_WIDTH = Math.min(440, SCREEN.width - Spacing.lg * 2);
+const IMAGE_HEIGHT = Math.min(520, SCREEN.height * 0.55);
 
 interface Ad {
   id: string;
@@ -32,6 +46,7 @@ export default function AdPopupModal({
 }) {
   const [ad, setAd] = useState<Ad | null>(null);
   const [visible, setVisible] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
@@ -51,6 +66,7 @@ export default function AdPopupModal({
           }
           const { data } = await api.get('/ads/serve', { params });
           if (!cancelled && Array.isArray(data) && data[0]) {
+            setImageLoading(true);
             setAd(data[0]);
             setVisible(true);
             AsyncStorage.setItem(LAST_SHOWN_KEY, Date.now().toString());
@@ -73,6 +89,7 @@ export default function AdPopupModal({
   if (!imageUri) return null;
 
   const handlePress = () => {
+    api.post(`/ads/${ad.id}/click`).catch(() => {});
     if (ad.link_url) Linking.openURL(ad.link_url);
     close();
   };
@@ -82,7 +99,17 @@ export default function AdPopupModal({
       <View style={styles.overlay}>
         <View style={styles.card}>
           <TouchableOpacity activeOpacity={0.92} onPress={handlePress}>
-            <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.image}
+              resizeMode="cover"
+              onLoadEnd={() => setImageLoading(false)}
+            />
+            {imageLoading && (
+              <View style={styles.imagePlaceholder}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+              </View>
+            )}
             <View style={styles.tag}>
               <Text style={styles.tagText}>Publicidad</Text>
             </View>
@@ -102,16 +129,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.xxl,
+    padding: Spacing.lg,
   },
   card: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: CARD_MAX_WIDTH,
     borderRadius: Radius.lg,
     overflow: 'hidden',
     backgroundColor: Colors.gray[100],
   },
-  image: { width: '100%', height: 260 },
+  image: { width: '100%', height: IMAGE_HEIGHT },
+  imagePlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Colors.gray[200],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   tag: {
     position: 'absolute',
     top: 10,

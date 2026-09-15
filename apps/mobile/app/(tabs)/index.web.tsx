@@ -9,6 +9,7 @@ import * as Location from 'expo-location';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   Image,
@@ -211,6 +212,7 @@ export default function ExploreScreen() {
   const [radiusKm, setRadiusKm] = useState(DEFAULT_RADIUS_KM);
   const [searchCenter, setSearchCenter] = useState<{ latitude: number; longitude: number } | null>(null);
   const [flyTarget, setFlyTarget] = useState<{ coord: [number, number]; zoom?: number } | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Search suggestions (zonas del catálogo + calles/lugares vía Google Places)
   const [placeSuggestions, setPlaceSuggestions] = useState<PlaceOption[]>([]);
@@ -381,6 +383,7 @@ export default function ExploreScreen() {
           style={{ height: '100%', width: '100%' }}
           scrollWheelZoom
           zoomControl={false}
+          whenReady={() => setMapReady(true)}
         >
           <TileLayer
             attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -425,6 +428,13 @@ export default function ExploreScreen() {
           <MapGetter mapRef={mapRef} />
         </MapContainer>
       </View>
+
+      {!mapReady && (
+        <View style={styles.mapLoadingOverlay}>
+          <Logo size={56} variant="blue" />
+          <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: Spacing.lg }} />
+        </View>
+      )}
 
       {/* Search bar — same style as native */}
       <View style={styles.searchBar}>
@@ -612,6 +622,12 @@ export default function ExploreScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  mapLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   searchBar: {
     position: 'absolute',
     top: 16,

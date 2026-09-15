@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Keyboard,
   Platform,
@@ -140,6 +141,7 @@ export default function ExploreScreen() {
   const [searchCenter, setSearchCenter] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
   // Search suggestions (zonas del catálogo + calles/lugares vía Google Places)
   const [placeSuggestions, setPlaceSuggestions] = useState<PlaceOption[]>([]);
@@ -327,6 +329,7 @@ export default function ExploreScreen() {
         style={StyleSheet.absoluteFillObject}
         initialRegion={region}
         onRegionChangeComplete={(r) => setRegion(r)}
+        onMapReady={() => setMapReady(true)}
         showsUserLocation
         showsMyLocationButton={false}
         showsPointsOfInterest={false}
@@ -352,6 +355,13 @@ export default function ExploreScreen() {
           />
         ))}
       </MapView>
+
+      {!mapReady && (
+        <View style={styles.mapLoadingOverlay}>
+          <Logo size={56} variant="blue" />
+          <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: Spacing.lg }} />
+        </View>
+      )}
 
       {/* Search bar */}
       <View style={styles.searchBar}>
@@ -501,6 +511,12 @@ const mapStyle = [
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  mapLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   searchBar: {
     position: 'absolute',
     top: 56,

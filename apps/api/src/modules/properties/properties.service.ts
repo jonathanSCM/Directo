@@ -350,17 +350,85 @@ export class PropertiesService {
     return { count };
   }
 
+  /** Clic real en "contactar por WhatsApp" — no rompe nada si el id no existe. */
+  async registerContactClick(propertyId: string) {
+    await this.prisma.properties
+      .update({ where: { id: propertyId }, data: { contacts_count: { increment: 1 } } })
+      .catch(() => undefined);
+    return { success: true };
+  }
+
+  /**
+   * Totales y desglose por propiedad, para la pantalla de estadísticas del
+   * dueño. El total de vistas es gratis para cualquier dueño (ya se mostraba
+   * antes en el detalle de cada propiedad); el desglose por propiedad y los
+   * contactos quedan solo para quien tenga un plan con `includes_statistics`
+   * — le da un uso real a esa bandera, que hasta ahora no filtraba nada.
+   */
+  async getStatsForOwner(userId: string) {
+    const properties = await this.prisma.properties.findMany({
+      where: { owner_id: userId },
+      select: { id: true, title: true, views_count: true, contacts_count: true },
+      orderBy: { views_count: 'desc' },
+    });
+    const total_views = properties.reduce((sum, p) => sum + p.views_count, 0);
+
+    const hasDetailedStats = await this.prisma.subscriptions.findFirst({
+      where: { user_id: userId, status: 'active', subscription_plans: { includes_statistics: true } },
+      select: { id: true },
+    });
+
+    if (!hasDetailedStats) {
+      return { total_views, total_contacts: null, properties: [], locked: true };
+    }
+
+    return {
+      total_views,
+      total_contacts: properties.reduce((sum, p) => sum + p.contacts_count, 0),
+      properties,
+      locked: false,
+    };
+  }
+
   // ── Público: listado y detalle ──────────────────────────────────────────────
 
-  async findPublic(query: QueryPropertiesDto) {
+  async findPublic(query: QueryPropertiesDto, userId?: string) {
     // Con texto: búsqueda full-text + fallback a LIKE en título/dirección/zona
     if (query.q && query.q.trim().length > 0) {
       const ftResult = await this.findPublicFullText(query);
-      if (ftResult.data.length > 0) return ftResult;
+      if (ftResult.data.length > 0) {
+        this.logSearchEvent(query, ftResult.data.length, userId);
+        return ftResult;
+      }
     }
     const where = this.buildPublicWhere(query);
     const orderBy = this.buildOrderBy(query.sort ?? 'recent');
-    return this.paginate(where, orderBy, query.page ?? 1, query.limit ?? 20);
+    const result = await this.paginate(where, orderBy, query.page ?? 1, query.limit ?? 20);
+    this.logSearchEvent(query, result.meta.total, userId);
+    return result;
+  }
+
+  /**
+   * Registra la búsqueda para analítica de demanda (zonas/filtros más
+   * pedidos, búsquedas con 0 resultados) — no se espera (fire-and-forget) ni
+   * puede romper la búsqueda real si falla.
+   */
+  private logSearchEvent(query: QueryPropertiesDto, resultsCount: number, userId?: string) {
+    this.prisma.search_events
+      .create({
+        data: {
+          user_id: userId,
+          zone_id: query.zone_id,
+          city: query.city,
+          operation: query.operation,
+          min_price: query.min_price,
+          max_price: query.max_price,
+          bedrooms: query.bedrooms,
+          query_text: query.q,
+          results_count: resultsCount,
+        },
+      })
+      .catch(() => undefined);
   }
 
   async findById(user: AuthUser, id: string) {

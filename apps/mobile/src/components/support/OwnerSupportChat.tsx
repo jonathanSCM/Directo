@@ -51,7 +51,7 @@ export default function OwnerSupportFAB() {
   const { visible, openChat, closeChat } = useSupportChat();
   const scale = useRef(new Animated.Value(1)).current;
 
-  if (!user || user.active_role !== 'owner') return null;
+  if (!user) return null;
 
   const handlePress = () => {
     Animated.sequence([

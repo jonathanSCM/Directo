@@ -44,6 +44,13 @@ export class AdsController {
     );
   }
 
+  @Public()
+  @Post('ads/:id/click')
+  @ApiOperation({ summary: 'Registrar un clic en un anuncio (métricas)' })
+  registerClick(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adsService.registerClick(id);
+  }
+
   // ── Empresa (dueño) ─────────────────────────────────────────────────────────
 
   @ApiBearerAuth()

@@ -26,8 +26,8 @@ export class PropertiesController {
   @Public()
   @Get()
   @ApiOperation({ summary: 'Listar propiedades publicadas (con filtros)' })
-  list(@Query() query: QueryPropertiesDto) {
-    return this.propertiesService.findPublic(query);
+  list(@Query() query: QueryPropertiesDto, @CurrentUser() user: AuthUser | null) {
+    return this.propertiesService.findPublic(query, user?.id);
   }
 
   @ApiBearerAuth()
@@ -42,6 +42,13 @@ export class PropertiesController {
   @ApiOperation({ summary: 'Cuántas personas guardaron alguna de mis propiedades' })
   mineSavesCount(@CurrentUser() user: AuthUser) {
     return this.propertiesService.getSavesCountForOwner(user.id);
+  }
+
+  @ApiBearerAuth()
+  @Get('mine/stats')
+  @ApiOperation({ summary: 'Estadísticas de vistas y contactos de mis propiedades' })
+  mineStats(@CurrentUser() user: AuthUser) {
+    return this.propertiesService.getStatsForOwner(user.id);
   }
 
   @ApiBearerAuth()
@@ -116,6 +123,13 @@ export class PropertiesController {
   @ApiOperation({ summary: '¿Se puede desbloquear esta propiedad pausada pagando un extra?' })
   extraChargeEligibility(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.propertiesService.getExtraChargeEligibility(user, id);
+  }
+
+  @Public()
+  @Post(':id/contact-click')
+  @ApiOperation({ summary: 'Registrar un clic en "contactar por WhatsApp" (métricas)' })
+  registerContactClick(@Param('id', ParseUUIDPipe) id: string) {
+    return this.propertiesService.registerContactClick(id);
   }
 
   @ApiBearerAuth()

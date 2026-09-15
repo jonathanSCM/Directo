@@ -69,8 +69,13 @@ export default function AdBanner({
 
   if (!ad.link_url) return content;
 
+  const handlePress = () => {
+    api.post(`/ads/${ad.id}/click`).catch(() => {});
+    Linking.openURL(ad.link_url!);
+  };
+
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={() => Linking.openURL(ad.link_url!)}>
+    <TouchableOpacity activeOpacity={0.85} onPress={handlePress}>
       {content}
     </TouchableOpacity>
   );

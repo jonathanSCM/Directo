@@ -45,6 +45,14 @@ export default {
           color: "#2563EB",
         },
       ],
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/logo-blue.png",
+          backgroundColor: "#2563EB",
+          imageWidth: 200,
+        },
+      ],
     ],
     extra: {
       eas: {

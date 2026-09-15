@@ -26,17 +26,20 @@ export class AdsService {
   ) {}
 
   /**
-   * El marketplace self-service (empresa externa compra plan "Empresas" y
-   * gestiona sus propios anuncios) sigue desactivado por decisión de
-   * producto — se bloquea acá para que nadie con una suscripción de empresa
-   * vieja pueda crear/editar empresas o anuncios propios llamando a la API
-   * directamente. La publicidad "casa" (admin) usa un camino aparte que no
-   * pasa por acá, ver `adminCreateAd`.
+   * Marketplace self-service: una empresa con un plan `is_business` activo
+   * puede crear su empresa y sus propios anuncios (quedan `pending_review`
+   * hasta que el admin los aprueba, ver `createAd`). La publicidad "casa"
+   * (admin) usa un camino aparte que no pasa por acá, ver `adminCreateAd`.
    */
-  private async requireBusinessSubscription(
-    _userId: string,
-  ): Promise<NonNullable<Awaited<ReturnType<SubscriptionsService['getActiveSubscription']>>>> {
-    throw new ForbiddenException('La publicidad de empresas está desactivada');
+  private async requireBusinessSubscription(userId: string) {
+    const sub = await this.prisma.subscriptions.findFirst({
+      where: { user_id: userId, status: 'active', subscription_plans: { is_business: true } },
+      include: { subscription_plans: true },
+    });
+    if (!sub) {
+      throw new ForbiddenException('Necesitas un plan de Empresas activo para publicitar');
+    }
+    return sub;
   }
 
   /**
@@ -168,6 +171,10 @@ export class AdsService {
         image_url: `/uploads/${file.filename}`,
         views_purchased: remaining,
         ends_at: sub.end_date,
+        // A diferencia de los "casa" (adminCreateAd, quedan active de una),
+        // un anuncio cargado por la propia empresa necesita aprobación del
+        // admin antes de mostrarse — serve() ya solo filtra status:'active'.
+        status: 'pending_review',
       },
     });
 
@@ -331,6 +338,22 @@ export class AdsService {
       if (result.length >= take) break;
     }
     return result;
+  }
+
+  /** Clic real en un anuncio (métricas) — no rompe nada si el id no existe. */
+  async registerClick(adId: string) {
+    await this.prisma.ads
+      .update({ where: { id: adId }, data: { clicks_used: { increment: 1 } } })
+      .catch(() => undefined);
+    return { success: true };
+  }
+
+  /** Pasa a `paused` los anuncios `active` cuyo `ends_at` ya pasó (cron). */
+  async pauseExpired() {
+    return this.prisma.ads.updateMany({
+      where: { status: 'active', ends_at: { lt: new Date() } },
+      data: { status: 'paused' },
+    });
   }
 
   // ── Admin ───────────────────────────────────────────────────────────────────

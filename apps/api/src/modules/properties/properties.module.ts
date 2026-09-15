@@ -8,6 +8,7 @@ import { PropertiesService } from './properties.service';
 import { PropertyAlertsCron } from './property-alerts.cron';
 import { PropertyImagesController } from './property-images.controller';
 import { PropertyImagesService } from './property-images.service';
+import { SearchEventsCleanupCron } from './search-events-cleanup.cron';
 
 @Module({
   imports: [GeocodingModule, SubscriptionsModule, EmailModule],
@@ -16,6 +17,11 @@ import { PropertyImagesService } from './property-images.service';
     AdminPropertiesController,
     PropertyImagesController,
   ],
-  providers: [PropertiesService, PropertyImagesService, PropertyAlertsCron],
+  providers: [
+    PropertiesService,
+    PropertyImagesService,
+    PropertyAlertsCron,
+    SearchEventsCleanupCron,
+  ],
 })
 export class PropertiesModule {}

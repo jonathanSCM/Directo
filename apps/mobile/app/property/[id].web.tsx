@@ -248,6 +248,7 @@ export default function PropertyDetailWeb() {
 
   const openWhatsApp = () => {
     if (!phone) return;
+    api.post(`/properties/${property.id}/contact-click`).catch(() => {});
     Linking.openURL(`https://wa.me/${phone.replace(/\D/g, '')}?text=Hola, me interesa "${property.title}" en DIRECTO. ¿Está disponible?`);
   };
 

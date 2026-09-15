@@ -96,6 +96,174 @@ export class AdminService {
         pending: pendingPayments,
       },
       recentActivity,
+      analytics: await this.dashboardAnalytics(thirtyDaysAgo, now),
+    };
+  }
+
+  /**
+   * Series de tiempo, desgloses y analítica de búsquedas para el dashboard.
+   * Separado de las cuentas de arriba porque mezcla SQL crudo (agrupar por
+   * día no es nativo en Prisma) con lookups en cadena que no entran en un
+   * `$transaction` de array — no es crítico que sea perfectamente
+   * consistente entre sí, es una pantalla de lectura.
+   */
+  private async dashboardAnalytics(from: Date, to: Date) {
+    const [
+      dailyUsers,
+      dailyProperties,
+      dailyRevenue,
+      propertiesByZoneRaw,
+      propertiesByType,
+      propertiesByOperation,
+      topViewedProperties,
+      subscriptionsByPlanRaw,
+      confirmedSubPayments,
+      adsAgg,
+      searchesByZoneRaw,
+      searchesByOperation,
+      zeroResultSearches,
+      totalSearches,
+    ] = await Promise.all([
+      this.prisma.$queryRaw<{ date: Date; count: bigint }[]>`
+        SELECT d::date AS date, COUNT(u.id)::int AS count
+        FROM generate_series(${from}::date, ${to}::date, interval '1 day') d
+        LEFT JOIN users u ON u.created_at::date = d::date
+        GROUP BY d ORDER BY d`,
+      this.prisma.$queryRaw<{ date: Date; count: bigint }[]>`
+        SELECT d::date AS date, COUNT(p.id)::int AS count
+        FROM generate_series(${from}::date, ${to}::date, interval '1 day') d
+        LEFT JOIN properties p ON p.published_at::date = d::date
+        GROUP BY d ORDER BY d`,
+      this.prisma.$queryRaw<{ date: Date; total: string | null }[]>`
+        SELECT d::date AS date, SUM(pay.amount)::text AS total
+        FROM generate_series(${from}::date, ${to}::date, interval '1 day') d
+        LEFT JOIN payments pay ON pay.paid_at::date = d::date AND pay.status = 'confirmed'
+        GROUP BY d ORDER BY d`,
+      this.prisma.properties.groupBy({
+        by: ['zone_id'],
+        where: { status: 'published', zone_id: { not: null } },
+        _count: true,
+        orderBy: { _count: { zone_id: 'desc' } },
+        take: 10,
+      }),
+      this.prisma.properties.groupBy({
+        by: ['property_type_id'],
+        where: { status: 'published' },
+        _count: true,
+        orderBy: { _count: { property_type_id: 'desc' } },
+      }),
+      this.prisma.properties.groupBy({
+        by: ['operation'],
+        where: { status: 'published' },
+        _count: true,
+      }),
+      this.prisma.properties.findMany({
+        where: { status: 'published' },
+        select: { id: true, title: true, slug: true, views_count: true },
+        orderBy: { views_count: 'desc' },
+        take: 10,
+      }),
+      this.prisma.subscriptions.groupBy({
+        by: ['plan_id'],
+        where: { status: 'active' },
+        _count: true,
+      }),
+      this.prisma.payments.findMany({
+        where: { status: 'confirmed', subscription_id: { not: null } },
+        select: {
+          amount: true,
+          subscriptions: { select: { subscription_plans: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.ads.aggregate({ _sum: { views_used: true, clicks_used: true } }),
+      this.prisma.search_events.groupBy({
+        by: ['zone_id'],
+        where: { zone_id: { not: null } },
+        _count: true,
+        orderBy: { _count: { zone_id: 'desc' } },
+        take: 10,
+      }),
+      this.prisma.search_events.groupBy({
+        by: ['operation'],
+        where: { operation: { not: null } },
+        _count: true,
+      }),
+      this.prisma.search_events.findMany({
+        where: { results_count: 0 },
+        select: { zone_id: true, city: true, operation: true, min_price: true, max_price: true, created_at: true },
+        orderBy: { created_at: 'desc' },
+        take: 20,
+      }),
+      this.prisma.search_events.count(),
+    ]);
+
+    // Nombres de zonas/tipos, para no dejar los breakdowns con solo IDs.
+    const zoneIds = [
+      ...new Set([
+        ...propertiesByZoneRaw.map((r) => r.zone_id).filter((id): id is string => !!id),
+        ...searchesByZoneRaw.map((r) => r.zone_id).filter((id): id is string => !!id),
+        ...zeroResultSearches.map((r) => r.zone_id).filter((id): id is string => !!id),
+      ]),
+    ];
+    const typeIds = propertiesByType.map((r) => r.property_type_id);
+    const [zones, types] = await Promise.all([
+      this.prisma.zones.findMany({ where: { id: { in: zoneIds } }, select: { id: true, name: true } }),
+      this.prisma.property_types.findMany({ where: { id: { in: typeIds } }, select: { id: true, name: true } }),
+    ]);
+    const zoneName = (id: string | null) => zones.find((z) => z.id === id)?.name ?? 'Sin zona';
+    const typeName = (id: string) => types.find((t) => t.id === id)?.name ?? id;
+
+    const revenueByPlan = new Map<string, number>();
+    for (const p of confirmedSubPayments) {
+      const planName = p.subscriptions?.subscription_plans?.name ?? 'Otro';
+      revenueByPlan.set(planName, (revenueByPlan.get(planName) ?? 0) + Number(p.amount));
+    }
+
+    const planIds = subscriptionsByPlanRaw.map((r) => r.plan_id);
+    const plans = await this.prisma.subscription_plans.findMany({
+      where: { id: { in: planIds } },
+      select: { id: true, name: true },
+    });
+
+    const viewsUsed = adsAgg._sum.views_used ?? 0;
+    const clicksUsed = adsAgg._sum.clicks_used ?? 0;
+
+    return {
+      timeSeries: dailyUsers.map((row, i) => ({
+        date: row.date,
+        newUsers: Number(row.count),
+        newProperties: Number(dailyProperties[i]?.count ?? 0),
+        revenue: Number(dailyRevenue[i]?.total ?? 0),
+      })),
+      propertiesByZone: propertiesByZoneRaw.map((r) => ({
+        zone: zoneName(r.zone_id),
+        count: r._count,
+      })),
+      propertiesByType: propertiesByType.map((r) => ({
+        type: typeName(r.property_type_id),
+        count: r._count,
+      })),
+      propertiesByOperation: propertiesByOperation.map((r) => ({
+        operation: r.operation,
+        count: r._count,
+      })),
+      topViewedProperties,
+      subscriptionsByPlan: subscriptionsByPlanRaw.map((r) => ({
+        plan: plans.find((p) => p.id === r.plan_id)?.name ?? 'Plan',
+        count: r._count,
+      })),
+      revenueByPlan: Array.from(revenueByPlan.entries()).map(([plan, total]) => ({ plan, total })),
+      ads: {
+        viewsUsed,
+        clicksUsed,
+        ctr: viewsUsed > 0 ? (clicksUsed / viewsUsed) * 100 : 0,
+      },
+      search: {
+        total: totalSearches,
+        topZones: searchesByZoneRaw.map((r) => ({ zone: zoneName(r.zone_id), count: r._count })),
+        byOperation: searchesByOperation.map((r) => ({ operation: r.operation, count: r._count })),
+        zeroResult: zeroResultSearches.map((r) => ({ ...r, zone: zoneName(r.zone_id) })),
+      },
     };
   }
 
