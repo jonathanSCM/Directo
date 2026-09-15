@@ -26,20 +26,19 @@ export class AdsService {
   ) {}
 
   /**
-   * Marketplace self-service: una empresa con un plan `is_business` activo
-   * puede crear su empresa y sus propios anuncios (quedan `pending_review`
-   * hasta que el admin los aprueba, ver `createAd`). La publicidad "casa"
-   * (admin) usa un camino aparte que no pasa por acá, ver `adminCreateAd`.
+   * El marketplace self-service (empresa externa compra plan "Empresas" y
+   * gestiona sus propios anuncios) está construido pero desactivado a
+   * propósito por decisión de producto — todavía no se lanza, queda para
+   * más adelante. La publicidad "casa" (admin) usa un camino aparte que no
+   * pasa por acá, ver `adminCreateAd`.
    */
-  private async requireBusinessSubscription(userId: string) {
-    const sub = await this.prisma.subscriptions.findFirst({
-      where: { user_id: userId, status: 'active', subscription_plans: { is_business: true } },
-      include: { subscription_plans: true },
-    });
-    if (!sub) {
-      throw new ForbiddenException('Necesitas un plan de Empresas activo para publicitar');
-    }
-    return sub;
+  private async requireBusinessSubscription(_userId: string): Promise<{
+    id: string;
+    start_date: Date | null;
+    end_date: Date | null;
+    subscription_plans: { ad_views: number };
+  }> {
+    throw new ForbiddenException('La publicidad de empresas está desactivada');
   }
 
   /**

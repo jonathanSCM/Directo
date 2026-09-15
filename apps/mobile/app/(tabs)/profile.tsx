@@ -248,13 +248,6 @@ export default function ProfileScreen() {
             label="Mis estadísticas"
             onPress={() => router.push('/stats')}
           />
-          {agentPlan?.is_business && (
-            <MenuItem
-              icon="megaphone-outline"
-              label="Mi empresa y publicidad"
-              onPress={() => router.push('/company-ads')}
-            />
-          )}
           <MenuItem
             icon="headset-outline"
             label="Contactar con un asistente de ventas"

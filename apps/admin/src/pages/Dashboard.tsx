@@ -237,19 +237,7 @@ export default function Dashboard() {
       </div>
 
       <div className="stats-grid" style={{ marginTop: 24 }}>
-        <div className="stat-card">
-          <div className="stat-label">Vistas de anuncios</div>
-          <div className="stat-value">{a.ads.viewsUsed.toLocaleString()}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Clics en anuncios</div>
-          <div className="stat-value">{a.ads.clicksUsed.toLocaleString()}</div>
-        </div>
         <div className="stat-card blue">
-          <div className="stat-label">CTR de anuncios</div>
-          <div className="stat-value">{a.ads.ctr.toFixed(2)}%</div>
-        </div>
-        <div className="stat-card">
           <div className="stat-label">Búsquedas totales</div>
           <div className="stat-value">{a.search.total.toLocaleString()}</div>
           <div className="stat-sub">{a.search.zeroResult.length} sin resultados (últimas 20)</div>

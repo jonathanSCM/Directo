@@ -89,7 +89,6 @@ export default function AdPopupModal({
   if (!imageUri) return null;
 
   const handlePress = () => {
-    api.post(`/ads/${ad.id}/click`).catch(() => {});
     if (ad.link_url) Linking.openURL(ad.link_url);
     close();
   };

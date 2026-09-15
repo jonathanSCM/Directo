@@ -4,7 +4,7 @@ import api, { getImageUrl } from '../services/api';
 
 type Placement = 'banner' | 'popup' | 'both';
 
-type AdStatus = 'active' | 'paused' | 'pending_review';
+type AdStatus = 'active' | 'paused';
 
 interface Ad {
   id: string;
@@ -15,8 +15,6 @@ interface Ad {
   ends_at: string | null;
   placement: Placement;
   created_at: string;
-  views_used: number;
-  clicks_used: number;
   companies: { name: string; user_id: string };
 }
 
@@ -25,13 +23,6 @@ const PLACEMENT_LABEL: Record<Placement, string> = {
   popup: 'Popup',
   both: 'Banner + Popup',
 };
-
-const STATUS_FILTERS = [
-  { value: 'all', label: 'Todos' },
-  { value: 'pending_review', label: 'Pendientes' },
-  { value: 'active', label: 'Activos' },
-  { value: 'paused', label: 'Pausados' },
-] as const;
 
 const EMPTY_FORM = { title: '', link_url: '', ends_at: '', placement: 'both' as Placement };
 
@@ -45,7 +36,6 @@ export default function Ads() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]['value']>('all');
 
   const fetchAds = useCallback(async () => {
     setLoading(true);
@@ -115,16 +105,16 @@ export default function Ads() {
     setSaving(false);
   };
 
-  const setStatus = async (ad: Ad, status: 'active' | 'paused') => {
+  const toggleStatus = async (ad: Ad) => {
     try {
-      await api.patch(`/admin/ads/${ad.id}/status`, { status });
+      await api.patch(`/admin/ads/${ad.id}/status`, {
+        status: ad.status === 'active' ? 'paused' : 'active',
+      });
       fetchAds();
     } catch (e: any) {
       alert(e.response?.data?.message ?? 'No se pudo cambiar el estado');
     }
   };
-
-  const filteredAds = statusFilter === 'all' ? ads : ads.filter((ad) => ad.status === statusFilter);
 
   const remove = async (ad: Ad) => {
     if (!confirm(`¿Eliminar el anuncio "${ad.title}"? Esta acción no se puede deshacer.`)) return;
@@ -154,43 +144,27 @@ export default function Ads() {
       </div>
 
       <div className="card">
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2>Banners ({filteredAds.length})</h2>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {STATUS_FILTERS.map((f) => (
-              <button
-                key={f.value}
-                className={`btn btn-sm ${statusFilter === f.value ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setStatusFilter(f.value)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+        <div className="card-header">
+          <h2>Banners ({ads.length})</h2>
         </div>
         <table>
           <thead>
             <tr>
               <th>Banner</th>
               <th>Título</th>
-              <th>Empresa</th>
               <th>Link</th>
               <th>Tipo</th>
-              <th>Vistas</th>
-              <th>Clics</th>
-              <th>CTR</th>
               <th>Vencimiento</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {filteredAds.length === 0 && (
-              <tr><td colSpan={11} className="empty-row">Nada para mostrar acá</td></tr>
+            {ads.length === 0 && (
+              <tr><td colSpan={7} className="empty-row">Todavía no cargaste ningún banner</td></tr>
             )}
-            {filteredAds.map((ad) => {
+            {ads.map((ad) => {
               const expired = ad.status === 'paused' && ad.ends_at && new Date(ad.ends_at) < new Date();
-              const ctr = ad.views_used > 0 ? ((ad.clicks_used / ad.views_used) * 100).toFixed(1) + '%' : '—';
               return (
                 <tr key={ad.id} style={{ opacity: ad.status === 'active' ? 1 : 0.5 }}>
                   <td>
@@ -201,21 +175,15 @@ export default function Ads() {
                     />
                   </td>
                   <td><strong>{ad.title}</strong></td>
-                  <td>{ad.companies?.name ?? '—'}</td>
                   <td>
                     {ad.link_url
                       ? <a href={ad.link_url} target="_blank" rel="noreferrer" style={{ fontSize: 13 }}>{ad.link_url}</a>
                       : <span className="text-muted">—</span>}
                   </td>
                   <td>{PLACEMENT_LABEL[ad.placement] ?? 'Banner + Popup'}</td>
-                  <td>{ad.views_used.toLocaleString()}</td>
-                  <td>{ad.clicks_used.toLocaleString()}</td>
-                  <td>{ctr}</td>
                   <td>{fmt(ad.ends_at)}</td>
                   <td>
-                    {ad.status === 'pending_review' ? (
-                      <span className="badge badge-yellow">Pendiente</span>
-                    ) : expired ? (
+                    {expired ? (
                       <span className="badge badge-gray">Vencido</span>
                     ) : (
                       <span className={`badge ${ad.status === 'active' ? 'badge-green' : 'badge-gray'}`}>
@@ -226,19 +194,12 @@ export default function Ads() {
                   <td>
                     <div className="actions-cell">
                       <button className="btn btn-sm btn-outline" onClick={() => openEdit(ad)}>Editar</button>
-                      {ad.status === 'pending_review' ? (
-                        <>
-                          <button className="btn btn-sm btn-success" onClick={() => setStatus(ad, 'active')}>Aprobar</button>
-                          <button className="btn btn-sm btn-warning" onClick={() => setStatus(ad, 'paused')}>Rechazar</button>
-                        </>
-                      ) : (
-                        <button
-                          className={`btn btn-sm ${ad.status === 'active' ? 'btn-warning' : 'btn-success'}`}
-                          onClick={() => setStatus(ad, ad.status === 'active' ? 'paused' : 'active')}
-                        >
-                          {ad.status === 'active' ? 'Pausar' : 'Activar'}
-                        </button>
-                      )}
+                      <button
+                        className={`btn btn-sm ${ad.status === 'active' ? 'btn-warning' : 'btn-success'}`}
+                        onClick={() => toggleStatus(ad)}
+                      >
+                        {ad.status === 'active' ? 'Pausar' : 'Activar'}
+                      </button>
                       <button className="btn btn-sm btn-danger" onClick={() => remove(ad)}>Eliminar</button>
                     </div>
                   </td>
