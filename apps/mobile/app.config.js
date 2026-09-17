@@ -19,7 +19,7 @@ export default {
     android: {
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-foreground.png",
-        backgroundColor: "#FFFFFF",
+        backgroundColor: "#2563EB",
       },
       softwareKeyboardLayoutMode: "pan",
       package: "com.directo.app",
