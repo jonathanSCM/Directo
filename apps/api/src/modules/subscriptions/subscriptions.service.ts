@@ -95,7 +95,22 @@ export class SubscriptionsService {
 
     const existing = await this.getActiveSubscription(userId);
     if (existing) {
-      throw new ConflictException('Ya tienes una suscripción activa');
+      const existingIsFree = Number(existing.subscription_plans.price) === 0;
+      if (!existingIsFree || isFree) {
+        // Ya tiene un plan pago activo (usa "Renovar" para ese caso), o está
+        // en el gratis y quiere "activarlo" de nuevo — ninguno de los dos
+        // pasa por acá.
+        throw new ConflictException('Ya tienes una suscripción activa');
+      }
+      // Está en el plan gratis y quiere pasar a uno pago: se cancela el
+      // gratis para dejar lugar a la suscripción nueva (el índice único
+      // solo permite una activa/pendiente de pago por usuario a la vez).
+      // `free_trial_used` ya quedó marcado cuando activó el gratis, así que
+      // sigue sin poder reclamarlo de nuevo más adelante.
+      await this.prisma.subscriptions.update({
+        where: { id: existing.id },
+        data: { status: 'cancelled' },
+      });
     }
 
     if (isFree) {

@@ -1,58 +1,34 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { usePathname, useRouter } from 'expo-router';
+import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { Colors, Fonts, Radius, Spacing } from '../../constants/theme';
-import api from '../../services/api';
 
 /**
  * Banner fijo sobre el tab bar para el propietario, con 3 estados:
- * - Nunca usó el plan gratis          -> CTA que lo activa y abre el
- *   formulario de crear propiedad de una vez.
+ * - Nunca usó el plan gratis          -> CTA que lo manda a elegir plan
+ *   (ya no lo activa solo con un toque, ver `goToPlans`).
  * - Está usando el plan gratis ahora  -> empuja a mejorar de plan, mostrando
  *   cuántos días le quedan (retención + upsell antes de que venza).
  * - Ya usó el plan gratis y no tiene sub activa -> empuja a comprar un plan.
  */
 export default function PublishFreeBanner() {
   const { user, switchRole } = useAuth();
-  const { isActive, isFreePlanActive, daysLeft, loading, freeTrialUsed, plans, freePlan, refresh } =
+  const { isActive, isFreePlanActive, daysLeft, loading, freeTrialUsed, freePlan } =
     useSubscription();
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const pathname = usePathname();
 
   if (loading || !user || user.active_role !== 'owner') return null;
   if (isActive && !isFreePlanActive) return null; // ya tiene un plan pago activo, nada que promocionar
-
-  const ensureOwnerMode = async () => {
-    if (user.active_role !== 'owner') await switchRole('owner');
-  };
-
-  const claimFree = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await ensureOwnerMode();
-      const plan = plans.find((p) => Number(p.price) === 0);
-      if (!plan) {
-        router.push('/subscription');
-        return;
-      }
-      await api.post('/subscriptions/activate', { plan_id: plan.id });
-      await refresh();
-      router.push('/create-property');
-    } catch {
-      // Ya usado / conflicto: que elija plan en la pantalla completa
-      router.push('/subscription');
-    } finally {
-      setBusy(false);
-    }
-  };
+  // Tapa el botón de cerrar sesión y el resto del menú en Perfil — ahí no.
+  if (pathname?.includes('/profile')) return null;
 
   const goToPlans = async () => {
-    await ensureOwnerMode();
+    if (user.active_role !== 'owner') await switchRole('owner');
     router.push('/subscription');
   };
 
@@ -85,7 +61,7 @@ export default function PublishFreeBanner() {
   if (!freeTrialUsed && freePlan) {
     return (
       <View style={styles.wrap}>
-        <TouchableOpacity onPress={claimFree} activeOpacity={0.88}>
+        <TouchableOpacity onPress={goToPlans} activeOpacity={0.88}>
           <LinearGradient colors={['#22C55E', '#15803D']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.banner}>
             <View style={styles.iconWrap}>
               <Ionicons name="gift" size={22} color={Colors.white} />
@@ -95,7 +71,7 @@ export default function PublishFreeBanner() {
               <Text style={styles.subtitle}>1 propiedad · {freePlan.duration_days} días · sin tarjeta</Text>
             </View>
             <View style={styles.cta}>
-              <Text style={[styles.ctaText, { color: '#15803D' }]}>{busy ? '...' : 'Publicar'}</Text>
+              <Text style={[styles.ctaText, { color: '#15803D' }]}>Ver plan</Text>
             </View>
           </LinearGradient>
         </TouchableOpacity>
