@@ -16,6 +16,7 @@ import {
 import { getImageUrl } from '../constants/api';
 import api from '../services/api';
 import { Colors, Fonts, Radius, Spacing } from '../constants/theme';
+import { consumeSuppressNextPopup } from '../utils/exploreAdSuppress';
 
 const SCREEN = Dimensions.get('window');
 const CARD_MAX_WIDTH = Math.min(440, SCREEN.width - Spacing.lg * 2);
@@ -33,9 +34,10 @@ const COOLDOWN_MINUTES = 2;
 
 /**
  * Pop-up de publicidad (mismos banners que carga el admin) que aparece al
- * entrar a la pestaña Explorar, como mucho una vez cada COOLDOWN_MINUTES —
- * evita que se repita en cada entrada/salida rápida de una propiedad. Si no
- * hay ad disponible, no muestra nada.
+ * entrar a la pestaña Explorar desde otra pestaña, como mucho una vez cada
+ * COOLDOWN_MINUTES. No se muestra al volver del detalle de una propiedad
+ * (ver `exploreAdSuppress`) — solo al cambiar de pestaña hacia Explorar. Si
+ * no hay ad disponible, no muestra nada.
  */
 export default function AdPopupModal({
   latitude,
@@ -51,6 +53,9 @@ export default function AdPopupModal({
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
+      // Volver del detalle de una propiedad también dispara este foco —
+      // no cuenta como "entrar a Explorar" para este popup.
+      if (consumeSuppressNextPopup()) return;
       (async () => {
         try {
           const lastShown = await AsyncStorage.getItem(LAST_SHOWN_KEY);

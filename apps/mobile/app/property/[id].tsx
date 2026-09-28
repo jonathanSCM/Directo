@@ -23,6 +23,7 @@ import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import Avatar from '../../src/components/Avatar';
 import ReportPropertyModal from '../../src/components/ReportPropertyModal';
 import AdBanner from '../../src/components/AdBanner';
+import { markPropertyDetailOpened } from '../../src/utils/exploreAdSuppress';
 
 const { width } = Dimensions.get('window');
 
@@ -92,6 +93,10 @@ export default function PropertyDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [imgIndex, setImgIndex] = useState(0);
   const [reportVisible, setReportVisible] = useState(false);
+
+  useEffect(() => {
+    markPropertyDetailOpened();
+  }, []);
 
   useEffect(() => {
     (async () => {

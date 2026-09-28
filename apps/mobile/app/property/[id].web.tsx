@@ -22,6 +22,7 @@ import { Colors, Fonts, Radius, Spacing } from '../../src/constants/theme';
 import Avatar from '../../src/components/Avatar';
 import ReportPropertyModal from '../../src/components/ReportPropertyModal';
 import AdBanner from '../../src/components/AdBanner';
+import { markPropertyDetailOpened } from '../../src/utils/exploreAdSuppress';
 
 interface PropertyImage { id: string; url: string; is_main: boolean; }
 interface PropertyDetail {
@@ -200,6 +201,10 @@ export default function PropertyDetailWeb() {
   const [activeImg, setActiveImg] = useState(0);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [reportVisible, setReportVisible] = useState(false);
+
+  useEffect(() => {
+    markPropertyDetailOpened();
+  }, []);
 
   useEffect(() => {
     (async () => {
