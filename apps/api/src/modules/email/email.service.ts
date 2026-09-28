@@ -73,6 +73,26 @@ export class EmailService {
     await this.send(to, 'Recuperar tu contraseña — DIRECTO', html);
   }
 
+  async sendVerificationEmail(to: string, name: string, code: string, deepLink: string) {
+    const html = `
+      <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #1D4ED8;">Verificá tu correo</h2>
+        <p>Hola ${name.split(' ')[0]}, usá este código para verificar tu cuenta en DIRECTO:</p>
+        <div style="background: #F3F4F6; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center;">
+          <span style="font-family: 'Courier New', monospace; font-size: 36px; font-weight: 700; letter-spacing: 10px; color: #111827;">${code}</span>
+        </div>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${deepLink}" style="background: #1D4ED8; color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 700; display: inline-block;">
+            Verificar automáticamente
+          </a>
+        </p>
+        <p style="color: #6B7280; font-size: 13px;">El botón te lleva directo a la app con el código ya cargado. Si no te funciona, abrí DIRECTO e ingresá el código a mano.</p>
+        <p style="color: #9CA3AF; font-size: 12px;">Este código vence en 15 minutos. Si no creaste una cuenta en DIRECTO, podés ignorar este correo.</p>
+      </div>
+    `;
+    await this.send(to, 'Verificá tu correo — DIRECTO', html);
+  }
+
   async sendWeeklyPropertyAlert(
     to: string,
     name: string,

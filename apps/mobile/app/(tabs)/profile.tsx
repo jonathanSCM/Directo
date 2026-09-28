@@ -207,6 +207,14 @@ export default function ProfileScreen() {
         label="Editar perfil"
         onPress={() => router.push('/edit-profile')}
       />
+      {!user?.email_verified_at && (
+        <MenuItem
+          icon="mail-unread-outline"
+          label="Verificar correo"
+          color="#F59E0B"
+          onPress={() => router.push('/verify-email')}
+        />
+      )}
       <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/notifications')}>
         <View>
           <Ionicons name="notifications-outline" size={22} color={Colors.gray[600]} />

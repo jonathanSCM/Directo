@@ -168,7 +168,7 @@ function AssistantScreen({ visible, onClose }: { visible: boolean; onClose: () =
   return (
     <Modal visible={visible} transparent={floatingWeb} animationType={floatingWeb ? 'fade' : 'slide'} onRequestClose={onClose}>
       <View style={floatingWeb ? styles.webOverlay : styles.fill} pointerEvents="box-none">
-      <KeyboardAvoidingView style={[styles.container, floatingWeb && styles.webFloating]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={[styles.container, floatingWeb && styles.webFloating]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[styles.header, floatingWeb && styles.webHeader]}>
           <View style={styles.headerLeft}>
             <View style={styles.botAvatar}><Ionicons name="headset" size={18} color={Colors.white} /></View>

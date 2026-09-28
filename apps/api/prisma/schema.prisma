@@ -333,6 +333,8 @@ model users {
   free_trial_used                               Boolean                 @default(false)
   google_id                                     String?                 @unique @db.VarChar(255)
   is_verified                                   Boolean                 @default(false)
+  verification_code_hash                        String?                 @db.VarChar(64)
+  verification_code_expires_at                  DateTime?               @db.Timestamptz(6)
   admin_logs                                    admin_logs[]
   favorites                                     favorites[]
   notifications                                 notifications[]

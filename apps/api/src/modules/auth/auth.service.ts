@@ -17,10 +17,12 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { RoleMode, SessionContext } from './types/jwt-payload.interface';
 
 const BCRYPT_ROUNDS = 12;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
+const VERIFICATION_CODE_TTL_MS = 15 * 60 * 1000; // 15 minutos
 
 @Injectable()
 export class AuthService {
@@ -72,6 +74,15 @@ export class AuthService {
 
     const roles = ['buyer', 'owner'];
     const tokens = await this.issueTokens(user, roles, ctx);
+
+    // No debe romper el registro si el email falla (Resend caído, etc.) —
+    // el usuario igual puede verificar más tarde desde "Verificar correo".
+    // EmailService.send ya loguea puertas adentro y nunca tira; esto es
+    // resguardo extra por si el guardado del código en sí falla.
+    try {
+      await this.sendVerificationCode(user.id, user.email, user.name);
+    } catch {}
+
     return { user: this.sanitize(user), roles, ...tokens };
   }
 
@@ -254,6 +265,60 @@ export class AuthService {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
+  // Verificación de correo (código, distinto de `is_verified` — esa es la
+  // insignia de confianza que pone el admin a mano)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  private async sendVerificationCode(userId: string, email: string, name: string) {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await this.prisma.users.update({
+      where: { id: userId },
+      data: {
+        verification_code_hash: this.sha256(code),
+        verification_code_expires_at: new Date(Date.now() + VERIFICATION_CODE_TTL_MS),
+      },
+    });
+    const deepLink = `directo://verify-email?email=${encodeURIComponent(email)}&code=${code}`;
+    await this.email.sendVerificationEmail(email, name, code, deepLink);
+  }
+
+  async verifyEmail(dto: VerifyEmailDto) {
+    const user = await this.prisma.users.findUnique({
+      where: { email: dto.email },
+    });
+    if (
+      !user ||
+      !user.verification_code_hash ||
+      user.verification_code_hash !== this.sha256(dto.code)
+    ) {
+      throw new BadRequestException('Código inválido');
+    }
+    if (!user.verification_code_expires_at || user.verification_code_expires_at < new Date()) {
+      throw new BadRequestException('El código venció, pedí uno nuevo');
+    }
+
+    await this.prisma.users.update({
+      where: { id: user.id },
+      data: {
+        email_verified_at: new Date(),
+        verification_code_hash: null,
+        verification_code_expires_at: null,
+      },
+    });
+    return { message: 'Correo verificado correctamente' };
+  }
+
+  async resendVerificationCode(userId: string) {
+    const user = await this.prisma.users.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('Usuario no encontrado');
+    if (user.email_verified_at) {
+      return { message: 'Tu correo ya está verificado' };
+    }
+    await this.sendVerificationCode(user.id, user.email, user.name);
+    return { message: 'Te mandamos un código nuevo' };
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
   // Google OAuth
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -404,7 +469,7 @@ export class AuthService {
   }
 
   private sanitize(user: users) {
-    const { password_hash, ...rest } = user;
+    const { password_hash, verification_code_hash, verification_code_expires_at, ...rest } = user;
     return rest;
   }
 }

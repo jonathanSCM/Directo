@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import { authService } from '../services/auth';
@@ -17,6 +18,7 @@ interface User {
   city?: string;
   avatar_url?: string;
   is_verified?: boolean;
+  email_verified_at?: string | null;
   active_role: string;
   status: string;
 }
@@ -75,6 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  const justRegistered = useRef(false);
+
   useEffect(() => {
     if (isLoading) return;
     const inAuthGroup = segments[0] === '(auth)';
@@ -82,7 +86,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated && !inAuthGroup) {
       // allow unauthenticated users to browse tabs
     } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(tabs)');
+      if (justRegistered.current) {
+        justRegistered.current = false;
+        router.replace('/verify-email');
+      } else {
+        router.replace('/(tabs)');
+      }
     }
   }, [isAuthenticated, segments, isLoading]);
 
@@ -110,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       city?: string;
     }) => {
       const { data } = await authService.register(regData);
+      justRegistered.current = true;
       await handleAuthResponse(data);
     },
     [handleAuthResponse],

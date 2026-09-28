@@ -176,6 +176,15 @@ export class PropertiesService {
     }
     // Regla §18: exige suscripción activa (el tope de propiedades ya no bloquea).
     await this.subscriptions.assertHasActiveSubscription(user.id);
+    // El JWT no trae email_verified_at (evita quedar desactualizado si
+    // verifica en medio de la sesión) — se busca fresco acá.
+    const owner = await this.prisma.users.findUnique({
+      where: { id: user.id },
+      select: { email_verified_at: true },
+    });
+    if (!owner?.email_verified_at) {
+      throw new ForbiddenException('Verificá tu correo antes de publicar una propiedad');
+    }
     // Si ya está verificada (aprobada) y no se editó desde entonces, mostrarla
     // de nuevo (ej. la había ocultado) no debe pasar otra vez por moderación.
     const alreadyVerified = prop.approval_status === 'approved';

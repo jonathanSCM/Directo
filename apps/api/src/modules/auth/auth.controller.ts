@@ -25,6 +25,7 @@ import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SwitchRoleDto } from './dto/switch-role.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import type { AuthUser, SessionContext } from './types/jwt-payload.interface';
 
 interface IssuedTokens {
@@ -187,5 +188,23 @@ export class AuthController {
   @ApiOperation({ summary: 'Restablecer la contraseña con un token' })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('verify-email')
+  @ApiOperation({ summary: 'Verificar el correo con el código enviado al registrarse' })
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto);
+  }
+
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 3, ttl: 300_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('resend-verification')
+  @ApiOperation({ summary: 'Reenviar el código de verificación de correo' })
+  resendVerification(@CurrentUser('id') userId: string) {
+    return this.authService.resendVerificationCode(userId);
   }
 }

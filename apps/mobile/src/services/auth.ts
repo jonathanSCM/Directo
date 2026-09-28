@@ -38,4 +38,12 @@ export const authService = {
   resetPassword(token: string, password: string) {
     return api.post('/auth/reset-password', { token, password });
   },
+
+  verifyEmail(email: string, code: string) {
+    return api.post('/auth/verify-email', { email, code });
+  },
+
+  resendVerification() {
+    return api.post('/auth/resend-verification');
+  },
 };

@@ -86,6 +86,10 @@ export default function RootLayout() {
             name="stats"
             options={{ headerShown: false }}
           />
+          <Stack.Screen
+            name="verify-email"
+            options={{ headerShown: false }}
+          />
         </Stack>
         <OwnerSupportFAB />
         </SupportChatProvider>
