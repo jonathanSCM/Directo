@@ -23,6 +23,7 @@ import api from '../src/services/api';
 import ExtraPropertyPaymentModal from '../src/components/subscription/ExtraPropertyPaymentModal';
 
 const IS_DESKTOP = Dimensions.get('window').width >= 768;
+const STADIA_MAPS_API_KEY = process.env.EXPO_PUBLIC_STADIA_MAPS_API_KEY;
 
 // ── Leaflet CSS ──────────────────────────────────────────────────────────────
 function useLeafletCSS() {
@@ -662,8 +663,8 @@ export default function CreatePropertyWeb() {
               zoomControl={false}
             >
               <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url={`https://tiles.stadiamaps.com/tiles/alidade_bright/{z}/{x}/{y}{r}.png?api_key=${STADIA_MAPS_API_KEY}`}
               />
               <MapClickHandler onPress={(lat, lng) => updateLocation(lat, lng)} />
               <MapFly coord={flyTarget} />
