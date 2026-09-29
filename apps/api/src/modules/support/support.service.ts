@@ -52,6 +52,17 @@ export class SupportService {
       where: { id: conversationId, user_id: userId },
     });
     if (!conv) throw new NotFoundException('Conversación no encontrada');
+
+    // Si el usuario escribe de nuevo a un hilo ya resuelto, reabrirlo —
+    // si no, el mensaje nuevo queda invisible: el admin filtra por "Activos"
+    // y la lista se ordena por última actividad (ver admin-support.controller).
+    await this.prisma.support_conversations.update({
+      where: { id: conversationId },
+      data: {
+        status: 'active',
+        updated_at: new Date(),
+      },
+    });
     return this.addMessage(conversationId, 'user', content, nodeId, options);
   }
 

@@ -31,7 +31,7 @@ export class AdminSupportController {
 
     const tickets = await this.prisma.support_conversations.findMany({
       where,
-      orderBy: { created_at: 'desc' },
+      orderBy: { updated_at: 'desc' },
       take: 100,
       include: {
         users: { select: { id: true, name: true, email: true, phone: true } },
