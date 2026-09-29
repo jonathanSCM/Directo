@@ -290,7 +290,7 @@ export default function Support() {
                         <td style={{ fontSize: 13 }}>{fmtDate(t.created_at)}</td>
                         <td>
                           <div style={{ display: 'flex', gap: 6 }}>
-                            <button className="btn btn-sm btn-outline" onClick={() => { setSelectedTicket(t); setReplyText(''); }}>
+                            <button className="btn btn-sm btn-outline" onClick={() => { setSelectedTicket(t); setReplyText(''); refreshTicketMessages(t.id); }}>
                               Ver
                             </button>
                             {t.status === 'active' && (
