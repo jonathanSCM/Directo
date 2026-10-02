@@ -325,7 +325,12 @@ export class AuthService {
   async googleAuth(idToken: string, ctx: SessionContext) {
     const ticket = await this.googleClient.verifyIdToken({
       idToken,
-      audience: this.config.get<string>('GOOGLE_CLIENT_ID'),
+      // Acepta varios client IDs separados por coma (Web + Android): el token
+      // de la app nativa viene con el ID del cliente Android como audience.
+      audience: (this.config.get<string>('GOOGLE_CLIENT_ID') ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
     }).catch(() => {
       throw new UnauthorizedException('Token de Google inválido');
     });
